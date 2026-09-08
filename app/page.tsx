@@ -4,6 +4,13 @@ import Link from "next/link";
 const pages = [
   { href: "/", title: "All pages" },
   { href: "/login", title: "Login" },
+  { href: "/reset-password", title: "Reset password" },
+  { href: "/401", title: "401 · Sign in required" },
+  { href: "/403", title: "403 · Access denied" },
+  { href: "/404", title: "404 · Page not found" },
+  { href: "/429", title: "429 · Too many requests" },
+  { href: "/500", title: "500 · Unexpected error" },
+  { href: "/503", title: "503 · Temporarily unavailable" },
 ];
 
 export default function Home() {

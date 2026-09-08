@@ -4,6 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@keyframes banner-countdown {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 100; }
+}
+
 @keyframes tip-progress {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }

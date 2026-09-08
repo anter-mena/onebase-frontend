@@ -37,7 +37,7 @@ export function RotatingTips() {
 
   return (
     <div className="w-full px-4 text-xs leading-relaxed text-white" aria-label="One Base feature tips">
-      <div className="relative grid overflow-hidden rounded-lg border border-white/30 p-4 shadow-sm">
+      <div className="relative grid overflow-hidden rounded-lg border border-white/30 px-4 py-6 shadow-sm">
         <LiquidGlassLayers />
         <button
           type="button"

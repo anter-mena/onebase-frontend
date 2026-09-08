@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Command, GalleryVerticalEnd, LifeBuoy } from "lucide-react";
+import { Command, GalleryVerticalEnd } from "lucide-react";
 
 import { LoginForm } from "@/components/login/loginForm";
+import { AuthFooter } from "@/components/auth/authFooter";
 import { RotatingTips } from "@/components/login/rotatingTips";
 
 export const metadata: Metadata = {
@@ -33,19 +34,7 @@ export default function LoginPage() {
             <LoginForm />
           </div>
         </main>
-        <footer className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-6 py-8 text-xs text-muted-foreground md:px-10 lg:py-10">
-          <div className="flex flex-wrap items-center gap-4">
-            <p>© 2026 One Base</p>
-            <Link href="#" className="inline-flex items-center gap-1 hover:text-foreground">
-              <LifeBuoy className="size-3" aria-hidden />
-              Help Center
-            </Link>
-          </div>
-          <nav aria-label="Legal" className="flex items-center gap-4">
-            <Link href="#" className="underline-offset-4 hover:text-foreground hover:underline">Privacy Policy</Link>
-            <Link href="#" className="underline-offset-4 hover:text-foreground hover:underline">Terms of Use</Link>
-          </nav>
-        </footer>
+        <AuthFooter />
       </div>
       <aside
         className="hidden flex-col justify-between bg-muted bg-cover bg-center pb-2 text-white lg:flex"
