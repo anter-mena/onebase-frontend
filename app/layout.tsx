@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { geistSans, geistMono } from "@/lib/fonts";
 import { LiquidGlassFilter } from "@/components/ui/liquifyglasse";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <LiquidGlassFilter />
-        {children}
+        <TooltipProvider delay={300}>{children}</TooltipProvider>
         <Toaster />
       </body>
     </html>

@@ -5,6 +5,7 @@ const pages = [
   { href: "/", title: "All pages" },
   { href: "/login", title: "Login" },
   { href: "/reset-password", title: "Reset password" },
+  { href: "/dashboard", title: "Dashboard" },
   { href: "/401", title: "401 · Sign in required" },
   { href: "/403", title: "403 · Access denied" },
   { href: "/404", title: "404 · Page not found" },
