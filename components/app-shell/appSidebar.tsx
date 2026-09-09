@@ -1,9 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronsUpDown, Command } from "lucide-react";
+import { ChevronsUpDown, Command } from "lucide-react";
 import { cn } from "cn";
 
 import {
@@ -25,32 +24,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { usePersistedBoolean } from "@/hooks/use-persisted-boolean";
-
-function PersistedNavGroup({
-  storageKey,
-  children,
-}: {
-  storageKey: string;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = usePersistedBoolean(storageKey, true);
-
-  return (
-    <details
-      className="group/nav-item"
-      open={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      {children}
-    </details>
-  );
-}
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -88,63 +63,6 @@ export function AppSidebar() {
                   .filter((item) => item.section === section)
                   .map((item) => {
                     const Icon = item.icon;
-
-                    if ("items" in item) {
-                      return (
-                        <SidebarMenuItem key={item.href}>
-                          <PersistedNavGroup
-                            storageKey={`onebase:sidebar-group:${item.href}`}
-                          >
-                            <SidebarMenuButton
-                              tooltip={item.label}
-                              isActive={
-                                pathname === item.href ||
-                                pathname.startsWith(`${item.href}/`)
-                              }
-                              render={
-                                <summary className="list-none [&::-webkit-details-marker]:hidden" />
-                              }
-                              className="text-xs text-sidebar-foreground/70"
-                            >
-                              <Icon aria-hidden />
-                              <span>{item.label}</span>
-                              <ChevronDown
-                                className="ml-auto size-3! transition-transform group-open/nav-item:rotate-180 group-data-[collapsible=icon]:hidden"
-                                aria-hidden
-                              />
-                            </SidebarMenuButton>
-                            <SidebarMenuSub>
-                              {item.items.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.href}>
-                                  {subItem.available ? (
-                                    <SidebarMenuSubButton
-                                      render={<Link href={subItem.href} />}
-                                      isActive={pathname === subItem.href}
-                                      size="sm"
-                                    >
-                                      <span>{subItem.label}</span>
-                                    </SidebarMenuSubButton>
-                                  ) : (
-                                    <SidebarMenuSubButton
-                                      render={
-                                        <span
-                                          aria-disabled="true"
-                                          title="Coming soon"
-                                        />
-                                      }
-                                      size="sm"
-                                      className="cursor-not-allowed text-sidebar-foreground/45"
-                                    >
-                                      <span>{subItem.label}</span>
-                                    </SidebarMenuSubButton>
-                                  )}
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          </PersistedNavGroup>
-                        </SidebarMenuItem>
-                      );
-                    }
 
                     return (
                       <SidebarMenuItem key={item.href}>

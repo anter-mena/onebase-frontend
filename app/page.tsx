@@ -6,6 +6,7 @@ const pages = [
   { href: "/login", title: "Login" },
   { href: "/reset-password", title: "Reset password" },
   { href: "/dashboard", title: "Dashboard" },
+  { href: "/clients", title: "Clients" },
   { href: "/inbox", title: "WhatsApp Inbox" },
   { href: "/401", title: "401 · Sign in required" },
   { href: "/403", title: "403 · Access denied" },

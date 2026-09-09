@@ -13,11 +13,7 @@ export const appNavigation = [
     label: "Clients",
     href: "/clients",
     icon: Users,
-    available: false,
-    items: [
-      { label: "All clients", href: "/clients", available: false },
-      { label: "Add client", href: "/clients/new", available: false },
-    ],
+    available: true,
   },
   {
     section: "Communication",
