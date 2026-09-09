@@ -1,20 +1,31 @@
+"use client";
+
 import { BellRing, Inbox, MoonStar } from "lucide-react";
 import { cn } from "cn";
+import { usePathname } from "next/navigation";
 
+import { appNavigation } from "@/components/app-shell/navigation";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function AppNavbar() {
+  const pathname = usePathname();
+  const currentItem = appNavigation.find(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
+
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <SidebarTrigger />
         <div className="flex min-w-0 items-center gap-1.5 text-xs">
           <span className="hidden text-muted-foreground sm:inline">
-            Workspace
+            {currentItem?.section ?? "Workspace"}
           </span>
           <span className="hidden text-muted-foreground sm:inline">/</span>
-          <span className="truncate font-medium">Dashboard</span>
+          <span className="truncate font-medium">
+            {currentItem?.label ?? "Dashboard"}
+          </span>
         </div>
       </div>
 

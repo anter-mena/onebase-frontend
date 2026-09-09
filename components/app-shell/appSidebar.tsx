@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronsUpDown, Command } from "lucide-react";
 import { cn } from "cn";
 
@@ -52,6 +53,8 @@ function PersistedNavGroup({
 }
 
 export function AppSidebar() {
+  const pathname = usePathname();
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-12 shrink-0 justify-center border-b px-2 py-1.5">
@@ -94,6 +97,10 @@ export function AppSidebar() {
                           >
                             <SidebarMenuButton
                               tooltip={item.label}
+                              isActive={
+                                pathname === item.href ||
+                                pathname.startsWith(`${item.href}/`)
+                              }
                               render={
                                 <summary className="list-none [&::-webkit-details-marker]:hidden" />
                               }
@@ -109,18 +116,28 @@ export function AppSidebar() {
                             <SidebarMenuSub>
                               {item.items.map((subItem) => (
                                 <SidebarMenuSubItem key={subItem.href}>
-                                  <SidebarMenuSubButton
-                                    render={
-                                      <span
-                                        aria-disabled="true"
-                                        title="Coming soon"
-                                      />
-                                    }
-                                    size="sm"
-                                    className="cursor-not-allowed text-sidebar-foreground/45"
-                                  >
-                                    <span>{subItem.label}</span>
-                                  </SidebarMenuSubButton>
+                                  {subItem.available ? (
+                                    <SidebarMenuSubButton
+                                      render={<Link href={subItem.href} />}
+                                      isActive={pathname === subItem.href}
+                                      size="sm"
+                                    >
+                                      <span>{subItem.label}</span>
+                                    </SidebarMenuSubButton>
+                                  ) : (
+                                    <SidebarMenuSubButton
+                                      render={
+                                        <span
+                                          aria-disabled="true"
+                                          title="Coming soon"
+                                        />
+                                      }
+                                      size="sm"
+                                      className="cursor-not-allowed text-sidebar-foreground/45"
+                                    >
+                                      <span>{subItem.label}</span>
+                                    </SidebarMenuSubButton>
+                                  )}
                                 </SidebarMenuSubItem>
                               ))}
                             </SidebarMenuSub>
@@ -133,12 +150,21 @@ export function AppSidebar() {
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
                           tooltip={item.label}
-                          isActive
+                          isActive={pathname === item.href}
                           render={<Link href={item.href} />}
                           className="text-xs"
                         >
                           <Icon aria-hidden />
                           <span>{item.label}</span>
+                          {"indicator" in item && item.indicator ? (
+                            <span
+                              className="relative isolate z-10 ml-auto flex size-1.5 shrink-0 overflow-visible! whitespace-normal! group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:right-0.5"
+                              aria-label="New WhatsApp messages"
+                            >
+                              <span className="absolute inset-0 z-0 inline-flex animate-ping rounded-full bg-red-400 opacity-70" />
+                              <span className="relative z-10 inline-flex size-full rounded-full bg-red-500 ring-1 ring-background" />
+                            </span>
+                          ) : null}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );

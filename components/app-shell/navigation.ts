@@ -1,7 +1,13 @@
 import { LayoutDashboard, MessageCircle, Users } from "lucide-react";
 
 export const appNavigation = [
-  { section: "Workspace", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, available: true },
+  {
+    section: "Workspace",
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    available: true,
+  },
   {
     section: "Management",
     label: "Clients",
@@ -9,8 +15,8 @@ export const appNavigation = [
     icon: Users,
     available: false,
     items: [
-      { label: "All clients", href: "/clients" },
-      { label: "Add client", href: "/clients/new" },
+      { label: "All clients", href: "/clients", available: false },
+      { label: "Add client", href: "/clients/new", available: false },
     ],
   },
   {
@@ -18,12 +24,13 @@ export const appNavigation = [
     label: "WhatsApp Inbox",
     href: "/inbox",
     icon: MessageCircle,
-    available: false,
-    items: [
-      { label: "Conversations", href: "/inbox" },
-      { label: "Message templates", href: "/inbox/templates" },
-    ],
+    available: true,
+    indicator: true,
   },
 ] as const;
 
-export const navigationSections = ["Workspace", "Management", "Communication"] as const;
+export const navigationSections = [
+  "Workspace",
+  "Management",
+  "Communication",
+] as const;

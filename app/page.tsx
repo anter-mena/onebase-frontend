@@ -6,6 +6,7 @@ const pages = [
   { href: "/login", title: "Login" },
   { href: "/reset-password", title: "Reset password" },
   { href: "/dashboard", title: "Dashboard" },
+  { href: "/inbox", title: "WhatsApp Inbox" },
   { href: "/401", title: "401 · Sign in required" },
   { href: "/403", title: "403 · Access denied" },
   { href: "/404", title: "404 · Page not found" },
@@ -29,7 +30,9 @@ export default function Home() {
                 className="flex items-center justify-between gap-4 rounded-lg px-4 py-4 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <span className="font-medium">{page.title}</span>
-                <span className="text-sm text-muted-foreground">{page.href}</span>
+                <span className="text-sm text-muted-foreground">
+                  {page.href}
+                </span>
               </Link>
             </li>
           ))}
