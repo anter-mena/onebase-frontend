@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 import { BellRing, Inbox, MoonStar } from "lucide-react";
 import { cn } from "cn";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -17,26 +17,47 @@ function BreadcrumbWithTab() {
   return <Breadcrumb tab={useSearchParams().get("tab")} />;
 }
 
+// The full path to the current page, for example:
+//   /clients                        → Management / Clients
+//   /settings?tab=payment-methods   → Administration / Configuration / Payment methods
+//   /settings/payment-methods/new   → Administration / Configuration / Payment methods / New
+//   /settings/payment-methods/paypal/edit → Administration / Configuration / Payment methods / Edit
 function Breadcrumb({ tab }: { tab: string | null }) {
   const pathname = usePathname();
-  const activeTab = getConfigurationTab(tab);
   const currentItem = [...appNavigation, ...navbarPages].find(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
-  // Without a tab (while the URL is still unknown) settings shows its section only.
-  const currentSubItem = tab && currentItem && "items" in currentItem
-    ? currentItem.items.find((item) => item.value === activeTab.value)
-    : undefined;
+
+  const trail: string[] = [currentItem?.section ?? "Workspace", currentItem?.label ?? "Dashboard"];
+
+  if (currentItem && "items" in currentItem) {
+    // The sub-page comes from the path (/settings/payment-methods/new) or, on /settings itself, from ?tab=.
+    // Without either (while the URL is still unknown), the trail stops at the section.
+    const [, , pathSection, ...rest] = pathname.split("/");
+    const subItem = pathSection
+      ? currentItem.items.find((item) => item.value === pathSection)
+      : tab
+        ? getConfigurationTab(tab)
+        : undefined;
+    if (subItem) trail.push(subItem.label);
+    if (rest.at(-1) === "new") trail.push("New");
+    if (rest.at(-1) === "edit") trail.push("Edit");
+  }
 
   return (
     <div className="flex min-w-0 items-center gap-1.5 text-xs">
-      <span className="hidden text-muted-foreground sm:inline">
-        {currentSubItem ? currentItem?.label : currentItem?.section ?? "Workspace"}
-      </span>
-      <span className="hidden text-muted-foreground sm:inline">/</span>
-      <span className="truncate font-medium">
-        {currentSubItem?.label ?? currentItem?.label ?? "Dashboard"}
-      </span>
+      {trail.map((label, index) => {
+        const isLast = index === trail.length - 1;
+        return (
+          <Fragment key={`${index}-${label}`}>
+            {/* On phones only the current page shows. */}
+            {index > 0 ? <span className="hidden text-muted-foreground sm:inline">/</span> : null}
+            <span className={isLast ? "truncate font-medium" : "hidden whitespace-nowrap text-muted-foreground sm:inline"}>
+              {label}
+            </span>
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

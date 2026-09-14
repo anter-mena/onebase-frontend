@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { cn } from "cn";
 import { ArrowLeft, ArrowRight, Clock3, LockKeyhole, SearchX, ShieldAlert, TriangleAlert, Wrench } from "lucide-react";
+
+import whiteStyle from "@/components/ui/button-styles/white.module.css";
 
 const errors = {
   401: ["Please sign in. Your session may have expired.", "Continue to One Base."],
@@ -40,7 +43,7 @@ export function ErrorScreen({
       <main className="flex min-h-svh items-center justify-center px-6 py-16 md:px-10">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-4 text-center">
           <div className="flex flex-col items-center gap-2">
-            <div className="mb-1 flex size-11 items-center justify-center rounded-xl border bg-card shadow-sm">
+            <div className={cn(whiteStyle.button, "mb-1 flex size-11 items-center justify-center p-0! text-foreground")}>
               <Icon className="size-5" aria-hidden />
             </div>
             <p className="text-sm font-bold text-foreground">Error {code}</p>

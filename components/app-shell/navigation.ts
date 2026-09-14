@@ -58,3 +58,11 @@ export const navigationSections = [
 export function getConfigurationTab(value: string | null) {
   return settingsNavigation.find((item) => item.value === value) ?? settingsNavigation[0];
 }
+
+// Which settings sub-page is open. Pages under a section (/settings/payment-methods/new, …/paypal/edit)
+// take it from the path; /settings itself takes it from ?tab=, which defaults to the first tab.
+export function getActiveSettingsValue(pathname: string, tab: string | null) {
+  const [, , pathSection] = pathname.split("/");
+  if (pathSection) return settingsNavigation.find((item) => item.value === pathSection)?.value ?? null;
+  return getConfigurationTab(tab).value;
+}

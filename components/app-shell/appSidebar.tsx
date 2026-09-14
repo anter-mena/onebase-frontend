@@ -9,7 +9,7 @@ import { cn } from "cn";
 
 import {
   appNavigation,
-  getConfigurationTab,
+  getActiveSettingsValue,
   navigationSections,
   settingsNavigation,
 } from "@/components/app-shell/navigation";
@@ -38,8 +38,8 @@ type SettingsItem = (typeof settingsNavigation)[number];
 // everything up to the nearest Suspense render in the browser only, and the
 // whole sidebar would be missing from the first HTML.
 function ActiveSettingsLinks({ items, active }: { items: readonly SettingsItem[]; active: boolean }) {
-  const activeTab = getConfigurationTab(useSearchParams().get("tab"));
-  return <SettingsLinks items={items} activeValue={active ? activeTab.value : null} />;
+  const activeValue = getActiveSettingsValue(usePathname(), useSearchParams().get("tab"));
+  return <SettingsLinks items={items} activeValue={active ? activeValue : null} />;
 }
 
 function SettingsLinks({ items, activeValue }: { items: readonly SettingsItem[]; activeValue: string | null }) {

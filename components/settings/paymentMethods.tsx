@@ -1,72 +1,219 @@
 "use client";
 
-import { useState, useSyncExternalStore, type FormEvent } from "react";
-import { Dialog } from "@base-ui/react/dialog";
-import { ArrowDownLeft, ArrowUpRight, Bitcoin, Check, Pencil, X } from "lucide-react";
-import { toast } from "sonner";
+import Link from "next/link";
+import { Fragment, useState, type CSSProperties, type ReactNode } from "react";
+import { CircleCheck, CirclePlus, CircleSlash, LayoutGrid, MoreVertical, Pencil, Rows3, Trash2, WalletCards } from "lucide-react";
+import { PaymentIcon } from "react-svg-credit-card-payment-icons";
 import { cn } from "cn";
 
+import { PaymentMethodCard, ProviderLogo, providerLogos } from "@/components/settings/paymentMethodCard";
+import { paymentMethods, type PaymentMethod } from "@/components/settings/paymentMethodsSample";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import blackStyle from "@/components/ui/button-styles/black.module.css";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  PAYMENT_METHODS_VIEW_COOKIE,
+  PAYMENT_METHODS_VIEW_COOKIE_MAX_AGE,
+  type PaymentMethodsView,
+} from "@/lib/settings/paymentMethodsView";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import styles from "./paymentMethods.module.css";
 
-const methods = [
-  { id: "paypal", name: "PayPal", type: "Digital wallet", region: "ONLINE", detail: "PayPal email", placeholder: "payments@example.com" },
-  { id: "interac", name: "Interac", type: "e-Transfer", region: "CANADA", detail: "Recipient email", placeholder: "payments@example.com" },
-  { id: "crypto", name: "Crypto", type: "Cryptocurrency", region: "ON-CHAIN", detail: "Wallet address", placeholder: "Enter your receiving address" },
-] as const;
-type Method = typeof methods[number];
-type Details = { recipient: string; asset: string; network: string };
-const emptyDetails: Details = { recipient: "", asset: "", network: "" };
-const storageKey = "onebase:payment-methods";
-const storageEvent = "onebase:payment-methods-change";
+type MethodId = PaymentMethod["id"];
+type View = PaymentMethodsView;
 
-function subscribe(callback: () => void) {
-  const onStorage = (event: StorageEvent) => { if (event.key === storageKey || event.key === null) callback(); };
-  window.addEventListener("storage", onStorage);
-  window.addEventListener(storageEvent, callback);
-  return () => { window.removeEventListener("storage", onStorage); window.removeEventListener(storageEvent, callback); };
+const editHref = (id: MethodId) => `/settings/payment-methods/${id}/edit`;
+
+// Same look as the tabs in the Configuration header.
+function ViewSwitch({ view, onChange }: { view: View; onChange: (view: View) => void }) {
+  const options = [
+    { value: "cards", label: "Cards view", icon: LayoutGrid },
+    { value: "table", label: "Table view", icon: Rows3 },
+  ] as const;
+
+  return (
+    <div role="group" aria-label="View" className="inline-flex rounded-lg border border-border/60 bg-muted p-0.5">
+      {options.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onChange(value)}
+          aria-pressed={view === value}
+          aria-label={label}
+          title={label}
+          className={cn(
+            "inline-flex size-6 items-center justify-center rounded-md border border-transparent transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+            view === value ? "border-border bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Icon className="size-3.5" aria-hidden />
+        </button>
+      ))}
+    </div>
+  );
 }
 
-function getSnapshot() {
-  try { return localStorage.getItem(storageKey) ?? "{}"; } catch { return "{}"; }
+// Same pills as the clients table.
+const statusStyles = {
+  active: "bg-emerald-50 text-emerald-700",
+  inactive: "bg-muted text-muted-foreground",
+};
+
+// Round buttons on a card, in the white button style (its own gradient and 3D shadows, nothing overridden but the shape and padding).
+const cardActionClassName = cn(whiteStyle.button, "flex size-9 items-center justify-center rounded-full! p-0! text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring");
+
+// One card action, placed on an arc around the card's top-right corner (like Pinterest's long-press menu).
+// Hidden, it sits small and transparent on the corner; when the card is hovered (or tapped on a phone, which focuses it)
+// it pops out to its spot on the arc with a small overshoot. index staggers the buttons one after another.
+function CornerAction({ x, y, index, children }: { x: number; y: number; index: number; children: ReactNode }) {
+  return (
+    <span
+      className="pointer-events-none absolute top-0 left-0 -mt-[18px] -ml-[18px] translate-x-0 translate-y-0 scale-50 opacity-0 transition-[translate,scale,opacity] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-focus-within:pointer-events-auto group-focus-within:translate-x-(--x) group-focus-within:translate-y-(--y) group-focus-within:scale-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:translate-x-(--x) group-hover:translate-y-(--y) group-hover:scale-100 group-hover:opacity-100 motion-reduce:transition-none"
+      style={{ "--x": `${x}px`, "--y": `${y}px`, transitionDelay: `${index * 50}ms` } as CSSProperties}
+    >
+      {children}
+    </span>
+  );
 }
 
-function parseDetails(raw: string): Partial<Record<Method["id"], Details>> {
-  try {
-    const parsed = JSON.parse(raw);
-    const result: Partial<Record<Method["id"], Details>> = {};
-    for (const { id } of methods) {
-      const entry = parsed?.[id];
-      if (entry && typeof entry.recipient === "string" && typeof entry.asset === "string" && typeof entry.network === "string") result[id] = entry;
-    }
-    return result;
-  } catch { return {}; }
+type ActionsProps = {
+  activeById: Record<MethodId, boolean>;
+  onToggleActive: (id: MethodId) => void;
+  onDelete: (method: PaymentMethod) => void;
+};
+
+// The table view, built with the same classes as the clients table.
+function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: ActionsProps & { methods: readonly PaymentMethod[] }) {
+  return (
+    <div className="mt-5">
+      <div className="overflow-x-auto [&>[data-slot=table-container]]:overflow-visible">
+        <Table className="min-w-[860px] table-fixed border-separate border-spacing-0 text-xs">
+          <TableHeader className="[&_tr]:border-0 [&_th]:border-0 [&_th]:bg-muted/95 [&_th]:backdrop-blur-sm [&_th:first-child]:rounded-l-lg [&_th:last-child]:rounded-r-lg">
+            <TableRow className="border-0 hover:bg-transparent">
+              <TableHead className="w-48">Method</TableHead>
+              <TableHead className="w-28">Status</TableHead>
+              <TableHead className="w-36">Balance</TableHead>
+              <TableHead className="w-36">Holder</TableHead>
+              <TableHead className="w-36">Networks</TableHead>
+              <TableHead className="w-28">Region</TableHead>
+              <TableHead className="w-20 pr-4 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {methods.map((method) => (
+              <TableRow key={method.id} className="group border-b border-border/80 last:border-0">
+                <TableCell>
+                  <div className="flex items-center gap-2.5">
+                    {/* A small swatch of the card: same background, same logo. */}
+                    <span className={cn(styles.card, styles[method.id], "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg")}>
+                      <ProviderLogo id={method.id} compact />
+                    </span>
+                    <div className="min-w-0">
+                      {/* The method's own name first, then which provider and type it is. */}
+                      <p className="truncate font-medium text-foreground">{method.name}</p>
+                      <p className="mt-0.5 truncate text-[0.6rem] text-muted-foreground">{providerLogos[method.id].name} · {method.type}</p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[0.6rem] font-medium", statusStyles[activeById[method.id] ? "active" : "inactive"])}>
+                    <span className="size-1.5 rounded-full bg-current opacity-70" />
+                    {activeById[method.id] ? "Active" : "Inactive"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="font-medium text-foreground tabular-nums">{method.amount}</span>{" "}
+                  <span className="text-[0.6rem] text-muted-foreground">{method.currency}</span>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{method.holder}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {method.networks.map((network, index) => (
+                      <Fragment key={network}>
+                        {index > 0 ? <span aria-hidden className="h-4 w-px bg-border" /> : null}
+                        <PaymentIcon type={network} format="logo" className="h-auto w-8" />
+                      </Fragment>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{method.region}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${method.name}`} />}>
+                      <MoreVertical className="size-3.5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-36">
+                      <DropdownMenuItem className="text-xs" onClick={() => onToggleActive(method.id)}>
+                        {activeById[method.id] ? <><CircleSlash className="size-3.5" /> Deactivate</> : <><CircleCheck className="size-3.5" /> Activate</>}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-xs" render={<Link href={editHref(method.id)} />}>
+                        <Pencil className="size-3.5" /> Edit method
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-xs text-destructive focus:text-destructive" onClick={() => onDelete(method)}>
+                        <Trash2 className="size-3.5" /> Delete method
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {/* Same empty message as the clients table. */}
+        {methods.length === 0 ? (
+          <div className="flex min-h-48 items-center justify-center text-xs text-muted-foreground">No payment methods yet.</div>
+        ) : null}
+      </div>
+
+      {/* The "Add new method" card has no place in a table, so its link sits below it. */}
+      <Link href="/settings/payment-methods/new" className="mt-3 inline-flex items-center gap-1.5 px-2 text-xs font-medium text-teal-600 hover:text-teal-700">
+        <CirclePlus className="size-4" aria-hidden />
+        Add new method
+      </Link>
+    </div>
+  );
 }
 
-export function PaymentMethods() {
-  const raw = useSyncExternalStore(subscribe, getSnapshot, () => "{}");
-  const saved = parseDetails(raw);
-  const [editing, setEditing] = useState<Method | null>(null);
-  const [draft, setDraft] = useState<Details>(emptyDetails);
-  const [error, setError] = useState("");
+export function PaymentMethods({ initialView }: { initialView: View }) {
+  // Starts from the cookie the page read on the server, and writes the cookie back when switched.
+  const [view, setViewState] = useState<View>(initialView);
+  function setView(next: View) {
+    setViewState(next);
+    document.cookie = `${PAYMENT_METHODS_VIEW_COOKIE}=${next}; Path=/; Max-Age=${PAYMENT_METHODS_VIEW_COOKIE_MAX_AGE}; SameSite=Lax`;
+  }
 
-  function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editing) return;
-    const details = { recipient: draft.recipient.trim(), asset: draft.asset.trim(), network: draft.network.trim() };
-    if (!details.recipient || (editing.id === "crypto" && (!details.asset || !details.network))) {
-      setError("Complete all receiving details before saving.");
-      return;
-    }
-    try {
-      localStorage.setItem(storageKey, JSON.stringify({ ...parseDetails(getSnapshot()), [editing.id]: details }));
-      window.dispatchEvent(new Event(storageEvent));
-      setEditing(null);
-      toast.success(`${editing.name} details saved`);
-    } catch { setError("Could not save your details in this browser. Please try again."); }
+  // Active status and deletions start from the sample data and are shown in both views.
+  // Kept on screen only for now: they reset on reload until they are saved for real.
+  const [activeById, setActiveById] = useState(
+    () => Object.fromEntries(paymentMethods.map((method) => [method.id, method.active])) as Record<MethodId, boolean>,
+  );
+  const toggleActive = (id: MethodId) => setActiveById((current) => ({ ...current, [id]: !current[id] }));
+
+  const [deletedIds, setDeletedIds] = useState<ReadonlySet<MethodId>>(() => new Set());
+  const [methodToDelete, setMethodToDelete] = useState<PaymentMethod | null>(null);
+  const methods = paymentMethods.filter((method) => !deletedIds.has(method.id));
+
+  function deleteMethod() {
+    if (!methodToDelete) return;
+    setDeletedIds((current) => new Set(current).add(methodToDelete.id));
+    setMethodToDelete(null);
   }
 
   return (
@@ -76,62 +223,104 @@ export function PaymentMethods() {
           <h2 className="text-sm font-medium">Payment methods</h2>
           <p className="mt-1 text-xs text-muted-foreground">Choose how your clients can pay you.</p>
         </div>
-        <span className="rounded-full border bg-muted/40 px-2.5 py-1 text-[0.65rem] text-muted-foreground">3 methods</span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border bg-muted/40 px-2.5 py-1 text-[0.65rem] text-muted-foreground">
+            {methods.length} {methods.length === 1 ? "method" : "methods"}
+          </span>
+          <ViewSwitch view={view} onChange={setView} />
+        </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {methods.map((method) => {
-          const details = saved[method.id];
-          const configured = Boolean(details?.recipient);
-          return (
-            <button key={method.id} type="button" onClick={() => { setEditing(method); setDraft(details ?? emptyDetails); setError(""); }} aria-label={`${configured ? "Edit" : "Configure"} ${method.name}`} className={cn(styles.card, styles[method.id], "group relative flex min-h-48 flex-col justify-between overflow-hidden rounded-2xl p-4 text-left text-neutral-900 outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transform-none")}>
-              <div className="relative flex items-start justify-between gap-3">
-                <span className="flex size-9 items-center justify-center rounded-xl border border-white/45 bg-white/25 shadow-sm backdrop-blur-md">
-                  {method.id === "paypal" ? <span aria-hidden className="size-4 bg-current" style={{ mask: "url(/brands/paypal.svg) center / contain no-repeat", WebkitMask: "url(/brands/paypal.svg) center / contain no-repeat" }} /> : method.id === "interac" ? <ArrowDownLeft className="size-5" aria-hidden /> : <Bitcoin className="size-5" aria-hidden />}
-                </span>
-                <span className="flex items-center gap-1.5 pt-1 text-[0.55rem] font-semibold tracking-[0.12em]"><span className="size-1 rounded-full bg-current opacity-60" />{method.region}</span>
-              </div>
-              <div className="relative mt-7 rounded-xl border border-white/30 bg-white/40 p-3 backdrop-blur-md">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-semibold tracking-tight">{method.name}</h3>
-                    <p className="mt-0.5 text-[0.65rem] text-neutral-800">{method.type}</p>
-                  </div>
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/25 transition-colors group-hover:bg-white/60">{configured ? <Pencil className="size-3.5" aria-hidden /> : <ArrowUpRight className="size-4" aria-hidden />}</span>
-                </div>
-                <div className="mt-3 flex min-w-0 items-center gap-1.5 border-t border-white/40 pt-2 text-[0.6rem] text-neutral-800">
-                  {configured ? <Check className="size-3 shrink-0" aria-hidden /> : <span className="size-1.5 shrink-0 rounded-full border border-current opacity-60" />}
-                  <span className="truncate">{configured ? details?.recipient : "Add receiving details"}</span>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      {view === "table" ? (
+        <PaymentMethodsTable methods={methods} activeById={activeById} onToggleActive={toggleActive} onDelete={setMethodToDelete} />
+      ) : (
+      // Columns follow the panel's width, not the window's, so they adapt when the sidebar opens or closes:
+      // 1 → 2 (448px) → 3 (768px) → 4 (1152px). Three columns wait for 768px so each card stays about 245px wide.
+      <div className="@container mt-5">
+      <div className="grid grid-cols-1 gap-4 @md:grid-cols-2 @3xl:grid-cols-3 @6xl:grid-cols-4">
+        {methods.length === 0 ? (
+          <div className="col-span-full flex min-h-24 items-center justify-center rounded-2xl border border-dashed p-6 text-center text-xs text-muted-foreground">
+            No payment methods yet. Add your first one to start receiving payments.
+          </div>
+        ) : null}
 
-      <Dialog.Root open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null); }}>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm" />
-          <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border bg-background p-5 shadow-xl">
-            <Dialog.Title className="pr-8 text-base font-semibold">{editing?.name} details</Dialog.Title>
-            <Dialog.Description className="mt-1 text-xs text-muted-foreground">Set the receiving details your clients will use.</Dialog.Description>
-            <Dialog.Close render={<Button variant="ghost" size="icon-xs" className="absolute top-4 right-4" aria-label="Close" />}><X className="size-4" /></Dialog.Close>
-            <form onSubmit={save} className="mt-5 space-y-4">
-              <label className="block space-y-1.5 text-xs font-medium">{editing?.detail}<Input required type={editing?.id === "crypto" ? "text" : "email"} value={draft.recipient} placeholder={editing?.placeholder} onChange={(event) => setDraft({ ...draft, recipient: event.target.value })} /></label>
-              {editing?.id === "crypto" ? <div className="grid grid-cols-2 gap-3">
-                <label className="block space-y-1.5 text-xs font-medium">Asset<Input required value={draft.asset} placeholder="e.g. USDT" onChange={(event) => setDraft({ ...draft, asset: event.target.value })} /></label>
-                <label className="block space-y-1.5 text-xs font-medium">Network<Input required value={draft.network} placeholder="e.g. Ethereum" onChange={(event) => setDraft({ ...draft, network: event.target.value })} /></label>
-              </div> : null}
-              <p className="text-[0.65rem] text-muted-foreground">Saved in this browser only.</p>
-              {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
-              <div className="flex justify-end gap-2 pt-1">
-                <Dialog.Close render={<Button type="button" variant="outline" size="sm" className={whiteStyle.button} />}>Cancel</Dialog.Close>
-                <Button type="submit" size="sm" className={blackStyle.button}>Save details</Button>
-              </div>
-            </form>
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
+        {methods.map((method) => (
+          // Hovering the card (or tapping it on a phone, which focuses it) grows it and pops its actions out of the top-right corner.
+          <div key={method.id} tabIndex={0} className="group relative flex rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <div className="flex flex-1 rounded-2xl transition-transform group-hover:scale-[1.03] group-focus-within:scale-[1.03] motion-reduce:group-hover:scale-100 motion-reduce:group-focus-within:scale-100">
+              <PaymentMethodCard
+                provider={method.id}
+                active={activeById[method.id]}
+                methodName={method.name}
+                amount={method.amount}
+                currency={method.currency}
+                holder={method.holder}
+                networks={method.networks}
+              />
+            </div>
+
+            {/* The arc's center: over the contactless icon, 32px in from the top-right corner.
+                The three buttons sit 56px away from it: to the left, diagonally, and below. */}
+            <div className="absolute top-8 right-8 z-10">
+              <CornerAction x={-56} y={0} index={0}>
+                <Link href={editHref(method.id)} aria-label={`Edit ${method.name}`} title="Edit" className={cardActionClassName}>
+                  <Pencil className="size-3.5" aria-hidden />
+                </Link>
+              </CornerAction>
+              <CornerAction x={-40} y={40} index={1}>
+                <button
+                  type="button"
+                  onClick={() => toggleActive(method.id)}
+                  aria-label={`${activeById[method.id] ? "Deactivate" : "Activate"} ${method.name}`}
+                  title={activeById[method.id] ? "Deactivate" : "Activate"}
+                  className={cardActionClassName}
+                >
+                  {activeById[method.id] ? <CircleSlash className="size-3.5" aria-hidden /> : <CircleCheck className="size-3.5" aria-hidden />}
+                </button>
+              </CornerAction>
+              <CornerAction x={0} y={56} index={2}>
+                <button
+                  type="button"
+                  onClick={() => setMethodToDelete(method)}
+                  aria-label={`Delete ${method.name}`}
+                  title="Delete"
+                  className={cn(cardActionClassName, "text-destructive!")}
+                >
+                  <Trash2 className="size-3.5" aria-hidden />
+                </button>
+              </CornerAction>
+            </div>
+          </div>
+        ))}
+
+        <Link href="/settings/payment-methods/new" className="group flex min-h-48 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-muted-foreground/40 bg-card p-6 text-center shadow-sm outline-none transition-[scale,box-shadow,border-color] hover:scale-[1.03] hover:border-muted-foreground/60 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:hover:scale-100">
+          <span aria-hidden className={cn(whiteStyle.button, "mb-3 flex size-12 items-center justify-center p-0! text-foreground transition-transform group-hover:scale-105 motion-reduce:group-hover:scale-100")}>
+            <WalletCards className="size-5" strokeWidth={1.75} />
+          </span>
+          <span className="text-sm font-semibold">New payment method</span>
+          <span className="max-w-56 text-xs leading-relaxed text-muted-foreground">Add another way for your clients to pay you, like a card or a bank transfer</span>
+          <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 group-hover:text-teal-700">
+            <CirclePlus className="size-4" aria-hidden />
+            Add new method
+          </span>
+        </Link>
+      </div>
+      </div>
+      )}
+
+      {/* One confirmation for both views, like deleting a client. */}
+      <AlertDialog open={Boolean(methodToDelete)} onOpenChange={(open) => { if (!open) setMethodToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {methodToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>This payment method will be removed. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" size="sm" onClick={deleteMethod}>Delete method</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
