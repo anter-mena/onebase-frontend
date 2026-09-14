@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronsUpDown, Command } from "lucide-react";
+import { Suspense } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronsUpDown, Command } from "lucide-react";
+import { Collapsible } from "@base-ui/react/collapsible";
 import { cn } from "cn";
 
 import {
   appNavigation,
+  getConfigurationTab,
   navigationSections,
+  settingsNavigation,
 } from "@/components/app-shell/navigation";
 import { SecurityCard } from "@/components/app-shell/securityCard";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
@@ -25,10 +29,39 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
+
+type SettingsItem = (typeof settingsNavigation)[number];
+
+// useSearchParams() lives here, not in AppSidebar: on prerendered pages it makes
+// everything up to the nearest Suspense render in the browser only, and the
+// whole sidebar would be missing from the first HTML.
+function ActiveSettingsLinks({ items, active }: { items: readonly SettingsItem[]; active: boolean }) {
+  const activeTab = getConfigurationTab(useSearchParams().get("tab"));
+  return <SettingsLinks items={items} activeValue={active ? activeTab.value : null} />;
+}
+
+function SettingsLinks({ items, activeValue }: { items: readonly SettingsItem[]; activeValue: string | null }) {
+  return (
+    <ul className="ml-4 py-1">
+      {items.map((sub) => {
+        const subActive = activeValue === sub.value;
+        return (
+          <li key={sub.href} className="relative before:absolute before:top-0 before:left-0 before:h-full before:w-px before:bg-border last:before:h-1/2">
+            <Link href={sub.href} aria-current={subActive ? "page" : undefined} className={cn("relative flex items-center rounded-md py-1.5 pr-2 pl-5 text-xs before:absolute before:top-1/2 before:left-0 before:h-px before:w-3 before:bg-border hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring", subActive ? "font-medium text-foreground" : "text-muted-foreground")}>
+              {sub.label}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { setOpen, isMobile } = useSidebar();
 
   return (
     <Sidebar collapsible="icon">
@@ -63,12 +96,33 @@ export function AppSidebar() {
                   .filter((item) => item.section === section)
                   .map((item) => {
                     const Icon = item.icon;
+                    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+                    if ("items" in item) {
+                      return (
+                        <SidebarMenuItem key={item.href}>
+                          <Collapsible.Root key={String(active)} defaultOpen={active} onOpenChange={(open) => { if (open && !isMobile) setOpen(true); }}>
+                            <Collapsible.Trigger onClick={() => { if (!isMobile) setOpen(true); }} render={<SidebarMenuButton tooltip={item.label} isActive={active} className="group/settings text-xs" />}>
+                              <Icon aria-hidden />
+                              <span>{item.label}</span>
+                              <ChevronDown aria-hidden className="ml-auto size-3.5 transition-transform group-aria-expanded/settings:rotate-180 group-data-[collapsible=icon]:hidden" />
+                            </Collapsible.Trigger>
+                            <Collapsible.Panel className="h-[var(--collapsible-panel-height)] overflow-hidden transition-[height] duration-200 data-[starting-style]:h-0 data-[ending-style]:h-0 motion-reduce:transition-none group-data-[collapsible=icon]:hidden">
+                              {/* Only these links read the URL's ?tab=, so only they wait for the browser. */}
+                              <Suspense fallback={<SettingsLinks items={item.items} activeValue={null} />}>
+                                <ActiveSettingsLinks items={item.items} active={active} />
+                              </Suspense>
+                            </Collapsible.Panel>
+                          </Collapsible.Root>
+                        </SidebarMenuItem>
+                      );
+                    }
 
                     return (
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
                           tooltip={item.label}
-                          isActive={pathname === item.href}
+                          isActive={active}
                           render={<Link href={item.href} />}
                           className="text-xs"
                         >

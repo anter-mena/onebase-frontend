@@ -1,37 +1,59 @@
 "use client";
 
+import Link from "next/link";
+import { Suspense } from "react";
 import { BellRing, Inbox, MoonStar } from "lucide-react";
 import { cn } from "cn";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
-import { appNavigation } from "@/components/app-shell/navigation";
+import { appNavigation, getConfigurationTab, navbarPages } from "@/components/app-shell/navigation";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
-export function AppNavbar() {
+// useSearchParams() lives here, not in AppNavbar: on prerendered pages it makes
+// everything up to the nearest Suspense render in the browser only, and the
+// whole navbar would be missing from the first HTML.
+function BreadcrumbWithTab() {
+  return <Breadcrumb tab={useSearchParams().get("tab")} />;
+}
+
+function Breadcrumb({ tab }: { tab: string | null }) {
   const pathname = usePathname();
-  const currentItem = appNavigation.find(
+  const activeTab = getConfigurationTab(tab);
+  const currentItem = [...appNavigation, ...navbarPages].find(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
+  // Without a tab (while the URL is still unknown) settings shows its section only.
+  const currentSubItem = tab && currentItem && "items" in currentItem
+    ? currentItem.items.find((item) => item.value === activeTab.value)
+    : undefined;
 
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 text-xs">
+      <span className="hidden text-muted-foreground sm:inline">
+        {currentSubItem ? currentItem?.label : currentItem?.section ?? "Workspace"}
+      </span>
+      <span className="hidden text-muted-foreground sm:inline">/</span>
+      <span className="truncate font-medium">
+        {currentSubItem?.label ?? currentItem?.label ?? "Dashboard"}
+      </span>
+    </div>
+  );
+}
+
+export function AppNavbar() {
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <SidebarTrigger />
-        <div className="flex min-w-0 items-center gap-1.5 text-xs">
-          <span className="hidden text-muted-foreground sm:inline">
-            {currentItem?.section ?? "Workspace"}
-          </span>
-          <span className="hidden text-muted-foreground sm:inline">/</span>
-          <span className="truncate font-medium">
-            {currentItem?.label ?? "Dashboard"}
-          </span>
-        </div>
+        <Suspense fallback={<Breadcrumb tab={null} />}>
+          <BreadcrumbWithTab />
+        </Suspense>
       </div>
 
       <div className="flex items-center gap-1.5">
-        <button
-          type="button"
+        <Link
+          href="/inbox"
           className={cn(
             whiteStyle.button,
             "relative flex size-7 items-center justify-center p-0! text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
@@ -40,7 +62,7 @@ export function AppNavbar() {
           title="Inbox"
         >
           <Inbox className="size-3" aria-hidden />
-        </button>
+        </Link>
         <button
           type="button"
           className={cn(

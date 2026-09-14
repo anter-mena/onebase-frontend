@@ -170,7 +170,7 @@ function Avatar({ conversation }: { conversation: Conversation }) {
   );
 }
 
-export function InboxWorkspace() {
+export function WhatsAppInboxWorkspace() {
   const [activeId, setActiveId] = useState(1);
   const [query, setQuery] = useState("");
   const [conversationFilter, setConversationFilter] =

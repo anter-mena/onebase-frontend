@@ -1,0 +1,27 @@
+.card {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 30%), 0 2px 5px rgb(0 0 0 / 3%);
+}
+
+.paypal {
+  background:
+    radial-gradient(ellipse at 92% 88%, #efff72 0%, transparent 58%),
+    radial-gradient(ellipse at 0% 100%, #d6a0db 0%, transparent 56%),
+    radial-gradient(ellipse at 90% 0%, #cafa70 0%, transparent 54%),
+    #8ee9ec;
+}
+
+.interac {
+  background:
+    radial-gradient(ellipse at 0% 0%, #f5dcc1 0%, transparent 58%),
+    radial-gradient(ellipse at 20% 105%, #ded879 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 0%, #ed9856 0%, transparent 55%),
+    #eca127;
+}
+
+.crypto {
+  background:
+    radial-gradient(ellipse at 15% 95%, #91f2e8 0%, transparent 63%),
+    radial-gradient(ellipse at 100% 90%, #c577d9 0%, transparent 53%),
+    radial-gradient(ellipse at 90% 0%, #a483e7 0%, transparent 60%),
+    #87a9e8;
+}
