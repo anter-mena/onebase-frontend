@@ -4,6 +4,7 @@ import { Tabs } from "@base-ui/react/tabs";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { getConfigurationTab, settingsNavigation } from "@/components/app-shell/navigation";
+import { Brands } from "@/components/settings/brands";
 import { PaymentMethods } from "@/components/settings/paymentMethods";
 import { Subscriptions } from "@/components/settings/subscriptions";
 import type { PaymentMethodsView } from "@/lib/settings/paymentMethodsView";
@@ -31,15 +32,15 @@ export function ConfigurationTabs({ paymentMethodsView }: { paymentMethodsView: 
         </div>
         <p className="mt-1 text-xs text-muted-foreground">Manage your brands, subscription plans, and payment methods.</p>
       </header>
-      {settingsNavigation.map(({ value, label, description }) => (
+      {settingsNavigation.map(({ value }) => (
         <Tabs.Panel key={value} value={value} className="mt-4 min-h-0 flex-1 overflow-auto rounded-xl border bg-background p-4">
-          {value === "payment-methods" ? <PaymentMethods initialView={paymentMethodsView} /> : value === "subscriptions" ? <Subscriptions /> : <>
-          <h2 className="text-sm font-medium">{label}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-          <div className="mt-4 flex min-h-60 items-center justify-center rounded-lg border border-dashed p-6 text-center">
-            <p className="text-xs text-muted-foreground">{label} configuration tools are coming soon.</p>
-          </div>
-          </>}
+          {value === "payment-methods" ? (
+            <PaymentMethods initialView={paymentMethodsView} />
+          ) : value === "subscriptions" ? (
+            <Subscriptions />
+          ) : (
+            <Brands />
+          )}
         </Tabs.Panel>
       ))}
     </Tabs.Root>

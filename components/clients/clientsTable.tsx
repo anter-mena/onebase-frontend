@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState, type ReactNode, type ComponentProps } from "react";
+import { useMemo, useState, type ReactNode, type ComponentProps } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 
+import { QuarterSparkline } from "@/components/charts/quarterSparkline";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -239,7 +240,7 @@ export function ClientsTable() {
                 <TableCell>{getSubscriptionEndLabel(client)}</TableCell>
                 <TableCell><span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[0.6rem] font-medium", statusStyles[client.status])}><span className="size-1.5 rounded-full bg-current opacity-70" />{client.status}</span></TableCell>
                 <TableCell><div className="grid grid-cols-[4.5rem_1px_minmax(0,1fr)] items-center gap-2"><div className="flex items-center gap-1.5"><MonitorSmartphone className="size-3 shrink-0 text-muted-foreground" aria-hidden /><span className="tabular-nums">{client.devices} {client.devices === 1 ? "device" : "devices"}</span></div><span className="h-4 w-px bg-border" aria-hidden /><div className="flex items-center gap-1.5 text-muted-foreground"><Clock3 className="size-3 shrink-0" aria-hidden /><span>{client.duration}</span></div></div></TableCell>
-                <TableCell><OrdersSparkline values={client.orderTrend} total={client.orders} /></TableCell>
+                <TableCell><QuarterSparkline values={client.orderTrend} total={client.orders} unit={{ one: "order", many: "orders" }} /></TableCell>
                 <TableCell className="text-muted-foreground"><PaymentMethodLabel method={client.paymentMethod} /></TableCell>
                 <TableCell className="font-medium text-emerald-700">+{currencyFormatter.format(client.revenue)}</TableCell>
                 <TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${client.name}`} />}><MoreVertical className="size-3.5" /></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-36"><DropdownMenuItem className="text-xs"><Eye className="size-3.5" /> View details</DropdownMenuItem><DropdownMenuItem className="text-xs"><Pencil className="size-3.5" /> Edit client</DropdownMenuItem><DropdownMenuItem className="text-xs"><MessageCircle className="size-3.5" /> Open conversation</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-xs text-destructive focus:text-destructive" onClick={() => setClientToDelete(client)}><Trash2 className="size-3.5" /> Delete client</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
@@ -289,60 +290,6 @@ function PaymentMethodLabel({ method }: { method: PaymentMethod }) {
   if (method === "PayPal") return <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-3 shrink-0 bg-current" style={{ mask: "url(/brands/paypal.svg) center / contain no-repeat", WebkitMask: "url(/brands/paypal.svg) center / contain no-repeat" }} /><span>{method}</span></span>;
   const Icon = paymentMethodIcons[method];
   return <span className="inline-flex items-center gap-1.5"><Icon className="size-3 shrink-0" aria-hidden /><span>{method}</span></span>;
-}
-
-function OrdersSparkline({ values, total }: { values: number[]; total: number }) {
-  const gradientId = useId();
-  const quarters = [
-    { label: "Q1 2026", period: "Jan–Mar" },
-    { label: "Q2 2026", period: "Apr–Jun" },
-    { label: "Q3 2026", period: "Jul–Sep" },
-    { label: "Q4 2026", period: "Oct–Dec" },
-  ];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const coordinates = values.map((value, index) => {
-      const x = 2 + (index * 68) / (values.length - 1);
-      const y = 20 - ((value - min) / range) * 16;
-      return { x, y, value };
-    });
-  const points = coordinates.map(({ x, y }) => `${x},${y}`).join(" ");
-
-  return (
-    <div className="inline-flex items-center gap-2" aria-label={`${total} orders in 2026`}>
-      <div className="relative h-6 w-[4.5rem]">
-        <svg viewBox="0 0 72 24" className="absolute inset-0 size-full overflow-visible" aria-hidden>
-          <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.28" /><stop offset="100%" stopColor="#3b82f6" stopOpacity="0" /></linearGradient></defs>
-          <polygon points={`${points} 70,22 2,22`} fill={`url(#${gradientId})`} />
-          <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        {coordinates.map(({ x, y, value }, index) => (
-          <Tooltip key={quarters[index].label}>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
-                  className="group absolute z-10 flex size-3 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                  style={{ left: `${(x / 72) * 100}%`, top: `${(y / 24) * 100}%` }}
-                  aria-label={`${quarters[index].label}: ${value} orders`}
-                />
-              }
-            >
-              <span className="size-1.5 rounded-full border border-white bg-blue-500 opacity-0 transition-opacity group-hover:opacity-100" />
-            </TooltipTrigger>
-            <TooltipContent>
-              <span className="font-medium">{quarters[index].label}</span>
-              <span>{quarters[index].period}</span>
-              <span>·</span>
-              <span>{value} {value === 1 ? "order" : "orders"}</span>
-            </TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
-      <span className="min-w-5 font-medium tabular-nums text-foreground">{total}</span>
-    </div>
-  );
 }
 
 function SortHeader({ field, activeField, direction, onSort, children }: { field: SortField; activeField: SortField; direction: "asc" | "desc"; onSort: (field: SortField) => void; children: ReactNode }) {

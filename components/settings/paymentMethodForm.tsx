@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Fragment, useState } from "react";
 import { NumberField } from "@base-ui/react/number-field";
@@ -8,6 +7,7 @@ import { Minus, Plus } from "lucide-react";
 import { PaymentIcon } from "react-svg-credit-card-payment-icons";
 import { cn } from "cn";
 
+import { CurrencyFlag } from "@/components/settings/currencyFlag";
 import { PaymentMethodCard } from "@/components/settings/paymentMethodCard";
 import { Button } from "@/components/ui/button";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
@@ -26,8 +26,7 @@ const methodTypes = [
   { value: "other", label: "Other", provider: "other" },
 ] as const;
 
-// The balance currency. Flags are SVGs from country-flag-icons (MIT) on jsDelivr:
-// flag emojis do not render on Windows, which shows letters instead.
+// The balance currency, each with its flag.
 const currencyOptions = [
   { value: "CAD", name: "Canadian dollar", flag: "CA" },
   { value: "USD", name: "US dollar", flag: "US" },
@@ -35,19 +34,6 @@ const currencyOptions = [
 ] as const;
 
 type Currency = (typeof currencyOptions)[number]["value"];
-
-function CurrencyFlag({ flag }: { flag: string }) {
-  return (
-    <Image
-      src={`https://cdn.jsdelivr.net/npm/country-flag-icons@1.6.20/3x2/${flag}.svg`}
-      alt=""
-      width={20}
-      height={14}
-      unoptimized
-      className="h-3 w-4 shrink-0 rounded-[2px] object-cover ring-1 ring-border"
-    />
-  );
-}
 
 type MethodType = (typeof methodTypes)[number]["value"];
 
