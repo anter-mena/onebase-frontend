@@ -1,42 +1,63 @@
+/* The raised light skin.
+   Everything that gives it its shape is a variable with the original value as
+   its fallback, so an unset palette renders exactly what it always did.
+
+   ⚠️ The colours alone were not enough to make this work on a dark page. The
+   sheen band, the inset highlight and the hairline ring were all literal white
+   or literal black: on a dark surface the band read as a bright streak across
+   the button and the ring vanished. Those three are now variables too, and
+   `themes.css` dims them under `.dark`.
+
+   Hover and active are mixed from the base rather than hard-coded, so a themed
+   surface shifts by the same proportion instead of jumping to a grey that no
+   longer belongs to the palette it is sitting on. */
 .button {
   padding: 12px 26px;
-  color: #000;
+  color: var(--skin-white-text, #000);
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--skin-white-radius, var(--radius, 0.625rem));
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0) 70.48%,
-      #fff 93.62%,
-      rgba(255, 255, 255, 0) 100%
+      transparent 70.48%,
+      var(--skin-white-sheen, #fff) 93.62%,
+      transparent 100%
     ),
     linear-gradient(
       180deg,
       rgba(30, 54, 87, 0) 0%,
       rgba(30, 54, 87, 0.01) 100%
     ),
-    #fafafa;
+    var(--skin-white-bg, #fafafa);
   box-shadow:
-    rgba(0, 0, 0, 0.08) 0 0 0 1px,
-    rgba(0, 0, 0, 0.08) 0 -2px 1px 0 inset,
-    rgba(255, 255, 255, 0.5) 0 2px 1px 0 inset,
+    var(--skin-white-ring, rgba(0, 0, 0, 0.08)) 0 0 0 1px,
+    var(--skin-white-shade, rgba(0, 0, 0, 0.08)) 0 -2px 1px 0 inset,
+    var(--skin-white-highlight, rgba(255, 255, 255, 0.5)) 0 2px 1px 0 inset,
     0 2px 5px -1px rgba(0, 0, 0, 0.05),
     0 1px 3px -1px rgba(0, 0, 0, 0.3);
   font-size: 16px;
   font-weight: 600;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
+  text-shadow: 0 1px 1px var(--skin-white-text-shadow, rgba(0, 0, 0, 0.12));
   transition: all 150ms ease-in-out;
 }
 
 .button:hover {
-  background-color: #f5f5f5;
+  background-color: color-mix(
+    in oklch,
+    var(--skin-white-bg, #fafafa) 94%,
+    var(--skin-white-text, #000)
+  );
 }
 
 .button:active {
-  background-color: #f1f1f1;
+  background-color: color-mix(
+    in oklch,
+    var(--skin-white-bg, #fafafa) 90%,
+    var(--skin-white-text, #000)
+  );
   box-shadow:
-    rgba(0, 0, 0, 0.08) 0 0 0 1px,
-    rgba(0, 0, 0, 0.08) 0 1px 1px 0 inset,
-    rgba(255, 255, 255, 0.1) 0 2px 1px 0 inset,
+    var(--skin-white-ring, rgba(0, 0, 0, 0.08)) 0 0 0 1px,
+    var(--skin-white-shade, rgba(0, 0, 0, 0.08)) 0 1px 1px 0 inset,
+    var(--skin-white-highlight, rgba(255, 255, 255, 0.1)) 0 2px 1px 0 inset,
     0 2px 5px -1px rgba(0, 0, 0, 0.05);
 }

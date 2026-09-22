@@ -35,13 +35,18 @@ function LiquidGlassLayers() {
         className="pointer-events-none absolute inset-0 isolate backdrop-blur-[2px]"
         style={{ filter: `url(#${FILTER_ID})` }}
       />
+      {/* ⚠️ Much less white in dark. A quarter-opacity white wash over a dark
+          surface lifts it to a mid grey, and the foreground text — which is
+          near-white in every dark palette — lands on top of that with almost no
+          contrast left. That is what made the sidebar's user box unreadable.
+          The glass is kept; it is the amount of white that changes. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-white/25"
+        className="pointer-events-none absolute inset-0 bg-white/25 dark:bg-white/[0.06]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_1px_1px_0_rgba(255,255,255,0.75),inset_0_0_5px_rgba(255,255,255,0.75)]"
+        className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_1px_1px_0_rgba(255,255,255,0.75),inset_0_0_5px_rgba(255,255,255,0.75)] dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.16),inset_0_0_5px_rgba(255,255,255,0.1)]"
       />
     </>
   );

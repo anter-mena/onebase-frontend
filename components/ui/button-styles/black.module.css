@@ -1,13 +1,21 @@
+/* The raised dark skin.
+   The --skin-black-* variables are the only theming seam. Unset, their
+   fallbacks reproduce the original colours exactly, so a palette that ignores
+   them keeps the button this app has always had. */
 .button {
   padding: 12px 26px;
-  color: #fff;
+  color: var(--skin-black-text, #fff);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--skin-black-radius, calc(var(--radius, 0.625rem) * 0.8));
   background:
     linear-gradient(rgba(255, 255, 255, 0.05) 0, transparent 100%),
-    linear-gradient(0deg, #111 0%, #252525 100%);
+    linear-gradient(
+      0deg,
+      var(--skin-black-from, #111) 0%,
+      var(--skin-black-to, #252525) 100%
+    );
   box-shadow:
-    #000 0 0 0 1px,
+    var(--skin-black-ring, #000) 0 0 0 1px,
     rgba(255, 255, 255, 0.22) 0 1px 1px 0 inset,
     rgba(0, 0, 0, 0.5) 0 1px 2px 0,
     rgba(0, 0, 0, 0.4) 0 -1px 2px 0 inset,
@@ -25,9 +33,13 @@
 .button:active {
   background:
     linear-gradient(rgba(0, 0, 0, 0.05) 0, transparent 100%),
-    linear-gradient(180deg, #111 0%, #252525 100%);
+    linear-gradient(
+      180deg,
+      var(--skin-black-from, #111) 0%,
+      var(--skin-black-to, #252525) 100%
+    );
   box-shadow:
-    #000 0 0 0 1px,
+    var(--skin-black-ring, #000) 0 0 0 1px,
     rgba(255, 255, 255, 0.1) 0 1px 1px 0 inset,
     rgba(0, 0, 0, 0.5) 0 1px 2px 0,
     rgba(0, 0, 0, 0.5) 0 1px 2px 0 inset,

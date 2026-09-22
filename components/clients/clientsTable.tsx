@@ -32,7 +32,23 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-type ClientStatus = "Active" | "Trial" | "Conversion" | "Inactive";
+/**
+ * Where a client is, in the order they usually get there.
+ *
+ * <p>The order is the funnel, and it is the order the filter draws them in —
+ * a list sorted by what happens next reads faster than an alphabetical one.
+ * "Drop" and "Inactive" are both endings and are deliberately separate: one
+ * never became a client, the other was one and lapsed.
+ */
+type ClientStatus =
+  | "New"
+  | "Callback"
+  | "Trial"
+  | "Pending"
+  | "Active"
+  | "Drop"
+  | "Inactive";
+
 const paymentMethodIcons = {
   Card: CreditCard,
   "Bank transfer": Landmark,
@@ -63,24 +79,123 @@ type Client = {
 const clients: Client[] = [
   { id: 1, name: "Amine El Idrissi", initials: "AE", email: "amine@example.com", phone: "+212 6 12 34 56 78", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Sep 29, 2026", subscriptionEndAt: "2026-09-29", devices: 3, duration: "12 months", orders: 4, orderTrend: [0, 1, 1, 2], paymentMethod: "Card", revenue: 12400, status: "Active", color: "bg-emerald-100 text-emerald-800" },
   { id: 2, name: "Sarah Benali", initials: "SB", email: "sarah@example.com", phone: "+212 6 23 45 67 89", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Sep 28, 2026", subscriptionEndAt: "2026-09-28", devices: 4, duration: "24 months", orders: 7, orderTrend: [1, 2, 1, 3], paymentMethod: "Bank transfer", revenue: 18950, status: "Active", color: "bg-violet-100 text-violet-800" },
-  { id: 3, name: "Youssef Alaoui", initials: "YA", phone: "+212 6 34 56 78 90", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Sep 24, 2026", subscriptionEndAt: "2026-09-24", devices: 1, duration: "3 months", orders: 2, orderTrend: [0, 1, 0, 1], paymentMethod: "PayPal", revenue: 4200, status: "Conversion", color: "bg-amber-100 text-amber-800" },
+  { id: 3, name: "Youssef Alaoui", initials: "YA", phone: "+212 6 34 56 78 90", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Sep 24, 2026", subscriptionEndAt: "2026-09-24", devices: 1, duration: "3 months", orders: 2, orderTrend: [0, 1, 0, 1], paymentMethod: "PayPal", revenue: 4200, status: "Callback", color: "bg-amber-100 text-amber-800" },
   { id: 4, name: "Lina Zahra", initials: "LZ", email: "lina@example.com", phone: "+212 6 45 67 89 01", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Sep 22, 2026", subscriptionEndAt: "2026-09-22", devices: 2, duration: "12 months", orders: 5, orderTrend: [1, 1, 1, 2], paymentMethod: "Card", revenue: 9600, status: "Active", color: "bg-sky-100 text-sky-800" },
   { id: 5, name: "Omar Naciri", initials: "ON", phone: "+212 6 56 78 90 12", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Sep 18, 2026", subscriptionEndAt: "2026-09-18", devices: 0, duration: "Expired", orders: 1, orderTrend: [1, 0, 0, 0], paymentMethod: "Not set", revenue: 1350, status: "Inactive", color: "bg-rose-100 text-rose-800" },
-  { id: 6, name: "Meryem Idrissi", initials: "MI", email: "meryem@example.com", phone: "+212 6 67 89 01 23", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Sep 15, 2026", subscriptionEndAt: "2026-09-15", devices: 4, duration: "6 months", orders: 3, orderTrend: [0, 1, 1, 1], paymentMethod: "PayPal", revenue: 7850, status: "Conversion", color: "bg-fuchsia-100 text-fuchsia-800" },
+  { id: 6, name: "Meryem Idrissi", initials: "MI", email: "meryem@example.com", phone: "+212 6 67 89 01 23", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Sep 15, 2026", subscriptionEndAt: "2026-09-15", devices: 4, duration: "6 months", orders: 3, orderTrend: [0, 1, 1, 1], paymentMethod: "PayPal", revenue: 7850, status: "Pending", color: "bg-fuchsia-100 text-fuchsia-800" },
   { id: 7, name: "Adam Mansouri", initials: "AM", email: "adam@example.com", phone: "+212 6 78 90 12 34", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Aug 30, 2026", subscriptionEndAt: "2026-08-30", devices: 3, duration: "18 months", orders: 6, orderTrend: [1, 1, 2, 2], paymentMethod: "Bank transfer", revenue: 14200, status: "Active", color: "bg-cyan-100 text-cyan-800" },
   { id: 8, name: "Salma Chraibi", initials: "SC", phone: "+212 6 89 01 23 45", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Aug 12, 2026", subscriptionEndAt: "2026-08-12", devices: 1, duration: "14 days", orders: 0, orderTrend: [0, 0, 0, 0], paymentMethod: "Not set", revenue: 0, status: "Trial", color: "bg-orange-100 text-orange-800" },
   { id: 9, name: "Mehdi Tazi", initials: "MT", email: "mehdi@example.com", phone: "+212 6 90 12 34 56", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Jul 08, 2026", subscriptionEndAt: "2026-07-08", devices: 4, duration: "24 months", orders: 8, orderTrend: [1, 2, 2, 3], paymentMethod: "Card", revenue: 22100, status: "Active", color: "bg-indigo-100 text-indigo-800" },
-  { id: 10, name: "Nadia Bennani", initials: "NB", phone: "+212 6 01 23 45 67", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Jun 21, 2026", subscriptionEndAt: "2026-06-21", devices: 0, duration: "Expired", orders: 2, orderTrend: [1, 1, 0, 0], paymentMethod: "Not set", revenue: 980, status: "Inactive", color: "bg-pink-100 text-pink-800" },
+  { id: 10, name: "Nadia Bennani", initials: "NB", phone: "+212 6 01 23 45 67", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Jun 21, 2026", subscriptionEndAt: "2026-06-21", devices: 0, duration: "Expired", orders: 2, orderTrend: [1, 1, 0, 0], paymentMethod: "Not set", revenue: 980, status: "Drop", color: "bg-pink-100 text-pink-800" },
   { id: 11, name: "Ayoub Filali", initials: "AF", email: "ayoub@example.com", phone: "+212 6 11 22 33 44", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "May 17, 2026", subscriptionEndAt: "2026-05-17", devices: 2, duration: "12 months", orders: 5, orderTrend: [1, 1, 1, 2], paymentMethod: "Bank transfer", revenue: 11300, status: "Active", color: "bg-lime-100 text-lime-800" },
-  { id: 12, name: "Imane Berrada", initials: "IB", phone: "+212 6 22 33 44 55", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Dec 10, 2025", subscriptionEndAt: "2025-12-10", devices: 1, duration: "6 months", orders: 1, orderTrend: [0, 0, 0, 1], paymentMethod: "PayPal", revenue: 3200, status: "Conversion", color: "bg-teal-100 text-teal-800" },
+  { id: 12, name: "Imane Berrada", initials: "IB", phone: "+212 6 22 33 44 55", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Dec 10, 2025", subscriptionEndAt: "2025-12-10", devices: 1, duration: "6 months", orders: 1, orderTrend: [0, 0, 0, 1], paymentMethod: "PayPal", revenue: 3200, status: "New", color: "bg-teal-100 text-teal-800" },
 ];
 
-const statusStyles: Record<ClientStatus, string> = {
-  Active: "bg-emerald-50 text-emerald-700",
-  Trial: "bg-blue-50 text-blue-700",
-  Conversion: "bg-amber-50 text-amber-700",
-  Inactive: "bg-muted text-muted-foreground",
+/**
+ * The pill is the same neutral shape for every status; only the dot is coloured.
+ *
+ * <p><b>Which is what makes it work in both light and dark for free.</b> The
+ * pill is drawn from `bg-muted` and `text-foreground` — the workspace's own
+ * tokens — so it follows every palette and both modes with no `dark:` variant
+ * anywhere. The version before this used fixed shades like `bg-violet-50`,
+ * a near-white background that stayed near-white on a dark page.
+ *
+ * <p>It also settles a column that had seven filled hues in it, sitting beside
+ * brand logos and a green revenue figure. One shape down the column, with a
+ * dot to say which — the eye finds the odd one out faster in a list that is
+ * otherwise uniform.
+ *
+ * <p>⚠️ Mid-tone (500) dots rather than the 50/700 pair, because they have to
+ * read against a light `--muted` and a dark one. Callback and Pending are the
+ * closest of the seven; they are also the two "waiting on something" states, so
+ * confusing them costs the least.
+ */
+const statusDots: Record<ClientStatus, string> = {
+  New: "bg-cyan-500",
+  Callback: "bg-amber-500",
+  Trial: "bg-blue-500",
+  Pending: "bg-orange-500",
+  Active: "bg-emerald-500",
+  Drop: "bg-rose-500",
+  Inactive: "bg-muted-foreground/50",
 };
+
+/** One shape for all of them. */
+const statusPillClassName =
+  "inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-1 text-[0.6rem] font-medium text-foreground";
+
+const statusFilters = [
+  "All",
+  "New",
+  "Callback",
+  "Trial",
+  "Pending",
+  "Active",
+  "Drop",
+  "Inactive",
+] as const;
+
+/**
+ * The status filter, as one control with the choices on show.
+ *
+ * <p>Same segmented look as the tabs in the Configuration header, the view
+ * switch on Payment methods and the currency switch on Subscriptions — four
+ * places now, and this is deliberately the fourth rather than a fourth
+ * variation. Two of those live in a page header and two in a toolbar; what they
+ * have in common is a short, fixed list where the current choice is worth
+ * seeing without opening anything.
+ *
+ * <p>`overflow-x-auto` rather than wrapping: five labels do not fit on a narrow
+ * phone, and a control that grows to two rows pushes the table down the screen
+ * every time it is looked at.
+ */
+function StatusFilter({
+  value,
+  onChange,
+}: {
+  value: "All" | ClientStatus;
+  onChange: (value: "All" | ClientStatus) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Filter by status"
+      className="inline-flex max-w-full shrink-0 overflow-x-auto rounded-lg border border-border/60 bg-muted p-0.5"
+    >
+      {statusFilters.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onChange(option)}
+          aria-pressed={value === option}
+          className={cn(
+            "inline-flex h-6 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-transparent px-2 text-[0.7rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+            value === option
+              ? "border-border bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The states that come before there is a subscription to end.
+ *
+ * <p>Their End of subscription cell shows "-" rather than a date: a client who
+ * has not paid yet has no renewal date, and printing one would invent a
+ * commitment nobody made. Drop and Inactive are not in the set — both may have
+ * had a subscription that ran out, and that date is worth seeing.
+ */
+const preSubscriptionStatuses = new Set<ClientStatus>([
+  "New",
+  "Callback",
+  "Trial",
+  "Pending",
+]);
 
 const pageSizes = [5, 10, 15, 20];
 const today = new Date("2026-09-09T00:00:00");
@@ -189,19 +304,17 @@ export function ClientsTable() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search by name, email, or phone" aria-label="Search clients" className="bg-muted/30 pl-8 text-xs" />
-        </div>
+        {/* Status leads the row. It is the filter that is always on — there is
+            no "unset" for it, only All — so it reads better as a set of choices
+            with one of them lit than as a dropdown that has to be opened to
+            find out what it currently says. */}
+        <StatusFilter value={status} onChange={(next) => { setStatus(next); setPage(1); }} />
+
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" size="sm" className={cn(whiteStyle.button, "min-w-28 justify-between px-3! py-0! text-[0.65rem]! font-normal!")} />}>{status === "All" ? "All statuses" : status}<ChevronDown className="size-3" /></DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-32">
-              <DropdownMenuRadioGroup value={status} onValueChange={(value) => { setStatus(value as "All" | ClientStatus); setPage(1); }}>
-                {(["All", "Active", "Trial", "Conversion", "Inactive"] as const).map((option) => <DropdownMenuRadioItem key={option} value={option} className="text-xs">{option}</DropdownMenuRadioItem>)}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="relative w-full sm:w-64">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search by name, email, or phone" aria-label="Search clients" className="bg-muted/30 pl-8 text-xs" />
+          </div>
           <Popover>
             <PopoverTrigger render={<Button variant="outline" size="sm" className={cn(whiteStyle.button, "max-w-64 min-w-36 justify-between px-3! py-0! text-[0.65rem]! font-normal!")} />}><CalendarDays className="size-3" /><span className="truncate">{dateRangeLabel}</span><ChevronDown className="size-3" /></PopoverTrigger>
             <PopoverContent align="end" className="w-max max-w-[calc(100vw-2rem)] p-0">
@@ -214,31 +327,72 @@ export function ClientsTable() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4 [scrollbar-gutter:stable] [&>[data-slot=table-container]]:overflow-visible">
-        <Table className="min-w-[1340px] table-fixed border-separate border-spacing-0 text-xs">
+        {/* ── Fitting eleven columns without a sideways scrollbar ─────────────
+            Three things were spending width and none of them was the data.
+
+            The cells carried `p-2` from the Table primitive — 16px of gutter
+            per column, 176px across the row — so they are tightened to px-1.5
+            here rather than everywhere, since the narrower tables elsewhere do
+            not have the problem.
+
+            The headers were `whitespace-nowrap`, which meant "End of
+            subscription" and "Payment method" each reserved a column as wide as
+            their label whatever was underneath. They wrap now; the header row
+            is one line taller and two columns are ~60px narrower.
+
+            And the floor came down from 1340px to 1000px. `table-fixed` treats
+            these widths as proportions once the table is narrower than their
+            sum, so between 1000px and the full width the columns scale down
+            together instead of overflowing. Below 1000px it scrolls, because
+            eleven columns genuinely do not fit on a phone. */}
+        {/* ⚠️ The last column's padding has to be set from here too, not on the
+            cell. `[&_td]:px-1.5` compiles to `.table td`, specificity (0,1,1),
+            which outranks a plain `pr-4` class on the cell at (0,1,0) — so the
+            Actions column quietly lost its right padding and sat flush against
+            the edge. `td:last-child` is (0,2,1) and wins back. */}
+        <Table className="min-w-[1000px] table-fixed border-separate border-spacing-0 text-xs [&_td]:px-1.5 [&_th]:px-1.5 [&_th]:whitespace-normal [&_td:last-child]:pr-4 [&_th:last-child]:pr-4">
           <TableHeader className="[&_tr]:border-0 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-0 [&_th]:bg-muted/95 [&_th]:backdrop-blur-sm [&_th:first-child]:rounded-l-lg [&_th:last-child]:rounded-r-lg">
             <TableRow className="border-0 hover:bg-transparent">
-              <TableHead className="w-10"><Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => toggleAllVisible(checked === true)} aria-label="Select all visible clients" className="size-3.5" /></TableHead>
-              <TableHead className="w-48"><SortHeader field="name" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Client</SortHeader></TableHead>
-              <TableHead className="w-20"><SortHeader field="brand" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Brand</SortHeader></TableHead>
-              <TableHead className="w-[23rem]">Contact</TableHead>
-              <TableHead className="w-44"><SortHeader field="subscriptionEnd" activeField={sort.field} direction={sort.direction} onSort={updateSort}>End of subscription</SortHeader></TableHead>
-              <TableHead className="w-28"><SortHeader field="status" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Status</SortHeader></TableHead>
-              <TableHead className="w-48"><SortHeader field="devices" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Subscription</SortHeader></TableHead>
-              <TableHead className="w-32"><SortHeader field="orders" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Orders</SortHeader></TableHead>
-              <TableHead className="w-40"><SortHeader field="paymentMethod" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Payment method</SortHeader></TableHead>
-              <TableHead className="w-28"><SortHeader field="revenue" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Revenue</SortHeader></TableHead>
-              <TableHead className="w-20 pr-4 text-right">Actions</TableHead>
+              <TableHead className="w-8"><Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => toggleAllVisible(checked === true)} aria-label="Select all visible clients" className="size-3.5" /></TableHead>
+              <TableHead className="w-36"><SortHeader field="name" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Client</SortHeader></TableHead>
+              <TableHead className="w-12"><SortHeader field="brand" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Brand</SortHeader></TableHead>
+              <TableHead className="w-[17rem]">Contact</TableHead>
+              <TableHead className="w-28"><SortHeader field="subscriptionEnd" activeField={sort.field} direction={sort.direction} onSort={updateSort}>End of subscription</SortHeader></TableHead>
+              <TableHead className="w-20"><SortHeader field="status" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Status</SortHeader></TableHead>
+              <TableHead className="w-36"><SortHeader field="devices" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Subscription</SortHeader></TableHead>
+              <TableHead className="w-28"><SortHeader field="orders" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Orders</SortHeader></TableHead>
+              <TableHead className="w-28"><SortHeader field="paymentMethod" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Payment method</SortHeader></TableHead>
+              <TableHead className="w-20"><SortHeader field="revenue" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Revenue</SortHeader></TableHead>
+              <TableHead className="w-20 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleClients.map((client) => (
               <TableRow key={client.id} data-state={selected.has(client.id) ? "selected" : undefined} className="group border-b border-border/80 last:border-0">
                 <TableCell><Checkbox checked={selected.has(client.id)} onCheckedChange={(checked) => toggleClient(client.id, checked === true)} aria-label={`Select ${client.name}`} className="size-3.5" /></TableCell>
-                <TableCell><div className="flex items-center gap-2.5"><span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", client.color)}>{client.initials}</span><div className="min-w-0"><p className="font-medium text-foreground">{client.name}</p><p className="mt-0.5 text-[0.6rem] text-muted-foreground">#{String(client.id).padStart(4, "0")}</p></div></div></TableCell>
+                <TableCell><div className="flex items-center gap-2.5"><span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", client.color)}>{client.initials}</span><div className="min-w-0"><p className="truncate font-medium text-foreground">{client.name}</p><p className="mt-0.5 text-[0.6rem] text-muted-foreground">#{String(client.id).padStart(4, "0")}</p></div></div></TableCell>
                 <TableCell><Tooltip><TooltipTrigger render={<span className="inline-flex size-7 items-center justify-center" />}><Image src={client.brandLogo} alt={client.brand} width={18} height={18} unoptimized className="max-h-[18px] max-w-[18px] object-contain" /></TooltipTrigger><TooltipContent>{client.brand}</TooltipContent></Tooltip></TableCell>
-                <TableCell><div className="grid grid-cols-[10.75rem_1px_minmax(0,1fr)] items-center gap-2"><div className="flex items-center gap-1.5"><Phone className="size-3 shrink-0 text-muted-foreground" aria-hidden /><span className="tabular-nums">{client.phone}</span><CopyButton value={client.phone} copied={copied === client.phone} onCopy={copyContact} /></div><span className="h-4 w-px bg-border" aria-hidden /><div className="flex min-w-0 items-center gap-1.5 text-muted-foreground"><Mail className="size-3 shrink-0" aria-hidden /><span className="truncate">{client.email ?? "-"}</span>{client.email ? <CopyButton value={client.email} copied={copied === client.email} onCopy={copyContact} /> : null}</div></div></TableCell>
+                <TableCell>
+                  {/* One row, at the table's own text size. The phone's track is
+                      9.25rem rather than 10.75rem — just what the number, its
+                      icon and the copy button need — so the email starts where
+                      the phone ends instead of after a stretch of nothing. */}
+                  <div className="grid grid-cols-[9.25rem_1px_minmax(0,1fr)] items-center gap-1.5">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <Phone className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="truncate tabular-nums">{client.phone}</span>
+                      <CopyButton value={client.phone} copied={copied === client.phone} onCopy={copyContact} />
+                    </div>
+                    <span className="h-4 w-px bg-border" aria-hidden />
+                    <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                      <Mail className="size-3 shrink-0" aria-hidden />
+                      <span className="truncate">{client.email ?? "-"}</span>
+                      {client.email ? <CopyButton value={client.email} copied={copied === client.email} onCopy={copyContact} /> : null}
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell>{getSubscriptionEndLabel(client)}</TableCell>
-                <TableCell><span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[0.6rem] font-medium", statusStyles[client.status])}><span className="size-1.5 rounded-full bg-current opacity-70" />{client.status}</span></TableCell>
+                <TableCell><span className={statusPillClassName}><span className={cn("size-1.5 shrink-0 rounded-full", statusDots[client.status])} />{client.status}</span></TableCell>
                 <TableCell><div className="grid grid-cols-[4.5rem_1px_minmax(0,1fr)] items-center gap-2"><div className="flex items-center gap-1.5"><MonitorSmartphone className="size-3 shrink-0 text-muted-foreground" aria-hidden /><span className="tabular-nums">{client.devices} {client.devices === 1 ? "device" : "devices"}</span></div><span className="h-4 w-px bg-border" aria-hidden /><div className="flex items-center gap-1.5 text-muted-foreground"><Clock3 className="size-3 shrink-0" aria-hidden /><span>{client.duration}</span></div></div></TableCell>
                 <TableCell><QuarterSparkline values={client.orderTrend} total={client.orders} unit={{ one: "order", many: "orders" }} /></TableCell>
                 <TableCell className="text-muted-foreground"><PaymentMethodLabel method={client.paymentMethod} /></TableCell>
@@ -282,7 +436,7 @@ export function ClientsTable() {
 }
 
 function getSubscriptionEndLabel(client: Client) {
-  return client.status === "Trial" || client.status === "Conversion" ? "-" : client.subscriptionEnd;
+  return preSubscriptionStatuses.has(client.status) ? "-" : client.subscriptionEnd;
 }
 
 function PaymentMethodLabel({ method }: { method: PaymentMethod }) {

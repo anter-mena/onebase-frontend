@@ -1,0 +1,890 @@
+/**
+ * The predefined palettes.
+ *
+ * Each block only redefines the raw tokens that `globals.css` declares on
+ * `:root`. Everything else follows for free: `@theme inline` maps every
+ * `--color-*` through `var(--<token>)`, so `bg-primary` compiles to
+ * `background-color: var(--primary)` and re-points the moment this changes.
+ * No component knows a theme exists.
+ *
+ * Two selectors per theme, on purpose:
+ *
+ *   `:root[data-theme]` is (0,2,0) and so outranks the `:root` defaults in
+ *   `globals.css` (0,1,0) whichever order the two files end up in — which
+ *   matters because `@import` must sit at the top of a stylesheet and cannot
+ *   be moved below those defaults.
+ *
+ *   The bare `[data-theme]` costs nothing and buys the picker's swatches:
+ *   custom properties inherit, so a `<span data-theme="claude">` re-scopes the
+ *   tokens for its own subtree and its dots paint in that theme's real colours.
+ *   One source of truth instead of a hex list in TypeScript that drifts.
+ *
+ * ── What is taken from a tweakcn export, and what is not ──────────────────
+ *
+ * Taken: the colour tokens, and `--radius`.
+ *
+ * Dropped: `--shadow-*` (Tailwind's own scale is what every component already
+ * uses), `--tracking-*`, and `--spacing` — that last one is Tailwind's base
+ * unit, so a theme changing it would silently rescale every margin, padding
+ * and size in the application rather than recolour it.
+ *
+ * Dropped: `--font-*`. A theme cannot fetch a webfont, so naming Antic or
+ * Montserrat here would land on a fallback that is nobody's intention.
+ *
+ * ⚠️ <b>And no theme may change the typeface at all, including to a face that
+ * is already loaded.</b> Mono and Darkmatter did set the body to Geist Mono,
+ * and it was the one thing that made the interface resize: monospace is wider
+ * per character, so labels grew, flex rows that fit on one line wrapped to two,
+ * and controls moved. A palette is allowed to change what the workspace looks
+ * like, not where its parts are. Type metrics are structure, not colour.
+ *
+ * The `--app-font-sans` hook in `globals.css` is left in place and unused, for
+ * the day a theme ships with a face of its own and a `next/font` entry to load
+ * it — at which point the layout question above has to be answered first.
+ *
+ * ⚠️ `--warning` and `--info` are carried into every theme unchanged, because
+ * tweakcn does not define them and this app does — the starred-mail fill and
+ * the unread dot. They are semantic rather than decorative: "unread" should
+ * stay the same blue whichever palette is on.
+ *
+ * ⚠️ `--destructive` is checked per theme rather than trusted. Delete and log
+ * out are drawn with it, so a palette that makes it neutral takes the danger
+ * out of a dangerous button. Two needed correcting — Claude in light, where it
+ * ships near-black, and Darkmatter in dark, where it ships teal. Both keep the
+ * original value in a comment. Every other block ships a genuine red.
+ *
+ * ── Light and dark ───────────────────────────────────────────────────────
+ *
+ * Every palette has two halves, in two sections below. The palette and the
+ * light/dark mode are independent choices: `<html data-theme>` picks the
+ * colours, `<html class="dark">` picks which half. See `lib/theme/themes.ts`.
+ *
+ * ── The raised button skins ───────────────────────────────────────────────
+ *
+ * Every theme but Default points `--skin-white-*` at its own card tokens. The
+ * skin's default is a flat `#fafafa`, a cool grey that looks like a mistake the
+ * moment the page behind it is warm. Default keeps the literal value so that
+ * nothing about the original look changes.
+ *
+ * The skins' corner radius already follows `--radius` on its own, so a square
+ * theme gets square buttons without any theme having to say so.
+ */
+
+/* ── Default ──────────────────────────────────────────────────────────────
+   The original One Base palette: fully achromatic, every token at zero chroma.
+   Repeated here rather than left implicit in `globals.css` so that the picker
+   has a block to point a swatch at, and so that switching back to it is the
+   same mechanism as switching away. */
+:root[data-theme="default"],
+[data-theme="default"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* ── Claude ───────────────────────────────────────────────────────────────
+   Warm paper and a burnt-orange primary.
+
+   ⚠️ `--destructive` is near-black in the source theme rather than red —
+   chroma 0.002 at lightness 0.19. Faithful, and a real problem here: "Delete
+   client" and "Log out" use `bg-destructive/10 text-destructive`, so under the
+   literal value they lose the one signal that says the action is dangerous.
+   The value below keeps the theme's hue family with enough chroma to read as a
+   warning. The original is in the comment beside it. */
+:root[data-theme="claude"],
+[data-theme="claude"] {
+  --background: oklch(0.9818 0.0054 95.0986);
+  --foreground: oklch(0.3438 0.0269 95.7226);
+  --card: oklch(0.9818 0.0054 95.0986);
+  --card-foreground: oklch(0.1908 0.002 106.5859);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2671 0.0196 98.939);
+  --primary: oklch(0.6171 0.1375 39.0427);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9245 0.0138 92.9892);
+  --secondary-foreground: oklch(0.4334 0.0177 98.6048);
+  --muted: oklch(0.9341 0.0153 90.239);
+  --muted-foreground: oklch(0.6059 0.0075 97.4233);
+  --accent: oklch(0.9245 0.0138 92.9892);
+  --accent-foreground: oklch(0.2671 0.0196 98.939);
+  --destructive: oklch(0.5106 0.1885 27.5181); /* source: oklch(0.1908 0.002 106.5859) */
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.8847 0.0069 97.3627);
+  --input: oklch(0.7621 0.0156 98.3528);
+  --ring: oklch(0.6171 0.1375 39.0427);
+  --chart-1: oklch(0.5583 0.1276 42.9956);
+  --chart-2: oklch(0.6898 0.1581 290.4107);
+  --chart-3: oklch(0.8816 0.0276 93.128);
+  --chart-4: oklch(0.8822 0.0403 298.1792);
+  --chart-5: oklch(0.5608 0.1348 42.0584);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.9663 0.008 98.8792);
+  --sidebar-foreground: oklch(0.359 0.0051 106.6524);
+  --sidebar-primary: oklch(0.6171 0.1375 39.0427);
+  --sidebar-primary-foreground: oklch(0.9881 0 0);
+  --sidebar-accent: oklch(0.9245 0.0138 92.9892);
+  --sidebar-accent-foreground: oklch(0.325 0 0);
+  --sidebar-border: oklch(0.9401 0 0);
+  --sidebar-ring: oklch(0.7731 0 0);
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+}
+
+/* ── Caffeine ─────────────────────────────────────────────────────────────
+   Neutral greys with an espresso-brown primary and a pale crema secondary. */
+:root[data-theme="caffeine"],
+[data-theme="caffeine"] {
+  --background: oklch(0.9821 0 0);
+  --foreground: oklch(0.2435 0 0);
+  --card: oklch(0.9911 0 0);
+  --card-foreground: oklch(0.2435 0 0);
+  --popover: oklch(0.9911 0 0);
+  --popover-foreground: oklch(0.2435 0 0);
+  --primary: oklch(0.4341 0.0392 41.9938);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.92 0.0651 74.3695);
+  --secondary-foreground: oklch(0.3499 0.0685 40.8288);
+  --muted: oklch(0.9521 0 0);
+  --muted-foreground: oklch(0.5032 0 0);
+  --accent: oklch(0.931 0 0);
+  --accent-foreground: oklch(0.2435 0 0);
+  --destructive: oklch(0.6271 0.1936 33.339);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.8822 0 0);
+  --input: oklch(0.8822 0 0);
+  --ring: oklch(0.4341 0.0392 41.9938);
+  --chart-1: oklch(0.4341 0.0392 41.9938);
+  --chart-2: oklch(0.92 0.0651 74.3695);
+  --chart-3: oklch(0.931 0 0);
+  --chart-4: oklch(0.9367 0.0523 75.5009);
+  --chart-5: oklch(0.4338 0.0437 41.6746);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.9881 0 0);
+  --sidebar-foreground: oklch(0.2645 0 0);
+  --sidebar-primary: oklch(0.325 0 0);
+  --sidebar-primary-foreground: oklch(0.9881 0 0);
+  --sidebar-accent: oklch(0.9761 0 0);
+  --sidebar-accent-foreground: oklch(0.325 0 0);
+  --sidebar-border: oklch(0.9401 0 0);
+  --sidebar-ring: oklch(0.7731 0 0);
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+}
+
+/* ── Darkmatter ───────────────────────────────────────────────────────────
+   ⚠️ A light palette, despite the name: this is the theme's `:root` block.
+   Its `.dark` half is the one the name describes, and is not used here — see
+   the note in `lib/theme/themes.ts` about adding dark palettes.
+
+   Monospace throughout, which is the point of it. */
+:root[data-theme="darkmatter"],
+[data-theme="darkmatter"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.2101 0.0318 264.6645);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2101 0.0318 264.6645);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2101 0.0318 264.6645);
+  --primary: oklch(0.6716 0.1368 48.513);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.536 0.0398 196.028);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.967 0.0029 264.5419);
+  --muted-foreground: oklch(0.551 0.0234 264.3637);
+  --accent: oklch(0.9491 0 0);
+  --accent-foreground: oklch(0.2101 0.0318 264.6645);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.9276 0.0058 264.5313);
+  --input: oklch(0.9276 0.0058 264.5313);
+  --ring: oklch(0.6716 0.1368 48.513);
+  --chart-1: oklch(0.594 0.0443 196.0233);
+  --chart-2: oklch(0.7214 0.1337 49.9802);
+  --chart-3: oklch(0.8721 0.0864 68.5474);
+  --chart-4: oklch(0.6268 0 0);
+  --chart-5: oklch(0.683 0 0);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.967 0.0029 264.5419);
+  --sidebar-foreground: oklch(0.2101 0.0318 264.6645);
+  --sidebar-primary: oklch(0.6716 0.1368 48.513);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(1 0 0);
+  --sidebar-accent-foreground: oklch(0.2101 0.0318 264.6645);
+  --sidebar-border: oklch(0.9276 0.0058 264.5313);
+  --sidebar-ring: oklch(0.6716 0.1368 48.513);
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+}
+
+/* ── Mono ─────────────────────────────────────────────────────────────────
+   Every corner square, every face monospace, no colour but the red on
+   destructive. The most different of these from Default despite sharing its
+   greys, because radius 0 and a mid-grey primary change every control. */
+:root[data-theme="mono"],
+[data-theme="mono"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.1448 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.1448 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1448 0 0);
+  --primary: oklch(0.5555 0 0);
+  --primary-foreground: oklch(0.9851 0 0);
+  --secondary: oklch(0.9702 0 0);
+  --secondary-foreground: oklch(0.2046 0 0);
+  --muted: oklch(0.9702 0 0);
+  --muted-foreground: oklch(0.5486 0 0);
+  --accent: oklch(0.9702 0 0);
+  --accent-foreground: oklch(0.2046 0 0);
+  --destructive: oklch(0.583 0.2387 28.4765);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.9219 0 0);
+  --input: oklch(0.9219 0 0);
+  --ring: oklch(0.709 0 0);
+  --chart-1: oklch(0.5555 0 0);
+  --chart-2: oklch(0.5555 0 0);
+  --chart-3: oklch(0.5555 0 0);
+  --chart-4: oklch(0.5555 0 0);
+  --chart-5: oklch(0.5555 0 0);
+  --radius: 0rem;
+  --sidebar: oklch(0.9851 0 0);
+  --sidebar-foreground: oklch(0.1448 0 0);
+  --sidebar-primary: oklch(0.2046 0 0);
+  --sidebar-primary-foreground: oklch(0.9851 0 0);
+  --sidebar-accent: oklch(0.9702 0 0);
+  --sidebar-accent-foreground: oklch(0.2046 0 0);
+  --sidebar-border: oklch(0.9219 0 0);
+  --sidebar-ring: oklch(0.709 0 0);
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+}
+
+/* ── Supabase ─────────────────────────────────────────────────────────────
+   Near-white greys and the mint primary. The primary is light (0.83) with dark
+   green text on it, so `variant="default"` buttons read as a pale green chip
+   rather than a solid dark block — the opposite weight to Default.
+
+   ⚠️ `--muted-foreground` is 0.2435 against a foreground of 0.2046, so the two
+   are very nearly the same ink. That is the source theme's value, kept as-is,
+   but it is worth knowing because this app leans on `text-muted-foreground`
+   for most of its secondary text — eyebrows, table meta, descriptions — and
+   under this palette that text stops stepping back from the primary text.
+   Raising it to around 0.55 would restore the hierarchy if the flatness reads
+   as a bug rather than a style.
+
+   The source asks for Outfit, which this app does not load, so the type stays
+   Geist Sans. Its 0.025em tracking is dropped with the rest of the non-colour
+   tokens. */
+:root[data-theme="supabase"],
+[data-theme="supabase"] {
+  --background: oklch(0.9911 0 0);
+  --foreground: oklch(0.2046 0 0);
+  --card: oklch(0.9911 0 0);
+  --card-foreground: oklch(0.2046 0 0);
+  --popover: oklch(0.9911 0 0);
+  --popover-foreground: oklch(0.4386 0 0);
+  --primary: oklch(0.8348 0.1302 160.908);
+  --primary-foreground: oklch(0.2626 0.0147 166.4589);
+  --secondary: oklch(0.994 0 0);
+  --secondary-foreground: oklch(0.2046 0 0);
+  --muted: oklch(0.9461 0 0);
+  --muted-foreground: oklch(0.2435 0 0);
+  --accent: oklch(0.9461 0 0);
+  --accent-foreground: oklch(0.2435 0 0);
+  --destructive: oklch(0.5523 0.1927 32.7272);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.9037 0 0);
+  --input: oklch(0.9731 0 0);
+  --ring: oklch(0.8348 0.1302 160.908);
+  --chart-1: oklch(0.8348 0.1302 160.908);
+  --chart-2: oklch(0.6231 0.188 259.8145);
+  --chart-3: oklch(0.6056 0.2189 292.7172);
+  --chart-4: oklch(0.7686 0.1647 70.0804);
+  --chart-5: oklch(0.6959 0.1491 162.4796);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.9911 0 0);
+  --sidebar-foreground: oklch(0.5452 0 0);
+  --sidebar-primary: oklch(0.8348 0.1302 160.908);
+  --sidebar-primary-foreground: oklch(0.2626 0.0147 166.4589);
+  --sidebar-accent: oklch(0.9461 0 0);
+  --sidebar-accent-foreground: oklch(0.2435 0 0);
+  --sidebar-border: oklch(0.9037 0 0);
+  --sidebar-ring: oklch(0.8348 0.1302 160.908);
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+}
+
+/* ── Sage Garden ──────────────────────────────────────────────────────────
+   Warm paper, muted green primary. The source asks for Antic and Signifier,
+   which this app does not load, so the type stays Geist Sans. */
+:root[data-theme="sage-garden"],
+[data-theme="sage-garden"] {
+  --background: oklch(0.9761 0.0041 91.4461);
+  --foreground: oklch(0.2417 0.0298 269.8827);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2417 0.0298 269.8827);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2417 0.0298 269.8827);
+  --primary: oklch(0.6333 0.0309 154.9039);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.8596 0.0291 119.9919);
+  --secondary-foreground: oklch(0.2417 0.0298 269.8827);
+  --muted: oklch(0.9251 0.0071 88.645);
+  --muted-foreground: oklch(0.551 0.0234 264.3637);
+  --accent: oklch(0.8242 0.0221 136.6092);
+  --accent-foreground: oklch(0.2417 0.0298 269.8827);
+  --destructive: oklch(0.5624 0.1743 26.1433);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.9251 0.0071 88.645);
+  --input: oklch(1 0 0);
+  --ring: oklch(0.6333 0.0309 154.9039);
+  --chart-1: oklch(0.6333 0.0309 154.9039);
+  --chart-2: oklch(0.7209 0.0489 120.9474);
+  --chart-3: oklch(0.6744 0.0427 136.011);
+  --chart-4: oklch(0.551 0.0234 264.3637);
+  --chart-5: oklch(0.9251 0.0071 88.645);
+  --radius: 0.35rem;
+  --sidebar: oklch(0.9845 0.0026 106.4477);
+  --sidebar-foreground: oklch(0.2417 0.0298 269.8827);
+  --sidebar-primary: oklch(0.6333 0.0309 154.9039);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9251 0.0071 88.645);
+  --sidebar-accent-foreground: oklch(0.2417 0.0298 269.8827);
+  --sidebar-border: oklch(0.9251 0.0071 88.645);
+  --sidebar-ring: oklch(0.6333 0.0309 154.9039);
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+}
+
+/* ── Twitter ──────────────────────────────────────────────────────────────
+   The blue, and a 1.3rem radius that turns every button into a pill.
+
+   ⚠️ `--secondary` is near-black with white text, which is the source theme's
+   intent rather than a mistake — `variant="secondary"` buttons go dark here. */
+:root[data-theme="twitter"],
+[data-theme="twitter"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.1884 0.0128 248.5103);
+  --card: oklch(0.9784 0.0011 197.1387);
+  --card-foreground: oklch(0.1884 0.0128 248.5103);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1884 0.0128 248.5103);
+  --primary: oklch(0.6723 0.1606 244.9955);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.1884 0.0128 248.5103);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.9222 0.0013 286.3737);
+  --muted-foreground: oklch(0.1884 0.0128 248.5103);
+  --accent: oklch(0.9392 0.0166 250.8453);
+  --accent-foreground: oklch(0.6723 0.1606 244.9955);
+  --destructive: oklch(0.6188 0.2376 25.7658);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.9317 0.0118 231.6594);
+  --input: oklch(0.9809 0.0025 228.7836);
+  --ring: oklch(0.6818 0.1584 243.354);
+  --chart-1: oklch(0.6723 0.1606 244.9955);
+  --chart-2: oklch(0.6907 0.1554 160.3454);
+  --chart-3: oklch(0.8214 0.16 82.5337);
+  --chart-4: oklch(0.7064 0.1822 151.7125);
+  --chart-5: oklch(0.5919 0.2186 10.5826);
+  --radius: 1.3rem;
+  --sidebar: oklch(0.9784 0.0011 197.1387);
+  --sidebar-foreground: oklch(0.1884 0.0128 248.5103);
+  --sidebar-primary: oklch(0.6723 0.1606 244.9955);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9392 0.0166 250.8453);
+  --sidebar-accent-foreground: oklch(0.6723 0.1606 244.9955);
+  --sidebar-border: oklch(0.9271 0.0101 238.5177);
+  --sidebar-ring: oklch(0.6818 0.1584 243.354);
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+}
+
+/* ── Sunset Horizon ───────────────────────────────────────────────────────
+   Peach paper and a coral primary. The source asks for Montserrat and
+   Merriweather, which this app does not load, so the type stays Geist Sans. */
+:root[data-theme="sunset-horizon"],
+[data-theme="sunset-horizon"] {
+  --background: oklch(0.9856 0.0084 56.3169);
+  --foreground: oklch(0.3353 0.0132 2.7676);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.3353 0.0132 2.7676);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.3353 0.0132 2.7676);
+  --primary: oklch(0.7357 0.1641 34.7091);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9596 0.02 28.9029);
+  --secondary-foreground: oklch(0.5587 0.1294 32.7364);
+  --muted: oklch(0.9656 0.0176 39.4009);
+  --muted-foreground: oklch(0.5534 0.0116 58.0708);
+  --accent: oklch(0.8278 0.1131 57.9984);
+  --accent-foreground: oklch(0.3353 0.0132 2.7676);
+  --destructive: oklch(0.6122 0.2082 22.241);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
+  --border: oklch(0.9296 0.037 38.6868);
+  --input: oklch(0.9296 0.037 38.6868);
+  --ring: oklch(0.7357 0.1641 34.7091);
+  --chart-1: oklch(0.7357 0.1641 34.7091);
+  --chart-2: oklch(0.8278 0.1131 57.9984);
+  --chart-3: oklch(0.8773 0.0763 54.9314);
+  --chart-4: oklch(0.82 0.1054 40.8859);
+  --chart-5: oklch(0.6368 0.1306 32.0721);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.9656 0.0176 39.4009);
+  --sidebar-foreground: oklch(0.3353 0.0132 2.7676);
+  --sidebar-primary: oklch(0.7357 0.1641 34.7091);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.8278 0.1131 57.9984);
+  --sidebar-accent-foreground: oklch(0.3353 0.0132 2.7676);
+  --sidebar-border: oklch(0.9296 0.037 38.6868);
+  --sidebar-ring: oklch(0.7357 0.1641 34.7091);
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The dark halves
+   ══════════════════════════════════════════════════════════════════════════
+
+   Every palette above ships a second set of values, and these are they. They
+   are not a separate list of themes: the palette and the mode are independent
+   choices, so any theme can be shown in either.
+
+   ⚠️ Each one needs its own block — a shared `.dark` is not enough. The light
+   rules are `:root[data-theme]`, specificity (0,2,0), which beats a plain
+   `.dark` at (0,1,0). Without the blocks below, switching to dark would leave
+   every non-default palette showing its light colours while only the `dark:`
+   utilities changed, which looks like a half-loaded page.
+
+   Two selectors each, for the same two jobs as the light rules:
+
+     `:root[data-theme="x"].dark` is (0,3,0) and outranks that theme's own light
+     rule on the document element.
+
+     `.dark [data-theme="x"]` is (0,2,0) and outranks the bare `[data-theme]`
+     light rule on a descendant — which is what keeps the previews in the theme
+     chooser dark while the application is dark.
+
+   `--warning` and `--info` take the lighter values `globals.css` already used
+   for dark, since the originals were picked against a white page. */
+
+:root[data-theme="default"].dark,
+.dark [data-theme="default"] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+:root[data-theme="claude"].dark,
+.dark [data-theme="claude"] {
+  --background: oklch(0.2679 0.0036 106.6427);
+  --foreground: oklch(0.8074 0.0142 93.0137);
+  --card: oklch(0.2679 0.0036 106.6427);
+  --card-foreground: oklch(0.9818 0.0054 95.0986);
+  --popover: oklch(0.3085 0.0035 106.6039);
+  --popover-foreground: oklch(0.9211 0.004 106.4781);
+  --primary: oklch(0.6724 0.1308 38.7559);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9818 0.0054 95.0986);
+  --secondary-foreground: oklch(0.3085 0.0035 106.6039);
+  --muted: oklch(0.2213 0.0038 106.707);
+  --muted-foreground: oklch(0.7713 0.0169 99.0657);
+  --accent: oklch(0.213 0.0078 95.4245);
+  --accent-foreground: oklch(0.9663 0.008 98.8792);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(0.3618 0.0101 106.8928);
+  --input: oklch(0.4336 0.0113 100.2195);
+  --ring: oklch(0.6724 0.1308 38.7559);
+  --chart-1: oklch(0.5583 0.1276 42.9956);
+  --chart-2: oklch(0.6898 0.1581 290.4107);
+  --chart-3: oklch(0.213 0.0078 95.4245);
+  --chart-4: oklch(0.3074 0.0516 289.323);
+  --chart-5: oklch(0.5608 0.1348 42.0584);
+  --sidebar: oklch(0.2357 0.0024 67.7077);
+  --sidebar-foreground: oklch(0.8074 0.0142 93.0137);
+  --sidebar-primary: oklch(0.325 0 0);
+  --sidebar-primary-foreground: oklch(0.9881 0 0);
+  --sidebar-accent: oklch(0.168 0.002 106.6177);
+  --sidebar-accent-foreground: oklch(0.8074 0.0142 93.0137);
+  /* Source value is oklch(0.9401 0 0) — a near-white rule inside a dark
+     sidebar. Toned to this theme's own border instead. */
+  --sidebar-border: oklch(0.3618 0.0101 106.8928);
+  --sidebar-ring: oklch(0.7731 0 0);
+}
+
+:root[data-theme="caffeine"].dark,
+.dark [data-theme="caffeine"] {
+  --background: oklch(0.1776 0 0);
+  --foreground: oklch(0.9491 0 0);
+  --card: oklch(0.2134 0 0);
+  --card-foreground: oklch(0.9491 0 0);
+  --popover: oklch(0.2134 0 0);
+  --popover-foreground: oklch(0.9491 0 0);
+  --primary: oklch(0.9247 0.0524 66.1732);
+  --primary-foreground: oklch(0.2029 0.024 200.1962);
+  --secondary: oklch(0.3163 0.019 63.6992);
+  --secondary-foreground: oklch(0.9247 0.0524 66.1732);
+  --muted: oklch(0.252 0 0);
+  --muted-foreground: oklch(0.7699 0 0);
+  --accent: oklch(0.285 0 0);
+  --accent-foreground: oklch(0.9491 0 0);
+  --destructive: oklch(0.6271 0.1936 33.339);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(0.2351 0.0115 91.7467);
+  --input: oklch(0.4017 0 0);
+  --ring: oklch(0.9247 0.0524 66.1732);
+  --chart-1: oklch(0.9247 0.0524 66.1732);
+  --chart-2: oklch(0.3163 0.019 63.6992);
+  --chart-3: oklch(0.285 0 0);
+  --chart-4: oklch(0.3481 0.0219 67.0001);
+  --chart-5: oklch(0.9245 0.0533 67.0855);
+  --sidebar: oklch(0.2103 0.0059 285.8852);
+  --sidebar-foreground: oklch(0.9674 0.0013 286.3752);
+  --sidebar-primary: oklch(0.4882 0.2172 264.3763);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.2739 0.0055 286.0326);
+  --sidebar-accent-foreground: oklch(0.9674 0.0013 286.3752);
+  --sidebar-border: oklch(0.2739 0.0055 286.0326);
+  --sidebar-ring: oklch(0.8711 0.0055 286.286);
+}
+
+/* The source theme's dark `--destructive` is oklch(0.594 0.0443 196.0233) — a
+   desaturated teal, the same value it gives `--secondary`. Delete and log out
+   are drawn with it, so under the literal value they would read as an ordinary
+   secondary action. Replaced with a red at this palette's weight. */
+:root[data-theme="darkmatter"].dark,
+.dark [data-theme="darkmatter"] {
+  --background: oklch(0.1797 0.0043 308.1928);
+  --foreground: oklch(0.8109 0 0);
+  --card: oklch(0.1822 0 0);
+  --card-foreground: oklch(0.8109 0 0);
+  --popover: oklch(0.1797 0.0043 308.1928);
+  --popover-foreground: oklch(0.8109 0 0);
+  --primary: oklch(0.7214 0.1337 49.9802);
+  --primary-foreground: oklch(0.1797 0.0043 308.1928);
+  --secondary: oklch(0.594 0.0443 196.0233);
+  --secondary-foreground: oklch(0.1797 0.0043 308.1928);
+  --muted: oklch(0.252 0 0);
+  --muted-foreground: oklch(0.6268 0 0);
+  --accent: oklch(0.3211 0 0);
+  --accent-foreground: oklch(0.8109 0 0);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(0.252 0 0);
+  --input: oklch(0.252 0 0);
+  --ring: oklch(0.7214 0.1337 49.9802);
+  --chart-1: oklch(0.594 0.0443 196.0233);
+  --chart-2: oklch(0.7214 0.1337 49.9802);
+  --chart-3: oklch(0.8721 0.0864 68.5474);
+  --chart-4: oklch(0.6268 0 0);
+  --chart-5: oklch(0.683 0 0);
+  --sidebar: oklch(0.1822 0 0);
+  --sidebar-foreground: oklch(0.8109 0 0);
+  --sidebar-primary: oklch(0.7214 0.1337 49.9802);
+  --sidebar-primary-foreground: oklch(0.1797 0.0043 308.1928);
+  --sidebar-accent: oklch(0.3211 0 0);
+  --sidebar-accent-foreground: oklch(0.8109 0 0);
+  --sidebar-border: oklch(0.252 0 0);
+  --sidebar-ring: oklch(0.7214 0.1337 49.9802);
+}
+
+:root[data-theme="mono"].dark,
+.dark [data-theme="mono"] {
+  --background: oklch(0.1448 0 0);
+  --foreground: oklch(0.9851 0 0);
+  --card: oklch(0.2134 0 0);
+  --card-foreground: oklch(0.9851 0 0);
+  --popover: oklch(0.2686 0 0);
+  --popover-foreground: oklch(0.9851 0 0);
+  --primary: oklch(0.5555 0 0);
+  --primary-foreground: oklch(0.9851 0 0);
+  --secondary: oklch(0.2686 0 0);
+  --secondary-foreground: oklch(0.9851 0 0);
+  --muted: oklch(0.2686 0 0);
+  --muted-foreground: oklch(0.709 0 0);
+  --accent: oklch(0.3715 0 0);
+  --accent-foreground: oklch(0.9851 0 0);
+  --destructive: oklch(0.7022 0.1892 22.2279);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(0.3407 0 0);
+  --input: oklch(0.4386 0 0);
+  --ring: oklch(0.5555 0 0);
+  --chart-1: oklch(0.5555 0 0);
+  --chart-2: oklch(0.5555 0 0);
+  --chart-3: oklch(0.5555 0 0);
+  --chart-4: oklch(0.5555 0 0);
+  --chart-5: oklch(0.5555 0 0);
+  --sidebar: oklch(0.2046 0 0);
+  --sidebar-foreground: oklch(0.9851 0 0);
+  --sidebar-primary: oklch(0.9851 0 0);
+  --sidebar-primary-foreground: oklch(0.2046 0 0);
+  --sidebar-accent: oklch(0.2686 0 0);
+  --sidebar-accent-foreground: oklch(0.9851 0 0);
+  /* Source value is oklch(1 0 0) — pure white. Toned to this theme's own
+     border, already the lightest rule of any palette here. */
+  --sidebar-border: oklch(0.3407 0 0);
+  --sidebar-ring: oklch(0.4386 0 0);
+}
+
+:root[data-theme="supabase"].dark,
+.dark [data-theme="supabase"] {
+  --background: oklch(0.1822 0 0);
+  --foreground: oklch(0.9288 0.0126 255.5078);
+  --card: oklch(0.2046 0 0);
+  --card-foreground: oklch(0.9288 0.0126 255.5078);
+  --popover: oklch(0.2603 0 0);
+  --popover-foreground: oklch(0.7348 0 0);
+  --primary: oklch(0.4365 0.1044 156.7556);
+  --primary-foreground: oklch(0.9213 0.0135 167.1556);
+  --secondary: oklch(0.2603 0 0);
+  --secondary-foreground: oklch(0.9851 0 0);
+  --muted: oklch(0.2393 0 0);
+  --muted-foreground: oklch(0.7122 0 0);
+  --accent: oklch(0.3132 0 0);
+  --accent-foreground: oklch(0.9851 0 0);
+  --destructive: oklch(0.3123 0.0852 29.7877);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(0.2809 0 0);
+  --input: oklch(0.2603 0 0);
+  --ring: oklch(0.8003 0.1821 151.711);
+  --chart-1: oklch(0.8003 0.1821 151.711);
+  --chart-2: oklch(0.7137 0.1434 254.624);
+  --chart-3: oklch(0.709 0.1592 293.5412);
+  --chart-4: oklch(0.8369 0.1644 84.4286);
+  --chart-5: oklch(0.7845 0.1325 181.912);
+  --sidebar: oklch(0.1822 0 0);
+  --sidebar-foreground: oklch(0.6301 0 0);
+  --sidebar-primary: oklch(0.4365 0.1044 156.7556);
+  --sidebar-primary-foreground: oklch(0.9213 0.0135 167.1556);
+  --sidebar-accent: oklch(0.3132 0 0);
+  --sidebar-accent-foreground: oklch(0.9851 0 0);
+  --sidebar-border: oklch(0.2809 0 0);
+  --sidebar-ring: oklch(0.8003 0.1821 151.711);
+}
+
+:root[data-theme="sage-garden"].dark,
+.dark [data-theme="sage-garden"] {
+  --background: oklch(0.1448 0 0);
+  --foreground: oklch(0.9702 0 0);
+  --card: oklch(0.1822 0 0);
+  --card-foreground: oklch(0.9702 0 0);
+  --popover: oklch(0.1822 0 0);
+  --popover-foreground: oklch(0.9702 0 0);
+  --primary: oklch(0.6333 0.0309 154.9039);
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.2178 0 0);
+  --secondary-foreground: oklch(0.9702 0 0);
+  --muted: oklch(0.2178 0 0);
+  --muted-foreground: oklch(0.7058 0 0);
+  --accent: oklch(0.3709 0.0248 153.9823);
+  --accent-foreground: oklch(0.9702 0 0);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(0.285 0 0);
+  --input: oklch(0.1822 0 0);
+  --ring: oklch(0.6333 0.0309 154.9039);
+  --chart-1: oklch(0.6333 0.0309 154.9039);
+  --chart-2: oklch(0.7209 0.0489 120.9474);
+  --chart-3: oklch(0.6744 0.0427 136.011);
+  --chart-4: oklch(0.551 0.0234 264.3637);
+  --chart-5: oklch(0.5096 0.0289 152.346);
+  --sidebar: oklch(0.1684 0 0);
+  --sidebar-foreground: oklch(0.9702 0 0);
+  --sidebar-primary: oklch(0.6333 0.0309 154.9039);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.2178 0 0);
+  --sidebar-accent-foreground: oklch(0.9702 0 0);
+  --sidebar-border: oklch(0.285 0 0);
+  --sidebar-ring: oklch(0.6333 0.0309 154.9039);
+}
+
+:root[data-theme="twitter"].dark,
+.dark [data-theme="twitter"] {
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.9328 0.0025 228.7857);
+  --card: oklch(0.2097 0.008 274.5332);
+  --card-foreground: oklch(0.8853 0 0);
+  --popover: oklch(0 0 0);
+  --popover-foreground: oklch(0.9328 0.0025 228.7857);
+  --primary: oklch(0.6692 0.1607 245.011);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9622 0.0035 219.5331);
+  --secondary-foreground: oklch(0.1884 0.0128 248.5103);
+  --muted: oklch(0.209 0 0);
+  --muted-foreground: oklch(0.5637 0.0078 247.9662);
+  --accent: oklch(0.1928 0.0331 242.5459);
+  --accent-foreground: oklch(0.6692 0.1607 245.011);
+  --destructive: oklch(0.6188 0.2376 25.7658);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(0.2674 0.0047 248.0045);
+  --input: oklch(0.302 0.0288 244.8244);
+  --ring: oklch(0.6818 0.1584 243.354);
+  --chart-1: oklch(0.6723 0.1606 244.9955);
+  --chart-2: oklch(0.6907 0.1554 160.3454);
+  --chart-3: oklch(0.8214 0.16 82.5337);
+  --chart-4: oklch(0.7064 0.1822 151.7125);
+  --chart-5: oklch(0.5919 0.2186 10.5826);
+  --sidebar: oklch(0.2097 0.008 274.5332);
+  --sidebar-foreground: oklch(0.8853 0 0);
+  --sidebar-primary: oklch(0.6818 0.1584 243.354);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.1928 0.0331 242.5459);
+  --sidebar-accent-foreground: oklch(0.6692 0.1607 245.011);
+  --sidebar-border: oklch(0.3795 0.022 240.5943);
+  --sidebar-ring: oklch(0.6818 0.1584 243.354);
+}
+
+:root[data-theme="sunset-horizon"].dark,
+.dark [data-theme="sunset-horizon"] {
+  --background: oklch(0.2569 0.0169 352.4042);
+  --foreground: oklch(0.9397 0.0119 51.3156);
+  --card: oklch(0.3184 0.0176 341.4465);
+  --card-foreground: oklch(0.9397 0.0119 51.3156);
+  --popover: oklch(0.3184 0.0176 341.4465);
+  --popover-foreground: oklch(0.9397 0.0119 51.3156);
+  --primary: oklch(0.7357 0.1641 34.7091);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.3637 0.0203 342.2664);
+  --secondary-foreground: oklch(0.9397 0.0119 51.3156);
+  --muted: oklch(0.2848 0.0159 343.6554);
+  --muted-foreground: oklch(0.8378 0.0237 52.6346);
+  --accent: oklch(0.8278 0.1131 57.9984);
+  --accent-foreground: oklch(0.2569 0.0169 352.4042);
+  --destructive: oklch(0.6122 0.2082 22.241);
+  --warning: oklch(0.828 0.189 84.429);
+  --info: oklch(0.707 0.165 254.624);
+  --border: oklch(0.3637 0.0203 342.2664);
+  --input: oklch(0.3637 0.0203 342.2664);
+  --ring: oklch(0.7357 0.1641 34.7091);
+  --chart-1: oklch(0.7357 0.1641 34.7091);
+  --chart-2: oklch(0.8278 0.1131 57.9984);
+  --chart-3: oklch(0.8773 0.0763 54.9314);
+  --chart-4: oklch(0.82 0.1054 40.8859);
+  --chart-5: oklch(0.6368 0.1306 32.0721);
+  --sidebar: oklch(0.2569 0.0169 352.4042);
+  --sidebar-foreground: oklch(0.9397 0.0119 51.3156);
+  --sidebar-primary: oklch(0.7357 0.1641 34.7091);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.8278 0.1131 57.9984);
+  --sidebar-accent-foreground: oklch(0.2569 0.0169 352.4042);
+  --sidebar-border: oklch(0.3637 0.0203 342.2664);
+  --sidebar-ring: oklch(0.7357 0.1641 34.7091);
+}
+
+/* ── The raised button skins, in dark ──────────────────────────────────────
+   One rule for every palette, because the answer is the same in each: point the
+   skins at the theme's own tokens.
+
+   ⚠️ The dark skin has to stop being near-black. Its literal #111 sits at about
+   the same lightness as a dark page, so a primary button would be a rectangle
+   of white text with no visible button under it. Following `--primary` is not
+   an invention: these palettes already pair a light `--primary` with a dark
+   `--primary-foreground` for exactly this case, which is what a shadcn default
+   button does in dark.
+
+   Flat rather than a ramp, since a gradient between one colour and itself is
+   what the skin's own white sheen overlay already provides.
+
+   This sits after the palettes but competes with none of them — no theme block
+   sets a `--skin-black-*`, and the `--skin-white-*` the light blocks set is the
+   same `var(--card)` this asks for. */
+.dark {
+  --skin-black-from: var(--primary);
+  --skin-black-to: var(--primary);
+  --skin-black-text: var(--primary-foreground);
+  /* The literal #000 hairline disappears against a dark page and reads as a
+     hard edge against a light primary. */
+  --skin-black-ring: rgba(0, 0, 0, 0.35);
+
+  --skin-white-bg: var(--card);
+  --skin-white-text: var(--card-foreground);
+  /* ⚠️ These four are why the light skin looked wrong in dark rather than
+     merely dark. The sheen is a band of pure white across the lower third of
+     the button — invisible on a white page, a bright streak on a dark one. The
+     ring and the top highlight were literal black and literal white, so one
+     vanished and the other glared. Dimmed here to the same proportions,
+     measured against a dark surface instead of a light one. */
+  --skin-white-sheen: rgba(255, 255, 255, 0.1);
+  --skin-white-ring: rgba(255, 255, 255, 0.12);
+  --skin-white-highlight: rgba(255, 255, 255, 0.08);
+  --skin-white-shade: rgba(0, 0, 0, 0.4);
+  /* Light text does not want a dark halo under it. */
+  --skin-white-text-shadow: transparent;
+}

@@ -2,6 +2,13 @@
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 30%), 0 2px 5px rgb(0 0 0 / 3%);
 }
 
+/* No hairline in dark. The white inset ring is there to lift the card off a
+   white page; on a dark one it stops reading as a soft edge and starts reading
+   as an outline drawn around the artwork. The drop shadow stays. */
+:global(.dark) .card {
+  box-shadow: 0 2px 5px rgb(0 0 0 / 3%);
+}
+
 /* Brushed platinum: fine vertical lines over a soft diagonal sheen. */
 .metal {
   background:
@@ -24,6 +31,7 @@
     linear-gradient(135deg, #2c2d31 0%, #1b1c1f 45%, #25262a 70%, #0f1012 100%);
 }
 
+
 /* The large Binance mark behind the card content: lighter at the top, fading downward. */
 .cryptoMark {
   -webkit-mask: url("https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/binance.svg") center / contain no-repeat;
@@ -31,24 +39,27 @@
   background: linear-gradient(200deg, rgb(255 255 255 / 16%) 0%, rgb(255 255 255 / 4%) 70%);
 }
 
-/* Interac: red and white. A soft white glow in the empty middle-right (kept away from the white text and icons),
-   a faint white diagonal sheen, a red glow from the right side, fading to near black at the bottom. */
+/* Interac: plain Interac yellow, a gentle light-to-deeper yellow with no dark fade and no white glow. */
 .interac {
+  background: linear-gradient(155deg, #fde047 0%, #facc15 50%, #eab308 100%);
+}
+
+/* The large Interac hand behind the card content, like the Binance mark. Dark rather than white, since the card is yellow:
+   stronger at the top, fading downward. The hand was cut out of the official Interac logo (public/brands/interac-hand.png). */
+.interacMark {
+  -webkit-mask: url("/brands/interac-hand.png") center / contain no-repeat;
+  mask: url("/brands/interac-hand.png") center / contain no-repeat;
+  background: linear-gradient(200deg, rgb(0 0 0 / 40%) 0%, rgb(0 0 0 / 28%) 70%);
+}
+
+/* Other methods: red and white. A soft white glow in the empty middle-right (kept away from the white text and icons),
+   a faint white diagonal sheen, a red glow from the right side, fading to near black at the bottom. */
+.other {
   background:
     radial-gradient(40% 55% at 68% 35%, rgb(255 255 255 / 38%) 0%, transparent 70%),
     linear-gradient(120deg, transparent 40%, rgb(255 255 255 / 10%) 52%, transparent 62%),
     radial-gradient(60% 85% at 100% 50%, rgb(239 68 68 / 55%) 0%, transparent 62%),
     linear-gradient(155deg, #2b070e 0%, #480c17 35%, #7a1a1f 55%, #2a070c 78%, #0a0203 100%);
-}
-
-/* Other methods: dark bronze metal with fine concentric rings spreading from beyond the bottom-right corner,
-   like the pattern on a banknote or cheque, and a warm amber glow from the top left.
-   Deliberately a different recipe from the others (no top-right glow, no diagonal band). */
-.other {
-  background:
-    repeating-radial-gradient(circle at 105% 115%, transparent 0 13px, rgb(255 220 170 / 9%) 13px 14px),
-    radial-gradient(65% 85% at 0% 0%, rgb(251 191 36 / 32%) 0%, transparent 62%),
-    linear-gradient(150deg, #3a2213 0%, #5c3519 35%, #7a4822 55%, #2b1810 82%, #120a05 100%);
 }
 
 /* Contactless waves: white by default, a green pulse travelling left to right on active cards. */
@@ -86,7 +97,13 @@
   mask-image: linear-gradient(90deg, rgb(0 0 0 / 25%), #000 35%, #000 65%, rgb(0 0 0 / 25%));
 }
 
-/* Interac maple leaf: fades toward the top-left corner, the bottom-right corner and the right edge.
+/* Interac hand: fades only toward the bottom-right corner; the rest of the hand stays fully visible. */
+.handFade {
+  -webkit-mask-image: linear-gradient(135deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(135deg, #000 55%, transparent 100%);
+}
+
+/* Maple leaf on the Other card: fades toward the top-left corner, the bottom-right corner and the right edge.
    The gradients are intersected, so a spot must be visible in all of them to show. */
 .leafFade {
   -webkit-mask-image:
@@ -104,4 +121,26 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   mix-blend-mode: overlay;
   opacity: 0.35;
+}
+
+/* The cards are a fixed piece of art, not a themed surface.
+
+   PayPal navy, Interac yellow and the Binance graphite are brand facts, so the
+   gradients above were always literal. But the card still inherited two things
+   from whatever palette was on: its corner radius, through `rounded-2xl`, which
+   turned the cards square under Mono and almost oval under Twitter; and the
+   `bg-foreground/90` base that Kibo draws under the gradient, which inverts to
+   near-white in dark.
+
+   Pinning the handful of tokens involved is enough — everything else on the
+   card is already a literal value.
+
+   ⚠️ <b>This belongs on the artwork and nothing else.</b> It was briefly on the
+   wrapper that holds the card and its corner buttons, and on the "New payment
+   method" tile beside them, which froze those to the light skin as well. Only
+   the card is a fixed thing; the controls around it are ordinary interface and
+   follow the workspace like every other button. */
+.fixed {
+  --radius: 0.625rem;
+  --foreground: oklch(0.145 0 0);
 }

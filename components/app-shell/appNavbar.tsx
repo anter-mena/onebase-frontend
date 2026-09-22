@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { Fragment, Suspense } from "react";
-import { BellRing, Inbox, MoonStar } from "lucide-react";
+import { BellRing, Inbox, MoonStar, Sun } from "lucide-react";
 import { cn } from "cn";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { appNavigation, getConfigurationTab, navbarPages } from "@/components/app-shell/navigation";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useTheme } from "@/hooks/use-theme";
 
 // useSearchParams() lives here, not in AppNavbar: on prerendered pages it makes
 // everything up to the nearest Suspense render in the browser only, and the
@@ -63,6 +64,10 @@ function Breadcrumb({ tab }: { tab: string | null }) {
 }
 
 export function AppNavbar() {
+  // Only the toggle is used here — never `mode`, which would not survive
+  // hydration on a server-rendered component. See the button below.
+  const { toggleMode } = useTheme();
+
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:px-6">
       <div className="flex min-w-0 items-center gap-3">
@@ -102,16 +107,29 @@ export function AppNavbar() {
             <span className="relative inline-flex size-full rounded-full bg-red-500 ring-1 ring-background" />
           </span>
         </button>
+        {/* Light/dark. Choosing a *palette* is not here — that lives in the
+            account settings window, under Theme. This only flips the palette
+            between its two halves.
+
+            ⚠️ Both icons are rendered and CSS picks one, rather than the
+            component choosing from `mode`. This is server-rendered, and a
+            person whose cookie says dark would get the light icon in the HTML
+            and the dark one on hydration — which React reports as a mismatch.
+            `.dark` is already on `<html>` in the first response, so letting the
+            stylesheet decide is both correct before any JavaScript runs and
+            impossible to get out of step. */}
         <button
           type="button"
+          onClick={toggleMode}
           className={cn(
             whiteStyle.button,
             "flex size-7 items-center justify-center p-0! text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           )}
-          aria-label="Toggle theme"
-          title="Theme toggle"
+          aria-label="Switch between light and dark"
+          title="Light / dark"
         >
-          <MoonStar className="size-3" aria-hidden />
+          <MoonStar className="size-3 dark:hidden" aria-hidden />
+          <Sun className="hidden size-3 dark:block" aria-hidden />
         </button>
       </div>
     </header>

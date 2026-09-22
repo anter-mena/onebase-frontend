@@ -14,8 +14,8 @@ export type CardNetwork = "Visa" | "Mastercard";
 // Monochrome provider logos, tinted with the text color through a CSS mask.
 export const providerLogos: Record<ProviderId, { name: string; src: string | null }> = {
   paypal: { name: "PayPal", src: "/brands/paypal.svg" },
-  // No freely licensed Interac logo exists (removed from Simple Icons), so its name is written instead.
-  interac: { name: "Interac", src: null },
+  // The hand from the official Interac logo, cut out without the text and the yellow square.
+  interac: { name: "Interac", src: "/brands/interac-hand.png" },
   crypto: { name: "Binance", src: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/binance.svg" },
   // Any other method has no brand, so a wallet icon stands in (see ProviderLogo).
   other: { name: "Other", src: null },
@@ -46,13 +46,13 @@ function MapleLeafOutline({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 512 512" fill="none" className={className} aria-hidden>
       <defs>
-        <linearGradient id="interac-leaf-stroke" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="maple-leaf-stroke" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="white" stopOpacity="0.7" />
           <stop offset="100%" stopColor="white" stopOpacity="0.15" />
         </linearGradient>
       </defs>
       <path
-        stroke="url(#interac-leaf-stroke)"
+        stroke="url(#maple-leaf-stroke)"
         strokeWidth={1.5}
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
@@ -101,7 +101,9 @@ export function PaymentMethodCard({ provider, active, methodName, amount, curren
   return (
     // Kibo UI credit card (kibo-ui.com) as a plain metal card.
     // The original card size (full column width, 192px tall) instead of Kibo's bank card proportions.
-    <CreditCard className="aspect-auto min-h-48 max-w-none flex-1 text-white">
+    // styles.fixed: the card keeps the default look under every theme and in
+    // dark — see the note beside the class.
+    <CreditCard className={cn(styles.fixed, "aspect-auto min-h-48 max-w-none flex-1 text-white")}>
       {/* Each method has its own background; platinum until one is designed. */}
       <CreditCardFront safeArea={20} className={cn(styles.card, styles[provider] ?? styles.metal)}>
         {/* Binance only: its large logo behind everything, cropped by the card edge. First, so the content paints over it. */}
@@ -112,8 +114,16 @@ export function PaymentMethodCard({ provider, active, methodName, amount, curren
           </span>
         ) : null}
 
-        {/* Interac only: a maple leaf outline in the bottom right, cropped by the card edge. */}
+        {/* Interac only: its large hand behind everything, cropped by the card edge, like the Binance mark.
+            styles.handFade: it only fades toward the bottom-right corner, so it stays clearly visible. */}
         {provider === "interac" ? (
+          <span aria-hidden className={cn(styles.handFade, "pointer-events-none absolute -top-10 -right-6 h-64 w-44")}>
+            <span className={cn(styles.interacMark, "block size-full")} />
+          </span>
+        ) : null}
+
+        {/* Other only: a maple leaf outline in the bottom right, cropped by the card edge. */}
+        {provider === "other" ? (
           <span aria-hidden className={cn(styles.leafFade, "pointer-events-none absolute -right-6 -bottom-14 size-44")}>
             <MapleLeafOutline className="size-full" />
           </span>

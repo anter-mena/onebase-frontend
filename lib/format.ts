@@ -102,3 +102,46 @@ export function utcStamp(iso: string): string {
 export function count(value: number): string {
   return new Intl.NumberFormat("en-GB").format(Math.round(value))
 }
+
+/**
+ * Money, in full.
+ *
+ * <p>Fixed to `en-US` and to whole dollars for the same reason {@link utcStamp}
+ * is fixed: this renders on the server as well as in the browser, and a number
+ * formatted two ways is a hydration mismatch. Cents are dropped because nothing
+ * on these screens is reconciled to the penny — a revenue total reading
+ * "$106,130.00" is three characters of false precision.
+ */
+export function money(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+/**
+ * Money with the zeroes folded away — "$12.4K", "$1.2M".
+ *
+ * <p>For an axis tick or a stat tile, where the magnitude is the point and the
+ * exact figure lives in the tooltip or the table beside it. Not for a total
+ * somebody might copy.
+ */
+export function compactMoney(value: number): string {
+  const sign = value < 0 ? "-" : ""
+  const size = Math.abs(value)
+
+  if (size >= 1_000_000) return `${sign}$${trimZero(size / 1_000_000)}M`
+  if (size >= 1_000) return `${sign}$${trimZero(size / 1_000)}K`
+  return `${sign}$${Math.round(size)}`
+}
+
+/** 12.0 reads as "12"; 12.4 keeps its decimal. */
+function trimZero(value: number): string {
+  return value.toFixed(1).replace(/\.0$/, "")
+}
+
+/** A signed percentage for a delta cue — "+8.4%", "-3.1%". */
+export function signedPercent(value: number): string {
+  return `${value > 0 ? "+" : value < 0 ? "-" : ""}${Math.abs(value).toFixed(1)}%`
+}

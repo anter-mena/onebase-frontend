@@ -76,15 +76,44 @@ const statusStyles = {
 };
 
 // Round buttons on a card, in the white button style (its own gradient and 3D shadows, nothing overridden but the shape and padding).
-const cardActionClassName = cn(whiteStyle.button, "flex size-9 items-center justify-center rounded-full! p-0! text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring");
+// The colour is left off here so each action can set its own — see the toggle below.
+const cardActionBase = cn(whiteStyle.button, "flex size-9 items-center justify-center rounded-full! p-0! focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring");
+const cardActionClassName = cn(cardActionBase, "text-foreground");
 
-// One card action, placed on an arc around the card's top-right corner (like Pinterest's long-press menu).
-// Hidden, it sits small and transparent on the corner; when the card is hovered (or tapped on a phone, which focuses it)
-// it pops out to its spot on the arc with a small overshoot. index staggers the buttons one after another.
+// The colour names the action, not the state: red while the method is on,
+// because the button switches it off; green while it is off, because the button
+// switches it on. Read at a glance on a hovered card, which is the only moment
+// it is visible.
+const cardToggleClassName = (active: boolean) =>
+  cn(cardActionBase, active ? "text-destructive!" : "text-emerald-600!");
+
+/**
+ * One card action, on an arc around the card's top-right corner.
+ *
+ * <p>⚠️ <b>Revealed by hover and by keyboard focus, and no longer by focus of
+ * any kind.</b> It was `group-focus-within`, which meant that clicking one of
+ * these left it focused and so left the whole arc stuck open after the pointer
+ * had gone — and the card underneath kept its hover scale too. The next click
+ * went to dismissing that state rather than to what was clicked, which is the
+ * "I have to click somewhere else first" this had.
+ *
+ * <p>`:focus-visible` is the distinction that fixes it: browsers set it for
+ * keyboard focus and not for a mouse click, so tabbing still opens the arc and
+ * clicking no longer pins it open.
+ *
+ * <p>A pointer that cannot hover has nothing to reveal them with, so there they
+ * are simply always out. That replaces the old `tabIndex` on the card, which
+ * existed only so that a tap would count as focus.
+ */
 function CornerAction({ x, y, index, children }: { x: number; y: number; index: number; children: ReactNode }) {
   return (
     <span
-      className="pointer-events-none absolute top-0 left-0 -mt-[18px] -ml-[18px] translate-x-0 translate-y-0 scale-50 opacity-0 transition-[translate,scale,opacity] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-focus-within:pointer-events-auto group-focus-within:translate-x-(--x) group-focus-within:translate-y-(--y) group-focus-within:scale-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:translate-x-(--x) group-hover:translate-y-(--y) group-hover:scale-100 group-hover:opacity-100 motion-reduce:transition-none"
+      className={cn(
+        "pointer-events-none absolute top-0 left-0 -mt-[18px] -ml-[18px] translate-x-0 translate-y-0 scale-50 opacity-0 transition-[translate,scale,opacity] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none",
+        "group-hover:pointer-events-auto group-hover:translate-x-(--x) group-hover:translate-y-(--y) group-hover:scale-100 group-hover:opacity-100",
+        "group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:translate-x-(--x) group-has-[:focus-visible]:translate-y-(--y) group-has-[:focus-visible]:scale-100 group-has-[:focus-visible]:opacity-100",
+        "[@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-(--x) [@media(hover:none)]:translate-y-(--y) [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100",
+      )}
       style={{ "--x": `${x}px`, "--y": `${y}px`, transitionDelay: `${index * 50}ms` } as CSSProperties}
     >
       {children}
@@ -94,7 +123,8 @@ function CornerAction({ x, y, index, children }: { x: number; y: number; index: 
 
 type ActionsProps = {
   activeById: Record<MethodId, boolean>;
-  onToggleActive: (id: MethodId) => void;
+  /** Asks for confirmation rather than switching — see the dialog at the foot of PaymentMethods. */
+  onToggleActive: (method: PaymentMethod) => void;
   onDelete: (method: PaymentMethod) => void;
 };
 
@@ -121,7 +151,7 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     {/* A small swatch of the card: same background, same logo. */}
-                    <span className={cn(styles.card, styles[method.id], "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg")}>
+                    <span className={cn(styles.fixed, styles.card, styles[method.id], "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg")}>
                       <ProviderLogo id={method.id} compact />
                     </span>
                     <div className="min-w-0">
@@ -159,7 +189,17 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
                       <MoreVertical className="size-3.5" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="min-w-36">
-                      <DropdownMenuItem className="text-xs" onClick={() => onToggleActive(method.id)}>
+                      {/* The same red/green as the card's toggle: the colour
+                          names the action, not the current state. */}
+                      <DropdownMenuItem
+                        className={cn(
+                          "text-xs",
+                          activeById[method.id]
+                            ? "text-destructive focus:text-destructive"
+                            : "text-emerald-700 focus:text-emerald-700",
+                        )}
+                        onClick={() => onToggleActive(method)}
+                      >
                         {activeById[method.id] ? <><CircleSlash className="size-3.5" /> Deactivate</> : <><CircleCheck className="size-3.5" /> Activate</>}
                       </DropdownMenuItem>
                       <DropdownMenuItem className="text-xs" render={<Link href={editHref(method.id)} />}>
@@ -204,7 +244,17 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
   const [activeById, setActiveById] = useState(
     () => Object.fromEntries(paymentMethods.map((method) => [method.id, method.active])) as Record<MethodId, boolean>,
   );
-  const toggleActive = (id: MethodId) => setActiveById((current) => ({ ...current, [id]: !current[id] }));
+  // Switching a method off stops clients being able to pay with it, which is
+  // not something to do by brushing past a button on a card — so it is asked
+  // for the same way deleting is.
+  const [methodToToggle, setMethodToToggle] = useState<PaymentMethod | null>(null);
+  const togglingActive = methodToToggle ? activeById[methodToToggle.id] : false;
+
+  function toggleActive() {
+    if (!methodToToggle) return;
+    setActiveById((current) => ({ ...current, [methodToToggle.id]: !current[methodToToggle.id] }));
+    setMethodToToggle(null);
+  }
 
   const [deletedIds, setDeletedIds] = useState<ReadonlySet<MethodId>>(() => new Set());
   const [methodToDelete, setMethodToDelete] = useState<PaymentMethod | null>(null);
@@ -232,7 +282,7 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
       </div>
 
       {view === "table" ? (
-        <PaymentMethodsTable methods={methods} activeById={activeById} onToggleActive={toggleActive} onDelete={setMethodToDelete} />
+        <PaymentMethodsTable methods={methods} activeById={activeById} onToggleActive={setMethodToToggle} onDelete={setMethodToDelete} />
       ) : (
       // Columns follow the panel's width, not the window's, so they adapt when the sidebar opens or closes:
       // 1 → 2 (448px) → 3 (768px) → 4 (1152px). Three columns wait for 768px so each card stays about 245px wide.
@@ -245,9 +295,12 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
         ) : null}
 
         {methods.map((method) => (
-          // Hovering the card (or tapping it on a phone, which focuses it) grows it and pops its actions out of the top-right corner.
-          <div key={method.id} tabIndex={0} className="group relative flex rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-            <div className="flex flex-1 rounded-2xl transition-transform group-hover:scale-[1.03] group-focus-within:scale-[1.03] motion-reduce:group-hover:scale-100 motion-reduce:group-focus-within:scale-100">
+          // Hovering the card grows it and pops its actions out of the top-right corner.
+          // No tabIndex: the card itself was never a destination, and making it one is what
+          // let a click leave it focused with its actions stuck open. The actions are buttons
+          // and a link, so they are reachable by keyboard on their own.
+          <div key={method.id} className="group relative flex rounded-2xl">
+            <div className="flex flex-1 rounded-2xl transition-transform group-hover:scale-[1.03] group-has-[:focus-visible]:scale-[1.03] motion-reduce:group-hover:scale-100 motion-reduce:group-has-[:focus-visible]:scale-100">
               <PaymentMethodCard
                 provider={method.id}
                 active={activeById[method.id]}
@@ -270,10 +323,10 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
               <CornerAction x={-40} y={40} index={1}>
                 <button
                   type="button"
-                  onClick={() => toggleActive(method.id)}
+                  onClick={() => setMethodToToggle(method)}
                   aria-label={`${activeById[method.id] ? "Deactivate" : "Activate"} ${method.name}`}
                   title={activeById[method.id] ? "Deactivate" : "Activate"}
-                  className={cardActionClassName}
+                  className={cardToggleClassName(activeById[method.id])}
                 >
                   {activeById[method.id] ? <CircleSlash className="size-3.5" aria-hidden /> : <CircleCheck className="size-3.5" aria-hidden />}
                 </button>
@@ -307,6 +360,30 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
       </div>
       </div>
       )}
+
+      {/* Switching a method off is not destructive, so it is not drawn in red —
+          but it does stop clients paying, which is worth a moment's pause.
+          Cards and table both come here. */}
+      <AlertDialog open={Boolean(methodToToggle)} onOpenChange={(open) => { if (!open) setMethodToToggle(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {togglingActive ? "Deactivate" : "Activate"} {methodToToggle?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {togglingActive
+                ? "Clients will no longer be able to pay with this method. Payments already made are not affected."
+                : "Clients will be able to pay with this method again."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
+            <AlertDialogAction size="sm" onClick={toggleActive}>
+              {togglingActive ? "Deactivate" : "Activate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* One confirmation for both views, like deleting a client. */}
       <AlertDialog open={Boolean(methodToDelete)} onOpenChange={(open) => { if (!open) setMethodToDelete(null); }}>

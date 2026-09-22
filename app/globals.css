@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* The predefined palettes. Its blocks use `:root[data-theme]`, which outranks
+   the `:root` defaults below no matter that this sits above them — `@import`
+   has to come first in a stylesheet. */
+@import "./themes.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -65,8 +69,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-heading: var(--font-geist-sans);
+  /* The fallback is the app's own face, so a theme that says nothing about
+     type keeps Geist Sans. A theme that wants a different one sets
+     --app-font-sans; only families already loaded in `lib/fonts.ts` are worth
+     naming there, since a theme cannot fetch a webfont of its own. */
+  --font-sans: var(--app-font-sans, var(--font-geist-sans));
+  --font-heading: var(--app-font-sans, var(--font-geist-sans));
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -288,4 +296,53 @@
 .onebase-emoji-picker .epr-emoji-category-label {
   font-size: 11px !important;
   font-weight: 600 !important;
+}
+
+/**
+ * Chart colours.
+ *
+ * ⚠️ Fixed, not themed — the same call the payment cards and the status dots
+ * make, and for a stronger reason here. A series colour has a job: telling two
+ * quantities apart, for every reader including the ~8% with a colour vision
+ * deficiency. The nine palettes in `themes.css` cannot do that job. Default's
+ * `--chart-1..5` are five greys, which is a magnitude ramp rather than a set of
+ * identities; Twitter's are two greens and a yellow. A theme is free to restyle
+ * the workspace, but it is not free to make a chart unreadable.
+ *
+ * The chart's *chrome* still follows the theme — surface, text, gridlines and
+ * axis are `--card`, `--foreground`, `--muted-foreground` and `--border`, so a
+ * chart sits correctly on whatever palette is on. Only the data marks are fixed.
+ *
+ * These three slots are validated, not chosen by eye:
+ *
+ *   light, on #ffffff — CVD ΔE 9.2 (≥8), normal-vision ΔE 24.0 (≥15)
+ *   dark,  on #171717 — CVD ΔE 9.4 (≥8), normal-vision ΔE 20.9 (≥15)
+ *
+ * ⚠️ `--viz-3` measures 2.82:1 against a white surface, under the 3:1 bar. That
+ * is allowed only with relief: wherever it appears, the value is also readable
+ * as text — the breakdown prints its own figures, and the bar chart carries a
+ * table view. Do not use this slot for something colour has to carry alone.
+ *
+ * A fourth series is not a fourth hue. Fold the tail into "Other" or split the
+ * chart; a generated ninth colour is indistinguishable under CVD by definition.
+ */
+:root {
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+
+  /* Reserved for state, never for a series. Always shipped with an icon and a
+     word, so direction never rests on colour alone. */
+  --viz-good: #0ca30c;
+  --viz-critical: #d03b3b;
+}
+
+.dark {
+  /* The same three hues re-stepped for a dark surface, not an automatic flip. */
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+
+  --viz-good: #0ca30c;
+  --viz-critical: #d03b3b;
 }

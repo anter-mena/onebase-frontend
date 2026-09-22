@@ -1,7 +1,9 @@
-import { LayoutDashboard, MessageCircle, Settings, Users } from "lucide-react";
+import { Globe, LayoutDashboard, MessageCircle, RefreshCcw, Settings, Users } from "lucide-react";
 
 export const settingsNavigation = [
   { label: "Brands", value: "brands", href: "/settings?tab=brands", description: "Manage the brands available in your workspace." },
+  { label: "Panel", value: "panel", href: "/settings?tab=panel", description: "Manage the panels available in your workspace." },
+  { label: "Expenses", value: "expenses", href: "/settings?tab=expenses", description: "What each subscription costs you, and the price of additional perks." },
   { label: "Subscriptions", value: "subscriptions", href: "/settings?tab=subscriptions", description: "Configure your subscription plans." },
   { label: "Payment methods", value: "payment-methods", href: "/settings?tab=payment-methods", description: "Manage the payment methods available to your clients." },
 ] as const;
@@ -15,6 +17,13 @@ export const appNavigation = [
     available: true,
   },
   {
+    section: "Workspace",
+    label: "SEO Overview",
+    href: "/seo-overview",
+    icon: Globe,
+    available: true,
+  },
+  {
     section: "Management",
     label: "Clients",
     href: "/clients",
@@ -22,12 +31,21 @@ export const appNavigation = [
     available: true,
   },
   {
+    section: "Management",
+    label: "Renewals",
+    href: "/renewals",
+    icon: RefreshCcw,
+    available: true,
+    indicator: "Renewals need attention",
+  },
+  {
     section: "Communication",
     label: "WhatsApp Inbox",
     href: "/whatsapp-inbox",
     icon: MessageCircle,
     available: true,
-    indicator: true,
+    // The pulsing red dot in the sidebar; the text is what screen readers announce for it.
+    indicator: "New WhatsApp messages",
   },
   {
     section: "Administration",

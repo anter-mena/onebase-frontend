@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronsUpDown, Command } from "lucide-react";
+import { Suspense, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronsUpDown, Command, LogOut, Settings } from "lucide-react";
 import { Collapsible } from "@base-ui/react/collapsible";
 import { cn } from "cn";
 
@@ -13,7 +13,25 @@ import {
   navigationSections,
   settingsNavigation,
 } from "@/components/app-shell/navigation";
+import { AccountSettingsDialog } from "@/components/app-shell/accountSettingsDialog";
 import { SecurityCard } from "@/components/app-shell/securityCard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { LiquidGlassLayers } from "@/components/ui/liquifyglasse";
@@ -61,7 +79,10 @@ function SettingsLinks({ items, activeValue }: { items: readonly SettingsItem[];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { setOpen, isMobile } = useSidebar();
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <Sidebar collapsible="icon">
@@ -131,7 +152,7 @@ export function AppSidebar() {
                           {"indicator" in item && item.indicator ? (
                             <span
                               className="relative isolate z-10 ml-auto flex size-1.5 shrink-0 overflow-visible! whitespace-normal! group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:right-0.5"
-                              aria-label="New WhatsApp messages"
+                              aria-label={item.indicator}
                             >
                               <span className="absolute inset-0 z-0 inline-flex animate-ping rounded-full bg-red-400 opacity-70" />
                               <span className="relative z-10 inline-flex size-full rounded-full bg-red-500 ring-1 ring-background" />
@@ -157,7 +178,11 @@ export function AppSidebar() {
         </div>
         <SidebarMenu>
           <SidebarMenuItem className="flex h-12 items-center">
+            {/* The user box opens a menu: Profile, and Log out (which asks for confirmation first). */}
+            <DropdownMenu>
             <SidebarMenuButton
+              // Opens the menu, while keeping the sidebar button's look and its tooltip when collapsed.
+              render={<DropdownMenuTrigger />}
               size="lg"
               tooltip={{
                 children: (
@@ -199,8 +224,40 @@ export function AppSidebar() {
                 aria-hidden
               />
             </SidebarMenuButton>
+            {/* w-auto: as wide as its items, not as wide as the user box it opens from (the dropdown's default). */}
+            <DropdownMenuContent side={isMobile ? "top" : "right"} align="end" sideOffset={8} className="w-auto min-w-32">
+              {/* Opens the account settings window. Not a link to /settings —
+                  that is the workspace Configuration screen, which is a
+                  different thing owned by a different person. */}
+              <DropdownMenuItem className="text-xs" onClick={() => setSettingsOpen(true)}>
+                <Settings className="size-3.5" /> Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* variant="destructive": keeps the text and the icon red on hover, with a light red background. */}
+              <DropdownMenuItem variant="destructive" className="text-xs" onClick={() => setLogoutOpen(true)}>
+                <LogOut className="size-3.5" /> Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
+
+        <AccountSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+        {/* Same confirmation style as deleting a client. */}
+        <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Log out?</AlertDialogTitle>
+              <AlertDialogDescription>You will need to sign in again to use One Base.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
+              {/* Interface only: goes back to the sign-in page. The real sign-out is wired in the logic phase. */}
+              <AlertDialogAction variant="destructive" size="sm" onClick={() => router.push("/login")}>Log out</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
