@@ -105,7 +105,7 @@ export const MODE_INIT_SCRIPT = [
  * Broadcast whenever either choice changes.
  *
  * <p>The same event-plus-`useSyncExternalStore` shape as
- * `use-persisted-boolean`, so that two controls showing the same setting — the
+ * `use-persisted-choice`, so that two controls showing the same setting — the
  * navbar toggle and the switch in the settings window — agree the instant
  * either one is used, without a context provider wrapped around the app.
  */

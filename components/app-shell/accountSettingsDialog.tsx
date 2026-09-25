@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
   Database,
@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 
+import {
+  DatabaseSettings,
+  GeneralSettings,
+  SecuritySettings,
+  SupportSettings,
+} from "@/components/app-shell/settingsSections";
 import { ThemeChooser } from "@/components/app-shell/themeChooser";
 import {
   Dialog,
@@ -25,7 +31,7 @@ import {
 /**
  * The account's own settings, in a window rather than on a page.
  *
- * <p>⚠️ <b>Not the Configuration screen.</b> `/settings` is the workspace —
+ * <p>⚠️ <b>Not the Configuration screen.</b> `/configuration` is the workspace —
  * brands, plans, payment methods — and it is a destination with a URL because
  * it is where work gets done. This is the signed-in person's own preferences,
  * reached from their name in the sidebar, and it deliberately has no URL: it is
@@ -67,6 +73,21 @@ const supportSection: Section = {
 };
 
 const allSections: readonly Section[] = [...sections, supportSection];
+
+/**
+ * What each destination shows.
+ *
+ * <p>⚠️ A map keyed by the same ids as the rail, rather than a chain of
+ * conditionals in the render. The two lists cannot drift: a section added above
+ * without a panel here is a type error, not a blank pane somebody finds later.
+ */
+const panels: Record<SectionId, ReactNode> = {
+  general: <GeneralSettings />,
+  theme: <ThemeChooser />,
+  security: <SecuritySettings />,
+  db: <DatabaseSettings />,
+  support: <SupportSettings />,
+};
 
 export function AccountSettingsDialog({
   open,
@@ -172,23 +193,9 @@ function SettingsPanes() {
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-gutter:stable]">
-            {allSections.map(({ id, label }) => (
+            {allSections.map(({ id }) => (
               <Tabs.Panel key={id} value={id} className="outline-none">
-                {id === "theme" ? (
-                  <ThemeChooser />
-                ) : (
-                  // The same dashed placeholder as the Dashboard and the
-                  // Expenses tab, so an unbuilt area looks unbuilt in the same
-                  // way everywhere.
-                  <div className="flex min-h-64 items-center justify-center rounded-lg border border-dashed p-6 text-center">
-                    <div className="max-w-sm">
-                      <h3 className="text-sm font-medium">{label}</h3>
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        Nothing here yet.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                {panels[id]}
               </Tabs.Panel>
             ))}
           </div>

@@ -21,7 +21,7 @@ import {
  * are what the CSS actually reads, so keeping a second copy in React state
  * would mean two things that can disagree — and the one the person sees would
  * be whichever the stylesheet believes. This subscribes to the DOM instead, the
- * same shape `use-persisted-boolean` uses for `localStorage`: an event to
+ * same shape `use-persisted-choice` uses for `localStorage`: an event to
  * subscribe to, a snapshot read on demand.
  *
  * <p>That also means every control showing this setting agrees instantly. Flip

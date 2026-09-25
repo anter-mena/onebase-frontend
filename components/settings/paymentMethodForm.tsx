@@ -274,7 +274,7 @@ export function PaymentMethodForm({ mode, initialValues = emptyValues }: { mode:
             variant="outline"
             size="sm"
             className={cn(whiteStyle.button, "px-3! py-0! text-xs! font-medium!")}
-            render={<Link href="/settings?tab=payment-methods" />}
+            render={<Link href="/configuration?tab=payment-methods" />}
             nativeButton={false}
           >
             Cancel

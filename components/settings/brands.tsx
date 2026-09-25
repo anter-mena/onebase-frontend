@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { CircleCheck, CircleSlash, ExternalLink, FileDown, Link2, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, FileDown, Link2, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { cn } from "cn";
 
 import { QuarterSparkline } from "@/components/charts/quarterSparkline";
@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 // Brands: the admin only pastes a link; the name, full URL, logo and social links are looked up from the site.
@@ -118,12 +119,6 @@ function toDomain(input: string) {
     return null;
   }
 }
-
-// Same pills as the clients and payment methods tables.
-const statusStyles = {
-  active: "bg-emerald-50 text-emerald-700",
-  inactive: "bg-muted text-muted-foreground",
-};
 
 // "Jan 12, 2026". UTC and a fixed locale, so the server and the browser show the same date.
 const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
@@ -400,10 +395,28 @@ export function Brands() {
                   {/* The same chart as the Orders column in the clients table: new clients per quarter, then the total. */}
                   <QuarterSparkline values={brand.clientTrend} total={brand.clients} unit={{ one: "client", many: "clients" }} />
                 </TableCell>
+                {/* ⚠️ A switch, not a pill. Active is the one thing about a
+                    brand a reader changes constantly, and a read-only badge
+                    made them open a menu to do it. The word stays beside it:
+                    a lone switch says on or off by its position alone, which
+                    is exactly the kind of state worth spelling out when the
+                    consequence is a brand disappearing from the workspace. */}
                 <TableCell>
-                  <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[0.6rem] font-medium", statusStyles[brand.active ? "active" : "inactive"])}>
-                    <span className="size-1.5 rounded-full bg-current opacity-70" />
-                    {brand.active ? "Active" : "Inactive"}
+                  <span className="inline-flex items-center gap-2">
+                    <Switch
+                      checked={brand.active}
+                      onCheckedChange={() => toggleActive(brand.domain)}
+                      aria-label={`${brand.active ? "Deactivate" : "Activate"} ${brand.name}`}
+                      size="sm"
+                    />
+                    <span
+                      className={cn(
+                        "text-[0.65rem] font-medium",
+                        brand.active ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {brand.active ? "Active" : "Inactive"}
+                    </span>
                   </span>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{dateFormatter.format(new Date(`${brand.addedAt}T00:00:00Z`))}</TableCell>
@@ -412,15 +425,17 @@ export function Brands() {
                     <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${brand.name}`} />}>
                       <MoreVertical className="size-3.5" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-36">
-                      <DropdownMenuItem className="text-xs" onClick={() => toggleActive(brand.domain)}>
-                        {brand.active ? <><CircleSlash className="size-3.5" /> Deactivate</> : <><CircleCheck className="size-3.5" /> Activate</>}
-                      </DropdownMenuItem>
+                    <DropdownMenuContent align="end" className="w-auto min-w-36 whitespace-nowrap">
+                      {/* ⚠️ No Activate/Deactivate item here any more — the
+                          switch in the Status column is that control. Two ways
+                          to flip one flag in the same row is a row where the
+                          reader has to work out whether they do the same
+                          thing. */}
                       <DropdownMenuItem className="text-xs" render={<a href={brand.url} target="_blank" rel="noopener noreferrer" />}>
                         <ExternalLink className="size-3.5" /> Visit website
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-xs text-destructive focus:text-destructive" onClick={() => setBrandToDelete(brand)}>
+                      <DropdownMenuItem variant="destructive" className="text-xs" onClick={() => setBrandToDelete(brand)}>
                         <Trash2 className="size-3.5" /> Delete brand
                       </DropdownMenuItem>
                     </DropdownMenuContent>

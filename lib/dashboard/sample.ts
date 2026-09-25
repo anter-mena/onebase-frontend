@@ -110,10 +110,15 @@ function percentChange(now: number, before: number): number {
  * seeing, and dropping empty rows is how a breakdown quietly starts lying about
  * what it covers.
  */
+/**
+ * ⚠️ `logo` is a Simple Icons slug, the same convention the Brands tab and the
+ * Clients table already use — not a URL. The component builds the URL, so the
+ * CDN and its version live in one place.
+ */
 export const revenueByBrand = [
-  { brand: "Nike", domain: "nike.com", revenue: 65550, clients: 6 },
-  { brand: "Adidas", domain: "adidas.com", revenue: 40580, clients: 6 },
-  { brand: "Puma", domain: "puma.com", revenue: 0, clients: 0 },
+  { brand: "Nike", domain: "nike.com", logo: "nike", revenue: 65550, clients: 6 },
+  { brand: "Adidas", domain: "adidas.com", logo: "adidas", revenue: 40580, clients: 6 },
+  { brand: "Puma", domain: "puma.com", logo: "puma", revenue: 0, clients: 0 },
 ] as const
 
 /** The all-time figure the Clients table adds up to. */
@@ -124,8 +129,13 @@ export const lifetimeRevenue = revenueByBrand.reduce((total, row) => total + row
  *
  * <p>Six Active out of twelve. A single ratio against a limit, which is a meter
  * rather than a chart.
+ *
+ * <p>`lastMonthActive` is the same count a month ago, so the trend under the
+ * gauge is worked out from two counts rather than stated as a percentage on its
+ * own. A stored "+8.3%" is a figure nobody can check against anything, and it
+ * goes stale silently the first time the counts move.
  */
-export const retention = { active: 6, total: 12 }
+export const retention = { active: 6, total: 12, lastMonthActive: 5 }
 
 /** What this month is being measured against. */
 export const monthlyTarget = { earned: 14850, target: 20000 }

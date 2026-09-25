@@ -1,0 +1,89 @@
+/* The earnings receipt, cut as a ticket.
+
+   ⚠️ The notches and the scalloped foot are holes in a mask, not circles
+   painted in the page's colour. A painted circle only disappears against the
+   one surface it was matched to — this app has nine palettes in two modes, so
+   it would show as a grey dot on eight of them. A mask cuts through to whatever
+   is actually behind the card. The technique is the one CSS-Tricks sets out in
+   "Fancy CSS Borders Using Masks".
+
+   The paper is the theme's own card, like every other panel on the page, so it
+   follows the palette and the mode rather than standing apart from them. The
+   glow is a breath of `--primary` — grey on Default, orange on Claude, blue on
+   Twitter. The logo at the top is the black skin, as it is in the sidebar. */
+.ticket {
+  /* Where the tear line runs, measured from the top. The header is exactly this
+     tall, so the dashed rule and the two notches always meet. */
+  --notch-y: 10rem;
+  --notch-r: 10px;
+  /* The scallops along the foot: radius, and the distance between centres. */
+  --scallop-r: 7px;
+  --scallop-pitch: 22px;
+
+  /* Mixed from tokens, never literal colours: the foot is the card a shade
+     towards its own ink, which reads as depth on a light card and a dark one. */
+  --ticket-top: var(--card);
+  --ticket-bottom: color-mix(in oklch, var(--card) 96%, var(--card-foreground));
+  --ticket-glow: color-mix(in oklch, var(--primary) 12%, transparent);
+  --ticket-ink: var(--card-foreground);
+  --ticket-muted: var(--muted-foreground);
+  --ticket-rule: var(--border);
+
+  color: var(--ticket-ink);
+  background:
+    radial-gradient(120% 60% at 50% 0%, var(--ticket-glow), transparent 70%),
+    linear-gradient(180deg, var(--ticket-top) 0%, var(--ticket-bottom) 55%);
+  border-radius: calc(var(--radius, 0.625rem) * 1.4);
+
+  /* Three layers, kept only where all three are opaque: one hole at each end
+     of the tear line, and a row of holes along the bottom edge. `round` fits a
+     whole number of scallops to the width, so the row never ends on half of
+     one. The half-pixel between transparent and opaque is the anti-alias —
+     without it the curves step. */
+  mask:
+    radial-gradient(
+      circle at 0 var(--notch-y),
+      #0000 var(--notch-r),
+      #000 calc(var(--notch-r) + 0.5px)
+    ),
+    radial-gradient(
+      circle at 100% var(--notch-y),
+      #0000 var(--notch-r),
+      #000 calc(var(--notch-r) + 0.5px)
+    ),
+    radial-gradient(
+        circle at 50% 100%,
+        #0000 var(--scallop-r),
+        #000 calc(var(--scallop-r) + 0.5px)
+      )
+      50% 100% / var(--scallop-pitch) 100% round no-repeat;
+  mask-composite: intersect;
+}
+
+/* The outline lives on the wrapper. On the ticket itself it would be masked
+   away with everything else outside the shape; a `drop-shadow` filter on the
+   parent follows the cut edge, notches and scallops included.
+
+   ⚠️ This is the ticket's border, and it is not optional. The paper is
+   `--card`, which on Default is the same white as the section behind it — the
+   other cards are told apart by their 1px `border`, and a CSS border cannot
+   follow a mask. So four unblurred 1px shadows, one per side, in the theme's
+   own `--border`: chained filters apply to the result of the one before, so
+   together they trace a hairline all the way round the cut shape. The last
+   one is the soft lift, kept faint so it reads in light and dark alike. */
+.shadow {
+  filter: drop-shadow(1px 0 0 var(--border)) drop-shadow(-1px 0 0 var(--border))
+    drop-shadow(0 1px 0 var(--border)) drop-shadow(0 -1px 0 var(--border))
+    drop-shadow(0 6px 12px color-mix(in oklch, var(--foreground) 6%, transparent));
+}
+
+/* The tear line. Inset from the edges so it starts after the notch rather
+   than running into the hole. */
+.rule {
+  margin-inline: calc(var(--notch-r) + 0.5rem);
+  border-top: 1px dashed var(--ticket-rule);
+}
+
+.muted {
+  color: var(--ticket-muted);
+}

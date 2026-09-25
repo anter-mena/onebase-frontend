@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { SeoWorkspace } from "@/components/seo/seoWorkspace";
+
 export const metadata: Metadata = {
   title: "SEO Overview | One Base",
 };
@@ -12,8 +14,11 @@ export default function SeoOverviewPage() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           SEO Overview
         </h1>
+        {/* Says what the page measures rather than what it is called. The old
+            line promised "search rankings", which GA4 does not have — see the
+            note at the top of SeoWorkspace. */}
         <p className="mt-1 text-xs text-muted-foreground">
-          Track how your brands perform in search.
+          What organic search brings each brand, from Google Analytics 4.
         </p>
       </header>
 
@@ -22,17 +27,7 @@ export default function SeoOverviewPage() {
         aria-label="SEO Overview content"
       >
         <div className="h-full overflow-y-auto p-4 [scrollbar-gutter:stable]">
-          <div className="space-y-4">
-            <div className="flex min-h-72 items-center justify-center rounded-lg border border-dashed p-6 text-center">
-              <div className="max-w-sm">
-                <h2 className="text-sm font-medium">Content area</h2>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Search rankings, traffic and keyword data will be added here
-                  as we build each feature.
-                </p>
-              </div>
-            </div>
-          </div>
+          <SeoWorkspace />
         </div>
       </section>
     </div>

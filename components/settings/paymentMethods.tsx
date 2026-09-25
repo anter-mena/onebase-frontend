@@ -38,7 +38,7 @@ import styles from "./paymentMethods.module.css";
 type MethodId = PaymentMethod["id"];
 type View = PaymentMethodsView;
 
-const editHref = (id: MethodId) => `/settings/payment-methods/${id}/edit`;
+const editHref = (id: MethodId) => `/configuration/payment-methods/${id}/edit`;
 
 // Same look as the tabs in the Configuration header.
 function ViewSwitch({ view, onChange }: { view: View; onChange: (view: View) => void }) {
@@ -188,7 +188,7 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
                     <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${method.name}`} />}>
                       <MoreVertical className="size-3.5" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-36">
+                    <DropdownMenuContent align="end" className="w-auto min-w-36 whitespace-nowrap">
                       {/* The same red/green as the card's toggle: the colour
                           names the action, not the current state. */}
                       <DropdownMenuItem
@@ -206,7 +206,7 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
                         <Pencil className="size-3.5" /> Edit method
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-xs text-destructive focus:text-destructive" onClick={() => onDelete(method)}>
+                      <DropdownMenuItem variant="destructive" className="text-xs" onClick={() => onDelete(method)}>
                         <Trash2 className="size-3.5" /> Delete method
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -223,7 +223,7 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
       </div>
 
       {/* The "Add new method" card has no place in a table, so its link sits below it. */}
-      <Link href="/settings/payment-methods/new" className="mt-3 inline-flex items-center gap-1.5 px-2 text-xs font-medium text-teal-600 hover:text-teal-700">
+      <Link href="/configuration/payment-methods/new" className="mt-3 inline-flex items-center gap-1.5 px-2 text-xs font-medium text-teal-600 hover:text-teal-700">
         <CirclePlus className="size-4" aria-hidden />
         Add new method
       </Link>
@@ -346,7 +346,7 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
           </div>
         ))}
 
-        <Link href="/settings/payment-methods/new" className="group flex min-h-48 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-muted-foreground/40 bg-card p-6 text-center shadow-sm outline-none transition-[scale,box-shadow,border-color] hover:scale-[1.03] hover:border-muted-foreground/60 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:hover:scale-100">
+        <Link href="/configuration/payment-methods/new" className="group flex min-h-48 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-muted-foreground/40 bg-card p-6 text-center shadow-sm outline-none transition-[scale,box-shadow,border-color] hover:scale-[1.03] hover:border-muted-foreground/60 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:hover:scale-100">
           <span aria-hidden className={cn(whiteStyle.button, "mb-3 flex size-12 items-center justify-center p-0! text-foreground transition-transform group-hover:scale-105 motion-reduce:group-hover:scale-100")}>
             <WalletCards className="size-5" strokeWidth={1.75} />
           </span>

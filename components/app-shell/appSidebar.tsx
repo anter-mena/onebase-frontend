@@ -84,6 +84,22 @@ export function AppSidebar() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  /**
+   * Whether the reader has had their say about the Configuration group.
+   *
+   * <p>`null` until they touch it, and then whatever they chose — which is the
+   * whole point. The group used to take its state straight from the route:
+   * open on a Configuration page, shut everywhere else, remounted on every
+   * navigation so the default re-applied. Opening it and then clicking through
+   * to Clients slammed it shut, which no one asked for.
+   *
+   * <p>⚠️ An explicit choice outranks the route permanently, not until the
+   * next navigation. Falling back to the route once they had chosen would mean
+   * the group closing itself again the moment they left the section — the
+   * original bug wearing a hat.
+   */
+  const [configChoice, setConfigChoice] = useState<boolean | null>(null);
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-12 shrink-0 justify-center border-b px-2 py-1.5">
@@ -122,7 +138,20 @@ export function AppSidebar() {
                     if ("items" in item) {
                       return (
                         <SidebarMenuItem key={item.href}>
-                          <Collapsible.Root key={String(active)} defaultOpen={active} onOpenChange={(open) => { if (open && !isMobile) setOpen(true); }}>
+                          {/* ⚠️ Controlled, and with no `key`.
+                              The `key={String(active)}` that used to sit here
+                              remounted the whole collapsible whenever the
+                              route stopped matching, which re-ran
+                              `defaultOpen={active}` as `false` and shut the
+                              group. A key is not a way to push new state into
+                              a component; it is a way to throw the old one
+                              away, and that is exactly what went wrong.
+
+                              Open when the reader has said so, and otherwise
+                              when the route is in this section — so landing on
+                              a Configuration page still reveals it, and
+                              nothing but a click on the trigger closes it. */}
+                          <Collapsible.Root open={configChoice ?? active} onOpenChange={(open) => { setConfigChoice(open); if (open && !isMobile) setOpen(true); }}>
                             <Collapsible.Trigger onClick={() => { if (!isMobile) setOpen(true); }} render={<SidebarMenuButton tooltip={item.label} isActive={active} className="group/settings text-xs" />}>
                               <Icon aria-hidden />
                               <span>{item.label}</span>
@@ -192,7 +221,23 @@ export function AppSidebar() {
                   </span>
                 ),
               }}
-              className="relative h-auto min-h-12 items-center justify-start gap-2 overflow-visible border-transparent bg-transparent py-2 pr-7 pl-3 text-left shadow-none group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!"
+              // ⚠️ No hover fill, in any state.
+              //
+              // Collapsed, this button is 32px wide (size-8) but still 48px
+              // tall, because `min-h-12` outranks the height `size-8` sets —
+              // min-height always beats height. The AU tile inside it is 32
+              // square and centred, so the button's hover background was
+              // painting the 8px it left over above and below the tile and
+              // nothing at either side: a bar top and bottom rather than a
+              // surround.
+              //
+              // Removing the fill rather than the leftover height, because the
+              // height is doing a job — it keeps the button a comfortable
+              // target and keeps this row the same 48px as the rest of the
+              // footer. Expanded, the white-skin glass behind it already
+              // answers the pointer, so there was nothing for this fill to add
+              // there either. Padding is untouched.
+              className="relative h-auto min-h-12 items-center justify-start gap-2 overflow-visible border-transparent bg-transparent py-2 pr-7 pl-3 text-left shadow-none hover:bg-transparent active:bg-transparent data-active:bg-transparent data-open:hover:bg-transparent group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!"
             >
               <span
                 aria-hidden
@@ -226,7 +271,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
             {/* w-auto: as wide as its items, not as wide as the user box it opens from (the dropdown's default). */}
             <DropdownMenuContent side={isMobile ? "top" : "right"} align="end" sideOffset={8} className="w-auto min-w-32">
-              {/* Opens the account settings window. Not a link to /settings —
+              {/* Opens the account settings window. Not a link to /configuration —
                   that is the workspace Configuration screen, which is a
                   different thing owned by a different person. */}
               <DropdownMenuItem className="text-xs" onClick={() => setSettingsOpen(true)}>

@@ -25,8 +25,15 @@ import {
 } from "@/components/ui/tooltip";
 import { PanelLeftIcon } from "lucide-react";
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+// ⚠️ From a plain module, so the private layout can read the same cookie name
+// on the server. Re-exporting it from this file would not work: every export
+// of a `"use client"` module arrives at a server component as a client
+// reference rather than its value. See lib/sidebar/state.ts.
+import {
+  SIDEBAR_COOKIE_MAX_AGE,
+  SIDEBAR_COOKIE_NAME,
+} from "@/lib/sidebar/state";
+
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";

@@ -6,20 +6,29 @@ import { AppFooter } from "@/components/app-shell/appFooter";
 import { AppNavbar } from "@/components/app-shell/appNavbar";
 import { AppSidebar } from "@/components/app-shell/appSidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { usePersistedBoolean } from "@/hooks/use-persisted-boolean";
 
-const SIDEBAR_STORAGE_KEY = "onebase:sidebar-open";
-
-export function AppShell({ children }: { children: ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = usePersistedBoolean(
-    SIDEBAR_STORAGE_KEY,
-    true,
-  );
-
+/**
+ * ⚠️ `defaultOpen` comes from the server, which read the cookie — it is not a
+ * fallback. The sidebar used to hold its open state in localStorage, which no
+ * server can see: the first paint was always "open", and the moment React
+ * hydrated it read storage and shut the sidebar in front of the reader. The
+ * flash was always there; it only became visible once this page had enough
+ * JavaScript to make hydration take a moment.
+ *
+ * <p>Uncontrolled on purpose. `SidebarProvider` keeps the state itself and
+ * writes the cookie on every toggle, so there is nothing for this component to
+ * own — a controlled wrapper here is what created the round trip.
+ */
+export function AppShell({
+  children,
+  defaultOpen,
+}: {
+  children: ReactNode;
+  defaultOpen: boolean;
+}) {
   return (
     <SidebarProvider
-      open={sidebarOpen}
-      onOpenChange={setSidebarOpen}
+      defaultOpen={defaultOpen}
       className="h-svh overflow-hidden"
       style={
         {

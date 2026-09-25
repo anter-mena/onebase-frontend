@@ -20,9 +20,9 @@ function BreadcrumbWithTab() {
 
 // The full path to the current page, for example:
 //   /clients                        → Management / Clients
-//   /settings?tab=payment-methods   → Administration / Configuration / Payment methods
-//   /settings/payment-methods/new   → Administration / Configuration / Payment methods / New
-//   /settings/payment-methods/paypal/edit → Administration / Configuration / Payment methods / Edit
+//   /configuration?tab=payment-methods   → Administration / Configuration / Payment methods
+//   /configuration/payment-methods/new   → Administration / Configuration / Payment methods / New
+//   /configuration/payment-methods/paypal/edit → Administration / Configuration / Payment methods / Edit
 function Breadcrumb({ tab }: { tab: string | null }) {
   const pathname = usePathname();
   const currentItem = [...appNavigation, ...navbarPages].find(
@@ -32,7 +32,7 @@ function Breadcrumb({ tab }: { tab: string | null }) {
   const trail: string[] = [currentItem?.section ?? "Workspace", currentItem?.label ?? "Dashboard"];
 
   if (currentItem && "items" in currentItem) {
-    // The sub-page comes from the path (/settings/payment-methods/new) or, on /settings itself, from ?tab=.
+    // The sub-page comes from the path (/configuration/payment-methods/new) or, on /configuration itself, from ?tab=.
     // Without either (while the URL is still unknown), the trail stops at the section.
     const [, , pathSection, ...rest] = pathname.split("/");
     const subItem = pathSection

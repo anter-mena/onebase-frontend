@@ -40,6 +40,11 @@ function DropdownMenuContent({
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
+          // ⚠️ `w-(--anchor-width)` is a width, not a minimum: the popup is
+          // pinned to the size of whatever opened it. That is right for a
+          // select-like menu under a full-width trigger, and wrong under a
+          // small icon button, where every label longer than the button wraps.
+          // Pass `w-auto` from the call site to let one size to its content.
           className={cn("z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95", className )}
           {...props}
         />
@@ -158,19 +163,30 @@ function DropdownMenuCheckboxItem({
       data-slot="dropdown-menu-checkbox-item"
       data-inset={inset}
       className={cn(
-        "relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        // Room on the left for the box, not on the right for a tick.
+        "relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-2 pl-7 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       checked={checked}
       {...props}
     >
+      {/* A box on the left that is always there, with the tick inside it.
+          A bare tick on the right appears only when something is on, so the
+          off rows read as plain text and nothing says they can be switched.
+
+          ⚠️ `bg-card`, and that is what makes this safe. The item carries
+          `focus:**:text-accent-foreground`, so highlighting a row repaints
+          every descendant — the tick included. Against a `primary` fill that
+          turned a light tick dark and it vanished on hover; against the card
+          surface, accent-foreground is a readable ink and the repaint costs
+          nothing. The conflict is designed out rather than fought with
+          `!important`. */}
       <span
-        className="pointer-events-none absolute right-2 flex items-center justify-center"
+        className="pointer-events-none absolute left-1.5 flex size-3.5 items-center justify-center rounded-[4px] border bg-card"
         data-slot="dropdown-menu-checkbox-item-indicator"
       >
         <MenuPrimitive.CheckboxItemIndicator>
-          <CheckIcon
-          />
+          <CheckIcon className="size-2.5" />
         </MenuPrimitive.CheckboxItemIndicator>
       </span>
       {children}

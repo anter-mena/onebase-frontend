@@ -145,3 +145,23 @@ function trimZero(value: number): string {
 export function signedPercent(value: number): string {
   return `${value > 0 ? "+" : value < 0 ? "-" : ""}${Math.abs(value).toFixed(1)}%`
 }
+
+/**
+ * Money to the cent — "$3,176.61".
+ *
+ * <p>⚠️ Only where the page shows its own sums. {@link money} drops cents on
+ * purpose, and that is right for a total nobody reconciles; but costs here are
+ * things like $5.99 a device, and a receipt or a ledger rounded to whole
+ * dollars stops adding up — "$3,200 − $23 = $3,177" beside a net that is
+ * really $3,176.61. Fixed locale for the same server/browser reason.
+ */
+export function exactMoney(value: number): string {
+  return exactMoneyFormatter.format(value)
+}
+
+const exactMoneyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})

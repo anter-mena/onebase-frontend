@@ -2,12 +2,14 @@
 
 import { useMemo, useState, type ReactNode, type ComponentProps } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
   ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronsLeft, ChevronsRight, Clock3, Copy, CreditCard, Eye, FileDown, Landmark, Mail,
-  MessageCircle, MonitorSmartphone, MoreVertical, Pencil, Phone, Search, Trash2,
+  MessageCircle, MonitorSmartphone, MoreVertical, Pencil, Phone, Search, SlidersHorizontal, Trash2,
 } from "lucide-react";
 import { cn } from "cn";
 
@@ -22,7 +24,8 @@ import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup,
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup,
+  DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup,
   DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -31,65 +34,61 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  clients,
+  preSubscriptionStatuses,
+  type Client,
+  type ClientStatus,
+  type PaymentMethod,
+} from "@/lib/clients/sample";
+import {
+  CLIENT_COLUMNS_COOKIE,
+  CLIENT_COLUMNS_COOKIE_MAX_AGE,
+  CLIENT_FIXED_COLUMNS_WIDTH,
+  clientColumns,
+  serializeHiddenColumns,
+  type ClientColumnId,
+} from "@/lib/clients/columns";
 
 /**
  * Where a client is, in the order they usually get there.
  *
  * <p>The order is the funnel, and it is the order the filter draws them in —
  * a list sorted by what happens next reads faster than an alphabetical one.
- * "Drop" and "Inactive" are both endings and are deliberately separate: one
- * never became a client, the other was one and lapsed.
+ * "Inactive" and "Drop" are both endings and are deliberately separate: one
+ * was a client and lapsed, the other never became one.
+ *
+ * <p>Drop sits last because it is the worst outcome on the list, and the only
+ * one marked destructive. Inactive comes before it: a lapsed client is a
+ * dormant relationship, not a lost one.
  */
-type ClientStatus =
-  | "New"
-  | "Callback"
-  | "Trial"
-  | "Pending"
-  | "Active"
-  | "Drop"
-  | "Inactive";
 
 const paymentMethodIcons = {
   Card: CreditCard,
   "Bank transfer": Landmark,
 };
-type PaymentMethod = keyof typeof paymentMethodIcons | "PayPal" | "Not set";
 type SortField = "name" | "brand" | "subscriptionEnd" | "status" | "devices" | "orders" | "paymentMethod" | "revenue";
 
-type Client = {
-  id: number;
-  name: string;
-  initials: string;
-  email?: string;
-  phone: string;
-  brand: string;
-  brandLogo: string;
-  subscriptionEnd: string;
-  subscriptionEndAt: string;
-  devices: number;
-  duration: string;
-  orders: number;
-  orderTrend: number[];
-  paymentMethod: PaymentMethod;
-  revenue: number;
-  status: ClientStatus;
-  color: string;
-};
+// The column list, their widths and the cookie all live in lib/clients/columns
+// — a plain module, so the page can read the same cookie on the server.
 
-const clients: Client[] = [
-  { id: 1, name: "Amine El Idrissi", initials: "AE", email: "amine@example.com", phone: "+212 6 12 34 56 78", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Sep 29, 2026", subscriptionEndAt: "2026-09-29", devices: 3, duration: "12 months", orders: 4, orderTrend: [0, 1, 1, 2], paymentMethod: "Card", revenue: 12400, status: "Active", color: "bg-emerald-100 text-emerald-800" },
-  { id: 2, name: "Sarah Benali", initials: "SB", email: "sarah@example.com", phone: "+212 6 23 45 67 89", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Sep 28, 2026", subscriptionEndAt: "2026-09-28", devices: 4, duration: "24 months", orders: 7, orderTrend: [1, 2, 1, 3], paymentMethod: "Bank transfer", revenue: 18950, status: "Active", color: "bg-violet-100 text-violet-800" },
-  { id: 3, name: "Youssef Alaoui", initials: "YA", phone: "+212 6 34 56 78 90", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Sep 24, 2026", subscriptionEndAt: "2026-09-24", devices: 1, duration: "3 months", orders: 2, orderTrend: [0, 1, 0, 1], paymentMethod: "PayPal", revenue: 4200, status: "Callback", color: "bg-amber-100 text-amber-800" },
-  { id: 4, name: "Lina Zahra", initials: "LZ", email: "lina@example.com", phone: "+212 6 45 67 89 01", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Sep 22, 2026", subscriptionEndAt: "2026-09-22", devices: 2, duration: "12 months", orders: 5, orderTrend: [1, 1, 1, 2], paymentMethod: "Card", revenue: 9600, status: "Active", color: "bg-sky-100 text-sky-800" },
-  { id: 5, name: "Omar Naciri", initials: "ON", phone: "+212 6 56 78 90 12", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Sep 18, 2026", subscriptionEndAt: "2026-09-18", devices: 0, duration: "Expired", orders: 1, orderTrend: [1, 0, 0, 0], paymentMethod: "Not set", revenue: 1350, status: "Inactive", color: "bg-rose-100 text-rose-800" },
-  { id: 6, name: "Meryem Idrissi", initials: "MI", email: "meryem@example.com", phone: "+212 6 67 89 01 23", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Sep 15, 2026", subscriptionEndAt: "2026-09-15", devices: 4, duration: "6 months", orders: 3, orderTrend: [0, 1, 1, 1], paymentMethod: "PayPal", revenue: 7850, status: "Pending", color: "bg-fuchsia-100 text-fuchsia-800" },
-  { id: 7, name: "Adam Mansouri", initials: "AM", email: "adam@example.com", phone: "+212 6 78 90 12 34", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Aug 30, 2026", subscriptionEndAt: "2026-08-30", devices: 3, duration: "18 months", orders: 6, orderTrend: [1, 1, 2, 2], paymentMethod: "Bank transfer", revenue: 14200, status: "Active", color: "bg-cyan-100 text-cyan-800" },
-  { id: 8, name: "Salma Chraibi", initials: "SC", phone: "+212 6 89 01 23 45", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Aug 12, 2026", subscriptionEndAt: "2026-08-12", devices: 1, duration: "14 days", orders: 0, orderTrend: [0, 0, 0, 0], paymentMethod: "Not set", revenue: 0, status: "Trial", color: "bg-orange-100 text-orange-800" },
-  { id: 9, name: "Mehdi Tazi", initials: "MT", email: "mehdi@example.com", phone: "+212 6 90 12 34 56", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "Jul 08, 2026", subscriptionEndAt: "2026-07-08", devices: 4, duration: "24 months", orders: 8, orderTrend: [1, 2, 2, 3], paymentMethod: "Card", revenue: 22100, status: "Active", color: "bg-indigo-100 text-indigo-800" },
-  { id: 10, name: "Nadia Bennani", initials: "NB", phone: "+212 6 01 23 45 67", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Jun 21, 2026", subscriptionEndAt: "2026-06-21", devices: 0, duration: "Expired", orders: 2, orderTrend: [1, 1, 0, 0], paymentMethod: "Not set", revenue: 980, status: "Drop", color: "bg-pink-100 text-pink-800" },
-  { id: 11, name: "Ayoub Filali", initials: "AF", email: "ayoub@example.com", phone: "+212 6 11 22 33 44", brand: "Nike", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/nike.svg", subscriptionEnd: "May 17, 2026", subscriptionEndAt: "2026-05-17", devices: 2, duration: "12 months", orders: 5, orderTrend: [1, 1, 1, 2], paymentMethod: "Bank transfer", revenue: 11300, status: "Active", color: "bg-lime-100 text-lime-800" },
-  { id: 12, name: "Imane Berrada", initials: "IB", phone: "+212 6 22 33 44 55", brand: "Adidas", brandLogo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/adidas.svg", subscriptionEnd: "Dec 10, 2025", subscriptionEndAt: "2025-12-10", devices: 1, duration: "6 months", orders: 1, orderTrend: [0, 0, 0, 1], paymentMethod: "PayPal", revenue: 3200, status: "New", color: "bg-teal-100 text-teal-800" },
-];
+/** One client's page. Stated once so the row, the name and the menu agree. */
+const clientHref = (id: number) => `/clients/${id}`;
+
+/**
+ * Whether a click inside a row was aimed at something else.
+ *
+ * <p>⚠️ A row that navigates has to keep its hands off its own controls. The
+ * checkbox, the copy buttons, the actions menu and the brand tooltip all live
+ * inside it, and without this every one of them would also open the client —
+ * ticking a box to select a row would navigate away from the list instead.
+ */
+function isInteractive(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest("a, button, input, [role='menuitem'], [role='menuitemcheckbox']") !== null
+  );
+}
 
 /**
  * The pill is the same neutral shape for every status; only the dot is coloured.
@@ -116,13 +115,31 @@ const statusDots: Record<ClientStatus, string> = {
   Trial: "bg-blue-500",
   Pending: "bg-orange-500",
   Active: "bg-emerald-500",
-  Drop: "bg-rose-500",
   Inactive: "bg-muted-foreground/50",
+  // ⚠️ The destructive token rather than a rose from the palette. This is the
+  // one status that means the relationship is over, and it should wear the
+  // same red the Delete action does — a status that is merely a colour nobody
+  // can name reads as decoration.
+  Drop: "bg-destructive",
 };
 
 /** One shape for all of them. */
 const statusPillClassName =
   "inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-1 text-[0.6rem] font-medium text-foreground";
+
+/**
+ * The one status that is not written in ordinary ink.
+ *
+ * <p>⚠️ Only Drop, and only because it is the outcome nobody wants. If a
+ * second status ever takes a colour here the treatment stops meaning anything:
+ * destructive is a warning, and a table of warnings is a table of none.
+ *
+ * <p>The word still says "Drop" — the colour is reinforcement, never the
+ * message, which is the same rule the trend arrows follow.
+ */
+const statusTone: Partial<Record<ClientStatus, string>> = {
+  Drop: "text-destructive",
+};
 
 const statusFilters = [
   "All",
@@ -131,8 +148,8 @@ const statusFilters = [
   "Trial",
   "Pending",
   "Active",
-  "Drop",
   "Inactive",
+  "Drop",
 ] as const;
 
 /**
@@ -173,6 +190,16 @@ function StatusFilter({
             value === option
               ? "border-border bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground",
+            // ⚠️ Drop wears the destructive token in both states, selected or
+            // not, so the trigger matches the pills it filters to. Only the
+            // ink changes — the chip keeps the same shape, border and
+            // background as its neighbours, because a control that changes
+            // shape when it is the dangerous one reads as a different kind of
+            // control rather than the same one with a warning on it.
+            option === "Drop" &&
+              (value === option
+                ? "text-destructive"
+                : "text-destructive/70 hover:text-destructive"),
           )}
         >
           {option}
@@ -182,20 +209,8 @@ function StatusFilter({
   );
 }
 
-/**
- * The states that come before there is a subscription to end.
- *
- * <p>Their End of subscription cell shows "-" rather than a date: a client who
- * has not paid yet has no renewal date, and printing one would invent a
- * commitment nobody made. Drop and Inactive are not in the set — both may have
- * had a subscription that ran out, and that date is worth seeing.
- */
-const preSubscriptionStatuses = new Set<ClientStatus>([
-  "New",
-  "Callback",
-  "Trial",
-  "Pending",
-]);
+// Which statuses have no subscription to end yet lives in lib/clients/sample,
+// so the detail page applies exactly the same rule.
 
 const pageSizes = [5, 10, 15, 20];
 const today = new Date("2026-09-09T00:00:00");
@@ -205,9 +220,74 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-export function ClientsTable() {
+export function ClientsTable({
+  /** Read from the cookie by the page, so the first HTML is already correct. */
+  defaultHiddenColumns = [],
+}: {
+  defaultHiddenColumns?: readonly ClientColumnId[];
+}) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"All" | ClientStatus>("All");
+
+  /**
+   * Which columns are turned off.
+   *
+   * <p>Hidden rather than visible, so the default is "everything" without
+   * having to list everything, and a column added later shows up on its own
+   * instead of being invisible until someone remembers this set.
+   *
+   * <p>⚠️ Seeded from the server, which read the cookie — `defaultHiddenColumns`
+   * is not a fallback. Reading the preference on the client instead would draw
+   * all eleven columns and then drop three as React hydrated, in front of
+   * whoever is looking.
+   */
+  const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<ClientColumnId>>(
+    () => new Set<ClientColumnId>(defaultHiddenColumns),
+  );
+
+  const shows = (column: ClientColumnId) => !hiddenColumns.has(column);
+
+  const toggleColumn = (column: ClientColumnId, visible: boolean) => {
+    setHiddenColumns((current) => {
+      const next = new Set(current);
+      if (visible) next.delete(column);
+      else next.add(column);
+
+      // Written here rather than in an effect, so the cookie moves with the
+      // click that caused it and there is no render in between where the two
+      // disagree.
+      document.cookie = `${CLIENT_COLUMNS_COOKIE}=${serializeHiddenColumns(next)}; path=/; max-age=${CLIENT_COLUMNS_COOKIE_MAX_AGE}; samesite=lax`;
+
+      return next;
+    });
+  };
+
+  /**
+   * The table is exactly as wide as its columns claim to be.
+   *
+   * <p>⚠️ This used to be a flat 1060px floor, which was <i>less</i> than the
+   * 1264px the widths add up to — and `table-fixed` treats declared widths as
+   * proportions once the table is narrower than their sum. So every column
+   * rendered about 84% of its stated width, "Brand" came out too narrow for
+   * the word "Brand", and with `nowrap` the heading overflowed into Contact.
+   * A floor below the sum of the parts is not a floor; it is a squeeze.
+   *
+   * <p>Adding them up means a column always gets the width it asked for and
+   * nothing can overlap. Below that the table scrolls sideways, which is the
+   * trade already accepted here — eleven columns do not fit on a phone, and a
+   * scrollbar is honest where overlapping text is not.
+   *
+   * <p>It also makes hiding a column do exactly what it looks like: the table
+   * narrows by that column's width, rather than the survivors stretching to
+   * fill a fixed minimum.
+   */
+  const tableMinWidth =
+    CLIENT_FIXED_COLUMNS_WIDTH +
+    clientColumns.reduce(
+      (total, column) => (shows(column.id) ? total + column.width : total),
+      0,
+    );
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [sort, setSort] = useState<{ field: SortField; direction: "asc" | "desc" }>({ field: "subscriptionEnd", direction: "asc" });
   const [pageSize, setPageSize] = useState(20);
@@ -322,6 +402,39 @@ export function ClientsTable() {
               {dateRange ? <button type="button" onClick={() => { setDateRange(undefined); setPage(1); }} className="mx-3 mb-3 self-end text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Clear dates</button> : null}
             </PopoverContent>
           </Popover>
+          {/* ⚠️ The label sits inside a Group. Base UI's `Menu.GroupLabel`
+              throws outright when it cannot find a group context — it is not a
+              styling nicety — and an uncaught throw here renders the 500
+              screen. Same trap the account menu hit. */}
+          <DropdownMenu>
+            {/* Icon only. ⚠️ `aria-label` is doing the work the dropped label
+                used to do — an icon button with nothing else in it is a button
+                with no name to anyone not looking at it. */}
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Choose columns" title="Choose columns" className={cn(whiteStyle.button, "size-7 shrink-0 justify-center px-0! py-0!")} />}>
+              <SlidersHorizontal className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-40">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[0.65rem]">Show columns</DropdownMenuLabel>
+                {clientColumns.map((column) => (
+                  <DropdownMenuCheckboxItem
+                    key={column.id}
+                    checked={shows(column.id)}
+                    onCheckedChange={(checked) => toggleColumn(column.id, checked)}
+                    // The menu stays put while several are toggled. Closing on
+                    // each tick would mean reopening it for every column.
+                    closeOnClick={false}
+                    // Nothing to override any more: the box, its position and
+                    // its background all live in DropdownMenuCheckboxItem.
+                    className="text-xs"
+                  >
+                    {column.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button type="button" size="sm" onClick={exportCsv} className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}><FileDown className="size-3" />Export CSV</Button>
         </div>
       </div>
@@ -337,41 +450,93 @@ export function ClientsTable() {
 
             The headers were `whitespace-nowrap`, which meant "End of
             subscription" and "Payment method" each reserved a column as wide as
-            their label whatever was underneath. They wrap now; the header row
-            is one line taller and two columns are ~60px narrower.
+            their label whatever was underneath. Letting them wrap fixed the
+            width and cost a second line, so the labels were shortened instead —
+            "End date" and "Payment" fit their columns on one line, which is
+            both narrower than the originals and shorter than the wrapped
+            version. `nowrap` is back to keep it that way: a header that wraps
+            again is a label that has outgrown its column, and the label is
+            what should give.
 
-            And the floor came down from 1340px to 1000px. `table-fixed` treats
-            these widths as proportions once the table is narrower than their
-            sum, so between 1000px and the full width the columns scale down
-            together instead of overflowing. Below 1000px it scrolls, because
-            eleven columns genuinely do not fit on a phone. */}
+            ⚠️ The CSV export keeps the long names. A column heading is read
+            beside its data and can be terse; a spreadsheet column opened three
+            months later cannot.
+
+            ⚠️ The floor is now the sum of the visible columns, not a number
+            picked below it. Setting a minimum smaller than the widths add up to
+            does not make the table fit — `table-fixed` just treats the widths
+            as proportions and shrinks every column to match, which is how
+            "Brand" ended up narrower than the word Brand. Adding them up is
+            the only floor that guarantees a column gets what it asked for.
+            Below that it scrolls sideways, which is the trade already made
+            here: eleven columns do not fit on a phone, and a scrollbar is
+            honest where overlapping text is not. */}
         {/* ⚠️ The last column's padding has to be set from here too, not on the
             cell. `[&_td]:px-1.5` compiles to `.table td`, specificity (0,1,1),
             which outranks a plain `pr-4` class on the cell at (0,1,0) — so the
             Actions column quietly lost its right padding and sat flush against
             the edge. `td:last-child` is (0,2,1) and wins back. */}
-        <Table className="min-w-[1000px] table-fixed border-separate border-spacing-0 text-xs [&_td]:px-1.5 [&_th]:px-1.5 [&_th]:whitespace-normal [&_td:last-child]:pr-4 [&_th:last-child]:pr-4">
+        <Table style={{ minWidth: `${tableMinWidth}px` }} className="table-fixed border-separate border-spacing-0 text-xs [&_td]:px-1.5 [&_th]:px-1.5 [&_th]:whitespace-nowrap [&_td:last-child]:pr-4 [&_th:last-child]:pr-4">
           <TableHeader className="[&_tr]:border-0 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-0 [&_th]:bg-muted/95 [&_th]:backdrop-blur-sm [&_th:first-child]:rounded-l-lg [&_th:last-child]:rounded-r-lg">
             <TableRow className="border-0 hover:bg-transparent">
               <TableHead className="w-8"><Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => toggleAllVisible(checked === true)} aria-label="Select all visible clients" className="size-3.5" /></TableHead>
               <TableHead className="w-36"><SortHeader field="name" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Client</SortHeader></TableHead>
-              <TableHead className="w-12"><SortHeader field="brand" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Brand</SortHeader></TableHead>
+              {shows("brand") ? (
+              <TableHead className="w-16"><SortHeader field="brand" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Brand</SortHeader></TableHead>
+              ) : null}
+              {shows("contact") ? (
               <TableHead className="w-[17rem]">Contact</TableHead>
-              <TableHead className="w-28"><SortHeader field="subscriptionEnd" activeField={sort.field} direction={sort.direction} onSort={updateSort}>End of subscription</SortHeader></TableHead>
+              ) : null}
+              {shows("subscriptionEnd") ? (
+              <TableHead className="w-28"><SortHeader field="subscriptionEnd" activeField={sort.field} direction={sort.direction} onSort={updateSort}>End date</SortHeader></TableHead>
+              ) : null}
+              {shows("status") ? (
               <TableHead className="w-20"><SortHeader field="status" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Status</SortHeader></TableHead>
-              <TableHead className="w-36"><SortHeader field="devices" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Subscription</SortHeader></TableHead>
+              ) : null}
+              {/* ⚠️ w-48, not w-36. The cell below is a 4.5rem device track, a
+                  1px rule, two 8px gaps, a 12px icon and the duration — about
+                  180px for "24 months". At 144px in a `table-fixed` layout the
+                  column cannot grow, so the duration simply drew on top of the
+                  Orders column beside it. Widen the column or shorten the
+                  content; there is no third option here. */}
+              {shows("subscription") ? (
+              <TableHead className="w-48"><SortHeader field="devices" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Subscription</SortHeader></TableHead>
+              ) : null}
+              {shows("orders") ? (
               <TableHead className="w-28"><SortHeader field="orders" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Orders</SortHeader></TableHead>
-              <TableHead className="w-28"><SortHeader field="paymentMethod" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Payment method</SortHeader></TableHead>
-              <TableHead className="w-20"><SortHeader field="revenue" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Revenue</SortHeader></TableHead>
+              ) : null}
+              {shows("paymentMethod") ? (
+              <TableHead className="w-28"><SortHeader field="paymentMethod" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Payment</SortHeader></TableHead>
+              ) : null}
+              {shows("revenue") ? (
+              <TableHead className="w-24"><SortHeader field="revenue" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Revenue</SortHeader></TableHead>
+              ) : null}
               <TableHead className="w-20 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
+            {/* ⚠️ The row navigates, but the name is what makes it reachable.
+                A `<tr>` cannot be wrapped in an anchor, and a row with an
+                onClick is invisible to the keyboard and to a screen reader —
+                so the client's name is a real link and the row click is a
+                mouse convenience layered on top, not the only way in.
+                `isInteractive` keeps it off the row's own controls. */}
             {visibleClients.map((client) => (
-              <TableRow key={client.id} data-state={selected.has(client.id) ? "selected" : undefined} className="group border-b border-border/80 last:border-0">
+              <TableRow
+                key={client.id}
+                data-state={selected.has(client.id) ? "selected" : undefined}
+                onClick={(event) => {
+                  if (isInteractive(event.target)) return;
+                  router.push(clientHref(client.id));
+                }}
+                className="group cursor-pointer border-b border-border/80 last:border-0"
+              >
                 <TableCell><Checkbox checked={selected.has(client.id)} onCheckedChange={(checked) => toggleClient(client.id, checked === true)} aria-label={`Select ${client.name}`} className="size-3.5" /></TableCell>
-                <TableCell><div className="flex items-center gap-2.5"><span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", client.color)}>{client.initials}</span><div className="min-w-0"><p className="truncate font-medium text-foreground">{client.name}</p><p className="mt-0.5 text-[0.6rem] text-muted-foreground">#{String(client.id).padStart(4, "0")}</p></div></div></TableCell>
+                <TableCell><div className="flex items-center gap-2.5"><span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", client.color)}>{client.initials}</span><div className="min-w-0"><Link href={clientHref(client.id)} className="block truncate font-medium text-foreground underline-offset-4 hover:underline">{client.name}</Link><p className="mt-0.5 text-[0.6rem] text-muted-foreground">#{String(client.id).padStart(4, "0")}</p></div></div></TableCell>
+                {shows("brand") ? (
                 <TableCell><Tooltip><TooltipTrigger render={<span className="inline-flex size-7 items-center justify-center" />}><Image src={client.brandLogo} alt={client.brand} width={18} height={18} unoptimized className="max-h-[18px] max-w-[18px] object-contain" /></TooltipTrigger><TooltipContent>{client.brand}</TooltipContent></Tooltip></TableCell>
+                ) : null}
+                {shows("contact") ? (
                 <TableCell>
                   {/* One row, at the table's own text size. The phone's track is
                       9.25rem rather than 10.75rem — just what the number, its
@@ -391,13 +556,26 @@ export function ClientsTable() {
                     </div>
                   </div>
                 </TableCell>
+                ) : null}
+                {shows("subscriptionEnd") ? (
                 <TableCell>{getSubscriptionEndLabel(client)}</TableCell>
-                <TableCell><span className={statusPillClassName}><span className={cn("size-1.5 shrink-0 rounded-full", statusDots[client.status])} />{client.status}</span></TableCell>
-                <TableCell><div className="grid grid-cols-[4.5rem_1px_minmax(0,1fr)] items-center gap-2"><div className="flex items-center gap-1.5"><MonitorSmartphone className="size-3 shrink-0 text-muted-foreground" aria-hidden /><span className="tabular-nums">{client.devices} {client.devices === 1 ? "device" : "devices"}</span></div><span className="h-4 w-px bg-border" aria-hidden /><div className="flex items-center gap-1.5 text-muted-foreground"><Clock3 className="size-3 shrink-0" aria-hidden /><span>{client.duration}</span></div></div></TableCell>
+                ) : null}
+                {shows("status") ? (
+                <TableCell><span className={cn(statusPillClassName, statusTone[client.status])}><span className={cn("size-1.5 shrink-0 rounded-full", statusDots[client.status])} />{client.status}</span></TableCell>
+                ) : null}
+                {shows("subscription") ? (
+                <TableCell><div className="grid grid-cols-[4.5rem_1px_minmax(0,1fr)] items-center gap-2"><div className="flex items-center gap-1.5"><MonitorSmartphone className="size-3 shrink-0 text-muted-foreground" aria-hidden /><span className="tabular-nums">{client.devices} {client.devices === 1 ? "device" : "devices"}</span></div><span className="h-4 w-px bg-border" aria-hidden /><div className="flex min-w-0 items-center gap-1.5 text-muted-foreground"><Clock3 className="size-3 shrink-0" aria-hidden /><span className="truncate">{client.duration}</span></div></div></TableCell>
+                ) : null}
+                {shows("orders") ? (
                 <TableCell><QuarterSparkline values={client.orderTrend} total={client.orders} unit={{ one: "order", many: "orders" }} /></TableCell>
+                ) : null}
+                {shows("paymentMethod") ? (
                 <TableCell className="text-muted-foreground"><PaymentMethodLabel method={client.paymentMethod} /></TableCell>
+                ) : null}
+                {shows("revenue") ? (
                 <TableCell className="font-medium text-emerald-700">+{currencyFormatter.format(client.revenue)}</TableCell>
-                <TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${client.name}`} />}><MoreVertical className="size-3.5" /></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-36"><DropdownMenuItem className="text-xs"><Eye className="size-3.5" /> View details</DropdownMenuItem><DropdownMenuItem className="text-xs"><Pencil className="size-3.5" /> Edit client</DropdownMenuItem><DropdownMenuItem className="text-xs"><MessageCircle className="size-3.5" /> Open conversation</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-xs text-destructive focus:text-destructive" onClick={() => setClientToDelete(client)}><Trash2 className="size-3.5" /> Delete client</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
+                ) : null}
+                <TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${client.name}`} />}><MoreVertical className="size-3.5" /></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-auto min-w-36 whitespace-nowrap"><DropdownMenuItem className="text-xs" render={<Link href={clientHref(client.id)} />}><Eye className="size-3.5" /> View details</DropdownMenuItem><DropdownMenuItem className="text-xs"><Pencil className="size-3.5" /> Edit client</DropdownMenuItem><DropdownMenuItem className="text-xs"><MessageCircle className="size-3.5" /> Open conversation</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" className="text-xs" onClick={() => setClientToDelete(client)}><Trash2 className="size-3.5" /> Delete client</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -439,14 +617,17 @@ function getSubscriptionEndLabel(client: Client) {
   return preSubscriptionStatuses.has(client.status) ? "-" : client.subscriptionEnd;
 }
 
-function PaymentMethodLabel({ method }: { method: PaymentMethod }) {
+// Exported for the transactions table on the client page, so a payment method
+// is drawn one way wherever it appears.
+export function PaymentMethodLabel({ method }: { method: PaymentMethod }) {
   if (method === "Not set") return <span>-</span>;
   if (method === "PayPal") return <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-3 shrink-0 bg-current" style={{ mask: "url(/brands/paypal.svg) center / contain no-repeat", WebkitMask: "url(/brands/paypal.svg) center / contain no-repeat" }} /><span>{method}</span></span>;
   const Icon = paymentMethodIcons[method];
   return <span className="inline-flex items-center gap-1.5"><Icon className="size-3 shrink-0" aria-hidden /><span>{method}</span></span>;
 }
 
-function SortHeader({ field, activeField, direction, onSort, children }: { field: SortField; activeField: SortField; direction: "asc" | "desc"; onSort: (field: SortField) => void; children: ReactNode }) {
+// Generic over the field names so the transactions table can sort with it too.
+export function SortHeader<Field extends string>({ field, activeField, direction, onSort, children }: { field: Field; activeField: Field; direction: "asc" | "desc"; onSort: (field: Field) => void; children: ReactNode }) {
   const SortIcon = activeField === field ? direction === "asc" ? ArrowUp : ArrowDown : ArrowUpDown;
   return <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-1 font-medium hover:text-foreground">{children}<SortIcon className={cn("size-3", activeField === field ? "text-foreground" : "text-muted-foreground/60")} aria-hidden /></button>;
 }
@@ -455,6 +636,6 @@ function CopyButton({ value, copied, onCopy }: { value: string; copied: boolean;
   return <button type="button" onClick={() => onCopy(value)} className="ml-0.5 inline-flex size-5 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100" aria-label={`Copy ${value}`}>{copied ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}</button>;
 }
 
-function PaginationButton({ children, label, ...props }: ComponentProps<"button"> & { label: string }) {
+export function PaginationButton({ children, label, ...props }: ComponentProps<"button"> & { label: string }) {
   return <button type="button" className={cn(whiteStyle.button, "flex h-7 items-center justify-center gap-1 px-2! text-[0.65rem]! font-normal! text-muted-foreground disabled:pointer-events-none disabled:opacity-35")} aria-label={label} {...props}>{children}</button>;
 }

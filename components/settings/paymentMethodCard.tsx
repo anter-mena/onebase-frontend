@@ -95,15 +95,24 @@ export type PaymentMethodCardProps = {
   currency: string;
   holder: string;
   networks: readonly CardNetwork[];
+  /**
+   * Overrides the card's own sizing.
+   *
+   * <p>By default the card fills its column — which is right on the Payment
+   * methods grid, where the columns are equal and the cards tile. Anywhere else
+   * the column is whatever that layout happens to be, and the card comes out a
+   * different size on every screen. Pass a width here to pin it.
+   */
+  className?: string;
 };
 
-export function PaymentMethodCard({ provider, active, methodName, amount, currency, holder, networks }: PaymentMethodCardProps) {
+export function PaymentMethodCard({ provider, active, methodName, amount, currency, holder, networks, className }: PaymentMethodCardProps) {
   return (
     // Kibo UI credit card (kibo-ui.com) as a plain metal card.
     // The original card size (full column width, 192px tall) instead of Kibo's bank card proportions.
     // styles.fixed: the card keeps the default look under every theme and in
     // dark — see the note beside the class.
-    <CreditCard className={cn(styles.fixed, "aspect-auto min-h-48 max-w-none flex-1 text-white")}>
+    <CreditCard className={cn(styles.fixed, "aspect-auto min-h-48 max-w-none flex-1 text-white", className)}>
       {/* Each method has its own background; platinum until one is designed. */}
       <CreditCardFront safeArea={20} className={cn(styles.card, styles[provider] ?? styles.metal)}>
         {/* Binance only: its large logo behind everything, cropped by the card edge. First, so the content paints over it. */}

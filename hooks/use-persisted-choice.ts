@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// Same event as use-persisted-boolean, so every hook reading a key updates when another one writes it.
+// Shared across every localStorage-backed hook, so a key read in two places updates when either one writes it.
 const LOCAL_STORAGE_EVENT = "onebase:local-storage-change";
 
 type LocalStorageChangeEvent = CustomEvent<{ key: string }>;

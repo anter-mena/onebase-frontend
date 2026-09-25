@@ -2,7 +2,12 @@
 
 import type { ReactNode } from "react";
 import { TrendingDown, TrendingUp } from "lucide-react";
+import { cn } from "cn";
 
+// Aliased: this module exports a `Gauge` of its own, which wraps this one.
+import { Gauge as NotchGauge } from "@/components/charts/gauge";
+import { PatternLines } from "@/components/charts/visx-pattern";
+import { HATCH_INK, hatch } from "@/components/dashboard/hatch";
 import { signedPercent } from "@/lib/format";
 
 /**
@@ -73,17 +78,28 @@ export function StatTile({
 /**
  * A ratio against a limit.
  *
- * <p>The track is the fill's own hue at low opacity rather than a grey, so the
- * whole bar reads as one measure — a grey track reads as a different thing that
- * happens to sit behind. Translucency rather than a fixed light step because it
- * has to work on a white card and a near-black one.
+ * <p><b>Drawn as a two-part split, not as a fill inside a track.</b> Earned and
+ * still-to-go are two shares of one target, which is the same sentence the
+ * brand split makes — so it is made the same way: two hatched blocks, each
+ * rounded on all four corners, separated by a gap in the surface colour. Two
+ * bars on one screen that mean the same kind of thing should not be drawn in
+ * two different grammars.
+ *
+ * <p>⚠️ Green for the earned part and the ramp's grey for the remainder, where
+ * this used to be a blue fill on a wash of itself. The grey is the same slot
+ * the split uses for the tail — it reads as the part with nothing in it, which
+ * is exactly what "to go" is, and it keeps the ink on the share that was
+ * actually earned.
+ *
+ * <p>The figure and the remainder are both printed above and below the bar, so
+ * nothing here depends on reading a length or telling two hues apart.
  */
 export function Meter({
   label,
   valueLabel,
   limitLabel,
   ratio,
-  tone = "var(--viz-1)",
+  tone = "var(--viz-ramp-2)",
 }: {
   label: ReactNode;
   valueLabel: string;
@@ -93,6 +109,7 @@ export function Meter({
   tone?: string;
 }) {
   const filled = Math.min(Math.max(ratio, 0), 1);
+  const remaining = 1 - filled;
 
   return (
     <div className="min-w-0">
@@ -107,13 +124,25 @@ export function Meter({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={typeof label === "string" ? label : undefined}
-        className="mt-2 h-2 w-full overflow-hidden rounded-full"
-        style={{ background: `color-mix(in oklch, ${tone} 18%, transparent)` }}
+        className="mt-2 flex h-7 w-full gap-1"
       >
-        <span
-          className="block h-full rounded-full transition-[width] duration-500"
-          style={{ width: `${filled * 100}%`, background: tone }}
-        />
+        {/* Each block only when it has something in it. At a full target the
+            remainder is nothing, and a zero-width block still shows as a 6px
+            stub of grey — a target met would appear to be just short. */}
+        {filled > 0 ? (
+          <span
+            className="h-full min-w-1.5 rounded-[6px]"
+            style={{ flex: "1 1 0", flexGrow: filled, backgroundImage: hatch(tone, { line: 2.5, pitch: 9 }) }}
+          />
+        ) : null}
+        {remaining > 0 ? (
+          // Flat, not hatched. The texture marks the parts that are data; this
+          // one is the absence of it.
+          <span
+            className="h-full min-w-1.5 rounded-[6px]"
+            style={{ flex: "1 1 0", flexGrow: remaining, background: "var(--viz-ramp-rest)" }}
+          />
+        ) : null}
       </div>
 
       {limitLabel ? (
@@ -123,62 +152,95 @@ export function Meter({
   );
 }
 
+/** Ties the hatch pattern to this component, so two gauges cannot collide. */
+const GAUGE_PATTERN_ID = "gauge-notch-hatch";
+
 /**
- * The same ratio, drawn as an arc.
+ * The same ratio, drawn as a ring of notches.
  *
- * <p>One value, so there is no legend: the caption under it says what is being
- * measured. The track is the fill's hue at low opacity, exactly as in
- * {@link Meter} — a gauge is a meter that has been bent.
+ * <p>Bklit's gauge rather than the arc this used to draw by hand. A notched
+ * ring is a scale with its own tick marks: the reader can count filled notches
+ * instead of judging the length of a stroke, which is the one thing a bent bar
+ * is bad at. The 270° sweep is the registry's default and leaves the opening at
+ * the bottom, where nothing is read.
  *
- * <p>Drawn with `stroke-dasharray` on a half-circle rather than as a pie, so
- * the geometry is a length rather than an angle and the number stays readable
- * in the middle.
+ * <p>⚠️ <b>The active notches carry the same hatch as every other mark on this
+ * dashboard</b>, through a `PatternLines` in the gauge's own `<defs>` rather
+ * than a CSS gradient — an SVG fill cannot take one. Same angle, same spacing,
+ * same translucent white, so it reads as one family with the bars. The
+ * unfilled notches are flat in the ramp's grey: texture marks what is there,
+ * absence stays plain, exactly as in {@link Meter}.
+ *
+ * <p>One value, so there is no legend — the number sits in the middle and the
+ * card's note says what it is a share of.
  */
 export function Gauge({
   ratio,
-  caption,
-  tone = "var(--viz-1)",
+  centerLabel,
+  tone = "var(--viz-ramp-2)",
 }: {
   ratio: number;
-  caption: string;
+  /** The small line under the number — what the percentage is of. */
+  centerLabel: string;
   tone?: string;
 }) {
-  const filled = Math.min(Math.max(ratio, 0), 1);
-  // A half circle of radius 42 is π × 42 ≈ 131.95 long.
-  const length = Math.PI * 42;
+  const percent = Math.round(Math.min(Math.max(ratio, 0), 1) * 100);
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-full max-w-[13rem]">
-        <svg viewBox="0 0 100 56" className="w-full" role="img" aria-label={`${Math.round(filled * 100)} percent. ${caption}`}>
-          <path
-            d="M 8 50 A 42 42 0 0 1 92 50"
-            fill="none"
-            strokeWidth={8}
-            strokeLinecap="round"
-            style={{ stroke: `color-mix(in oklch, ${tone} 18%, transparent)` }}
-          />
-          <path
-            d="M 8 50 A 42 42 0 0 1 92 50"
-            fill="none"
-            strokeWidth={8}
-            strokeLinecap="round"
-            strokeDasharray={`${filled * length} ${length}`}
-            style={{ stroke: tone }}
-          />
-        </svg>
-
-        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
-          <span className="text-2xl font-semibold tracking-tight">
-            {Math.round(filled * 100)}%
-          </span>
-        </div>
-      </div>
-
-      <p className="mt-2 text-center text-[0.65rem] leading-relaxed text-muted-foreground">
-        {caption}
-      </p>
+    <div
+      className="flex h-full w-full items-center justify-center"
+      role="img"
+      aria-label={`${percent} percent — ${centerLabel}`}
+    >
+      <NotchGauge
+        value={percent}
+        centerValue={percent}
+        suffix="%"
+        defaultLabel={centerLabel}
+        activeFill={`url(#${GAUGE_PATTERN_ID})`}
+        activeFillOpacity={1}
+        inactiveFill="var(--viz-ramp-rest)"
+        inactiveFillOpacity={1}
+        // The wrapper's own 300px floor would push the card wider than the
+        // column on a phone. The gauge scales down fine; the layout does not.
+        minWidth={0}
+      >
+        <PatternLines
+          id={GAUGE_PATTERN_ID}
+          width={7}
+          height={7}
+          background={tone}
+          // The same ink as the CSS hatch — see HATCH_INK.
+          stroke={HATCH_INK}
+          strokeWidth={2.5}
+          orientation={["diagonal"]}
+        />
+      </NotchGauge>
     </div>
+  );
+}
+
+/**
+ * A monochrome Simple Icons mark, tinted with the current text colour.
+ *
+ * <p>A CSS mask rather than an `<img>`, so the logo takes the ink around it and
+ * needs no per-mode artwork — the same trick `Brands` and the Clients table
+ * already use, and the reason the slug is stored rather than a URL.
+ *
+ * <p>⚠️ No fallback chain here, unlike `Brands`. That one renders whatever
+ * domain somebody pasted; these slugs are ours. If one is wrong the mark comes
+ * out blank and the row still reads — the name beside it is the label, and the
+ * logo was never carrying it alone.
+ */
+function BrandMark({ slug, className }: { slug: string; className?: string }) {
+  const src = `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+
+  return (
+    <span
+      aria-hidden
+      className={cn("block shrink-0 bg-current", className)}
+      style={{ mask: `url(${src}) center / contain no-repeat`, WebkitMask: `url(${src}) center / contain no-repeat` }}
+    />
   );
 }
 
@@ -189,34 +251,63 @@ export function Gauge({
  * shares and an angle is the hardest way to do that. The list underneath is the
  * relief the light-mode contrast warning requires: every share is also a number.
  *
- * <p>⚠️ Segments are separated by a 2px gap in the surface colour, not by a
- * stroke around each one. A border adds ink that is not data.
+ * <p>⚠️ Segments are separated by a gap in the surface colour, not by a stroke
+ * around each one. A border adds ink that is not data. Each segment is rounded
+ * on all four corners rather than only at the ends of the bar, so a share reads
+ * as its own block — the bar is a row of shares, not one pill cut up.
+ *
+ * <p>⚠️ Proportion is `flex-grow`, not a width percentage. Percentages plus
+ * gaps come to more than the track, which the old version hid by clipping the
+ * last segment — so every share was drawn slightly short and the last one
+ * shortest of all. Growing from a zero basis divides what is left after the
+ * gaps, in exactly the right ratio.
  */
 export function SplitBar({
   rows,
   total,
 }: {
-  rows: readonly { label: string; value: number; color: string; note?: string }[];
+  rows: readonly {
+    label: string;
+    value: number;
+    color: string;
+    note?: string;
+    /** Simple Icons slug. Optional — without one the row shows its swatch alone. */
+    logo?: string;
+  }[];
   total: number;
 }) {
   const visible = rows.filter((row) => row.value > 0);
 
   return (
     <div className="min-w-0">
-      <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full">
+      <div className="flex h-7 w-full gap-1">
         {visible.map((row) => (
           <span
             key={row.label}
-            className="h-full first:rounded-l-full last:rounded-r-full"
-            style={{ width: `${(row.value / total) * 100}%`, background: row.color }}
+            className="h-full min-w-1.5 rounded-[6px]"
+            // A coarser hatch than the chart's: these blocks are nearly three
+            // times the height, and the fine rule reads as a flat lighter
+            // colour once it is spread over this much surface.
+            style={{ flex: "1 1 0", flexGrow: row.value, backgroundImage: hatch(row.color, { line: 2.5, pitch: 9 }) }}
           />
         ))}
       </div>
 
-      <ul className="mt-4 flex flex-col gap-2.5">
+      {/* `mt-6`, not `mt-4`. The bar is 28px of solid hatch and the first
+          legend row carries a swatch of the same fill — at 16px the two read
+          as one block and the eye runs straight from the bar into the list
+          without registering that one is the key to the other. */}
+      <ul className="mt-6 flex flex-col gap-2.5">
         {rows.map((row) => (
           <li key={row.label} className="flex items-center gap-2 text-xs">
-            <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: row.color }} />
+            {/* The swatch is a miniature of the segment — same shape, same
+                hatch — because matching the two is the whole job of a legend. */}
+            <span
+              aria-hidden
+              className="size-2.5 shrink-0 rounded-[3px]"
+              style={{ backgroundImage: hatch(row.color) }}
+            />
+            {row.logo ? <BrandMark slug={row.logo} className="size-3.5 text-foreground/70" /> : null}
             <span className="min-w-0 flex-1 truncate">{row.label}</span>
             {row.note ? (
               <span className="shrink-0 text-[0.65rem] text-muted-foreground">{row.note}</span>
