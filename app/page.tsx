@@ -18,6 +18,7 @@ const pages = [
   { href: "/configuration?tab=payment-methods", title: "Configuration · Payment methods" },
   { href: "/configuration/payment-methods/new", title: "New payment method" },
   { href: "/configuration/payment-methods/paypal/edit", title: "Edit payment method (PayPal)" },
+  { href: "/system-status", title: "System status" },
   { href: "/401", title: "401 · Sign in required" },
   { href: "/403", title: "403 · Access denied" },
   { href: "/404", title: "404 · Page not found" },
