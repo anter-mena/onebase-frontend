@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, useTransition } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronsUpDown, Command, LogOut, Settings } from "lucide-react";
 import { Collapsible } from "@base-ui/react/collapsible";
 import { cn } from "cn";
@@ -13,7 +13,9 @@ import {
   navigationSections,
   settingsNavigation,
 } from "@/components/app-shell/navigation";
+import { logout } from "@/app/(private)/actions";
 import { AccountSettingsDialog } from "@/components/app-shell/accountSettingsDialog";
+import type { ShellUser } from "@/components/app-shell/appShell";
 import { SecurityCard } from "@/components/app-shell/securityCard";
 import {
   AlertDialog,
@@ -77,11 +79,11 @@ function SettingsLinks({ items, activeValue }: { items: readonly SettingsItem[];
   );
 }
 
-export function AppSidebar() {
+export function AppSidebar({ user }: { user: ShellUser }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { setOpen, isMobile } = useSidebar();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, startLogout] = useTransition();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   /**
@@ -216,8 +218,8 @@ export function AppSidebar() {
               tooltip={{
                 children: (
                   <span className="flex flex-col">
-                    <span className="font-medium">Admin User</span>
-                    <span className="opacity-70">admin@onebase.com</span>
+                    <span className="font-medium">{user.fullName}</span>
+                    <span className="opacity-70">{user.email}</span>
                   </span>
                 ),
               }}
@@ -254,14 +256,14 @@ export function AppSidebar() {
                   "relative flex size-8 shrink-0 items-center justify-center p-0! text-[0.65rem]! font-semibold!",
                 )}
               >
-                AU
+                {user.initials}
               </span>
               <span className="relative min-w-0 flex-1 leading-tight opacity-100 transition-[opacity,visibility] delay-200 duration-100 group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:delay-0">
                 <span className="block truncate text-[0.7rem] font-semibold">
-                  Admin User
+                  {user.fullName}
                 </span>
                 <span className="block truncate text-[0.6rem] text-muted-foreground">
-                  admin@onebase.com
+                  {user.email}
                 </span>
               </span>
               <ChevronsUpDown
@@ -298,8 +300,10 @@ export function AppSidebar() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-              {/* Interface only: goes back to the sign-in page. The real sign-out is wired in the logic phase. */}
-              <AlertDialogAction variant="destructive" size="sm" onClick={() => router.push("/login")}>Log out</AlertDialogAction>
+              {/* Ends the session on the backend, deletes the cookie, then lands on sign-in (see app/(private)/actions.ts). */}
+              <AlertDialogAction variant="destructive" size="sm" disabled={loggingOut} onClick={() => startLogout(() => logout())}>
+                {loggingOut ? "Logging out…" : "Log out"}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

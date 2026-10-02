@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { ArrowLeft, MailCheck } from "lucide-react";
 
+import { requestResetLink } from "@/app/(auth)/reset-password/actions";
 import { showTopBanner } from "@/components/ui/topBanner";
 
+/**
+ * Matches the backend: a second request within 60 s sends nothing, so the
+ * button must not come back sooner or it would look like it worked and did not.
+ */
+const RESEND_AFTER_SECONDS = 60;
+
+function formatCountdown(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 export function CheckEmail({ email, onChangeEmail }: { email: string; onChangeEmail: () => void }) {
-  const [secondsLeft, setSecondsLeft] = useState(30);
+  const [secondsLeft, setSecondsLeft] = useState(RESEND_AFTER_SECONDS);
+  const [sending, startSending] = useTransition();
 
   useEffect(() => {
     if (secondsLeft === 0) return;
@@ -35,16 +47,23 @@ export function CheckEmail({ email, onChangeEmail }: { email: string; onChangeEm
         <span>Didn&apos;t get the email?</span>
         {secondsLeft > 0 ? (
           <span>
-            Resend in <span className="tabular-nums text-foreground">0:{String(secondsLeft).padStart(2, "0")}</span>
+            Resend in <span className="tabular-nums text-foreground">{formatCountdown(secondsLeft)}</span>
           </span>
         ) : (
           <button
             type="button"
             className="text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            disabled={sending}
             onClick={() => {
-              // Interface preview only; email delivery will be connected later.
-              setSecondsLeft(30);
-              showTopBanner("If an account exists for this email, another reset link is on its way.");
+              startSending(async () => {
+                const result = await requestResetLink(email);
+                if (result.ok) {
+                  setSecondsLeft(RESEND_AFTER_SECONDS);
+                  showTopBanner("If an account exists for this email, another reset link is on its way.");
+                } else {
+                  showTopBanner(result.error);
+                }
+              });
             }}
           >
             Resend email

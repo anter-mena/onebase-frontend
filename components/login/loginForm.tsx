@@ -1,19 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
+import { login, type LoginState } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-export function LoginForm() {
+/**
+ * The sign-in form.
+ *
+ * <p>Posts to the `login` server action, so it works before any JavaScript has
+ * loaded and the token never passes through the browser. The backend's answer
+ * shows under the button; the email survives a failed attempt, the password
+ * does not.
+ *
+ * <p>`notice` is a calm line above the form for the two ways people arrive
+ * here after something happened: their session ended, or they just set a new
+ * password. `next` is where to go afterwards, as `proxy.ts` recorded it.
+ */
+export function LoginForm({ notice, next }: { notice?: string; next?: string }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [state, formAction, pending] = useActionState<LoginState, FormData>(login, {});
 
   return (
-    <form onSubmit={(event) => event.preventDefault()}>
+    <form action={formAction}>
+      {next && <input type="hidden" name="next" value={next} />}
       <FieldGroup className="gap-3">
+        {notice && !state.error && (
+          <p role="status" className="rounded-lg border bg-muted/40 px-3 py-2 text-center text-xs text-muted-foreground">
+            {notice}
+          </p>
+        )}
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
@@ -22,6 +42,8 @@ export function LoginForm() {
             type="email"
             autoComplete="email"
             placeholder="m@example.com"
+            defaultValue={state.email}
+            key={state.email}
             required
           />
         </Field>
@@ -63,7 +85,10 @@ export function LoginForm() {
             </Button>
           </div>
         </Field>
-        <Button type="submit" className="w-full">Login</Button>
+        <Button type="submit" className="w-full" disabled={pending}>
+          {pending ? "Signing in…" : "Login"}
+        </Button>
+        {state.error && <FieldError className="text-center text-xs">{state.error}</FieldError>}
       </FieldGroup>
     </form>
   );

@@ -19,12 +19,21 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
  * writes the cookie on every toggle, so there is nothing for this component to
  * own — a controlled wrapper here is what created the round trip.
  */
+/** The signed-in person, as the sidebar's user box shows them. */
+export type ShellUser = {
+  fullName: string;
+  email: string;
+  initials: string;
+};
+
 export function AppShell({
   children,
   defaultOpen,
+  user,
 }: {
   children: ReactNode;
   defaultOpen: boolean;
+  user: ShellUser;
 }) {
   return (
     <SidebarProvider
@@ -37,7 +46,7 @@ export function AppShell({
         } as CSSProperties
       }
     >
-      <AppSidebar />
+      <AppSidebar user={user} />
       <SidebarInset className="h-svh min-w-0 overflow-hidden bg-muted/30">
         <AppNavbar />
         <main className="min-h-0 flex-1 overflow-hidden p-4 md:p-6">

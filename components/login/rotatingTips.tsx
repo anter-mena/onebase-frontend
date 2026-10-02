@@ -36,14 +36,14 @@ export function RotatingTips() {
   const [paused, setPaused] = useState(false);
 
   return (
-    <div className="w-full px-4 text-xs leading-relaxed text-white" aria-label="One Base feature tips">
-      <div className="relative grid overflow-hidden rounded-lg border border-white/30 px-4 py-6 shadow-sm">
+    <div className="w-full px-4 text-xs leading-relaxed text-muted-foreground" aria-label="One Base feature tips">
+      <div className="relative grid overflow-hidden rounded-lg border bg-background px-4 py-6 shadow-sm">
         <LiquidGlassLayers />
         <button
           type="button"
           onClick={() => setPaused((value) => !value)}
           aria-label={paused ? "Resume tips" : "Pause tips"}
-          className="absolute right-3 top-3 z-10 flex size-6 items-center justify-center rounded-sm hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="absolute right-3 top-3 z-10 flex size-6 items-center justify-center rounded-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           {paused ? <Play className="size-3" aria-hidden /> : <Pause className="size-3" aria-hidden />}
         </button>
@@ -55,7 +55,7 @@ export function RotatingTips() {
               index === activeIndex ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
           >
-            <h2 className="mb-1 pr-8 text-sm font-semibold text-white">{tip.title}</h2>
+            <h2 className="mb-1 pr-8 text-sm font-semibold text-foreground">{tip.title}</h2>
             <p>{tip.description}</p>
           </div>
         ))}
@@ -69,12 +69,12 @@ export function RotatingTips() {
               onClick={() => setActiveIndex(index)}
               aria-label={`Tip ${index + 1}: ${tip.title}`}
               aria-current={index === activeIndex ? "true" : undefined}
-              className="flex h-6 min-w-0 flex-1 items-start rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="flex h-6 min-w-0 flex-1 items-start rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <span className="h-1 w-full overflow-hidden rounded-full bg-white/25" aria-hidden>
+              <span className="h-1 w-full overflow-hidden rounded-full bg-foreground/15" aria-hidden>
                 <span
                   key={activeIndex}
-                  className={`block h-full w-full origin-left rounded-full bg-white ${
+                  className={`block h-full w-full origin-left rounded-full bg-foreground ${
                     index === activeIndex
                       ? "animate-[tip-progress_5s_linear_forwards]"
                       : index < activeIndex ? "scale-x-100" : "scale-x-0"

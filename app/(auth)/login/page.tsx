@@ -10,7 +10,20 @@ export const metadata: Metadata = {
   title: "Sign in",
 };
 
-export default function LoginPage() {
+/** Why someone landed on sign-in, when it was not their own choice. */
+const notices: Record<string, string> = {
+  "session-expired": "Your session has ended. Please sign in again.",
+  done: "Your password has been changed. Sign in with the new one.",
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reason?: string; reset?: string; next?: string }>;
+}) {
+  const { reason, reset, next } = await searchParams;
+  const notice = notices[reason ?? ""] ?? notices[reset ?? ""];
+
   return (
     <div className="grid min-h-svh bg-background lg:grid-cols-[64.5fr_35.5fr]">
       <div className="flex min-h-svh flex-col">
@@ -31,14 +44,13 @@ export default function LoginPage() {
                 </Link>
               </p>
             </div>
-            <LoginForm />
+            <LoginForm notice={notice} next={next} />
           </div>
         </main>
         <AuthFooter />
       </div>
       <aside
-        className="hidden flex-col justify-between bg-muted bg-cover bg-center pb-2 text-white lg:flex"
-        style={{ backgroundImage: "url('/glass-preview.jpg')" }}
+        className="hidden flex-col justify-between border-l bg-muted pb-2 text-foreground lg:flex"
         aria-label="One Base"
       >
         <div className="flex items-center justify-end gap-2 p-10 text-lg font-semibold">
