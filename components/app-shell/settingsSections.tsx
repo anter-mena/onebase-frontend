@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { formatDistanceToNowStrict } from "date-fns";
 import {
   BookOpen,
   Check,
   Database,
   Download,
+  EyeIcon,
+  EyeOffIcon,
   KeyRound,
   Mail,
   MessageCircle,
@@ -30,6 +34,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useSessionUser } from "@/components/app-shell/sessionUser";
+import { CapsLockBadge, useCapsLock } from "@/components/auth/capsLock";
+import { PasswordStrengthHint } from "@/components/auth/passwordStrengthHint";
+import { changePassword, saveAccountSettings } from "@/app/(private)/actions";
 import { roleLabels } from "@/lib/access";
 
 /**
@@ -39,11 +46,11 @@ import { roleLabels } from "@/lib/access";
  * they share `Section`, `Row` and the coming-soon badge, and splitting them
  * apart would mean either four copies of those or a fifth file holding them.
  *
- * <p>⚠️ Nothing here is persisted. The controls move because a control that
- * cannot be moved tells you nothing about the design, but the values live for
- * as long as the window is open and no longer — the window unmounts on close by
- * design. Where a control would imply a promise the app cannot keep, it is
- * marked "Coming soon" rather than left looking ready.
+ * <p>What is saved: General (name, locale, email notifications) and the
+ * password in Security. DB and the support form are still not connected — the
+ * DB panel is Admin-only (see accountSettingsDialog). Where a control would
+ * imply a promise the app cannot keep, it is marked "Coming soon" rather than
+ * left looking ready.
  */
 
 /** A titled block within a panel. */
@@ -120,6 +127,10 @@ function ComingSoon() {
   );
 }
 
+/*
+ * The values are what the backend stores and accepts (it refuses anything
+ * else): language codes, IANA time zones, and date patterns.
+ */
 const languages = [
   { value: "en", label: "English" },
   { value: "fr", label: "Français" },
@@ -127,28 +138,60 @@ const languages = [
 ];
 
 const timeZones = [
-  { value: "utc", label: "UTC" },
-  { value: "casablanca", label: "Africa/Casablanca" },
-  { value: "paris", label: "Europe/Paris" },
-  { value: "madrid", label: "Europe/Madrid" },
+  { value: "UTC", label: "UTC" },
+  { value: "Africa/Casablanca", label: "Africa/Casablanca" },
+  { value: "Europe/Paris", label: "Europe/Paris" },
+  { value: "Europe/Madrid", label: "Europe/Madrid" },
 ];
 
 const dateFormats = [
-  { value: "dmy", label: "24 Sep 2026" },
-  { value: "mdy", label: "Sep 24, 2026" },
-  { value: "iso", label: "2026-09-24" },
+  { value: "dd MMM yyyy", label: "24 Sep 2026" },
+  { value: "MMM d, yyyy", label: "Sep 24, 2026" },
+  { value: "yyyy-MM-dd", label: "2026-09-24" },
 ];
 
+/**
+ * Saved together with one button, as the backend takes them: name, locale and
+ * email notifications. The email and role are shown, not editable — nobody
+ * changes their own sign-in address or role.
+ */
 export function GeneralSettings() {
   const user = useSessionUser();
+  const router = useRouter();
   const [name, setName] = useState(user.fullName);
-  const [email, setEmail] = useState(user.email);
-  const [language, setLanguage] = useState("en");
-  const [timeZone, setTimeZone] = useState("casablanca");
-  const [dateFormat, setDateFormat] = useState("dmy");
-  const [renewalEmails, setRenewalEmails] = useState(true);
-  const [failedPaymentEmails, setFailedPaymentEmails] = useState(true);
-  const [weeklyDigest, setWeeklyDigest] = useState(false);
+  const [language, setLanguage] = useState(user.settings.language);
+  const [timeZone, setTimeZone] = useState(user.settings.timeZone);
+  const [dateFormat, setDateFormat] = useState(user.settings.dateFormat);
+  const [renewalEmails, setRenewalEmails] = useState(user.settings.notifyRenewals);
+  const [failedPaymentEmails, setFailedPaymentEmails] = useState(user.settings.notifyFailedPayments);
+  const [weeklyDigest, setWeeklyDigest] = useState(user.settings.notifyWeeklyDigest);
+  const [saving, startSaving] = useTransition();
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const changed =
+    name.trim() !== user.fullName ||
+    language !== user.settings.language ||
+    timeZone !== user.settings.timeZone ||
+    dateFormat !== user.settings.dateFormat ||
+    renewalEmails !== user.settings.notifyRenewals ||
+    failedPaymentEmails !== user.settings.notifyFailedPayments ||
+    weeklyDigest !== user.settings.notifyWeeklyDigest;
+
+  const save = () =>
+    startSaving(async () => {
+      const saved = await saveAccountSettings({
+        fullName: name,
+        language,
+        timeZone,
+        dateFormat,
+        notifyRenewals: renewalEmails,
+        notifyFailedPayments: failedPaymentEmails,
+        notifyWeeklyDigest: weeklyDigest,
+      });
+      setResult(saved.ok ? { ok: true, message: "Saved." } : { ok: false, message: saved.error });
+      // The sidebar and navbar read the name from the server: ask for it again.
+      if (saved.ok) router.refresh();
+    });
 
   return (
     <div className="flex flex-col gap-6">
@@ -159,7 +202,11 @@ export function GeneralSettings() {
             <Input
               id="settings-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              maxLength={120}
+              onChange={(event) => {
+                setName(event.target.value);
+                setResult(null);
+              }}
               className="h-8 text-xs"
             />
           </Field>
@@ -169,8 +216,10 @@ export function GeneralSettings() {
             <Input
               id="settings-email"
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={user.email}
+              readOnly
+              disabled
+              title="Your sign-in email can't be changed here."
               className="h-8 text-xs"
             />
           </Field>
@@ -264,37 +313,214 @@ export function GeneralSettings() {
             control={<Switch checked={weeklyDigest} onCheckedChange={setWeeklyDigest} />}
           />
         </Rows>
+        {/* Stated, like the date note above: the choices are kept, but the emails
+            they control do not exist until Renewals and Payments are built. */}
+        <p className="mt-1 text-[0.65rem] leading-relaxed text-muted-foreground">
+          Your choices are saved now; these emails start once Renewals and Payments are connected.
+        </p>
       </Section>
+
+      <div className="flex items-center justify-end gap-3 border-t pt-4">
+        {/* "Saved." only while nothing has changed since; an error stays until the next try. */}
+        {result && (!result.ok || !changed) ? (
+          <p
+            role="status"
+            className={cn(
+              "flex items-center gap-1.5 text-[0.65rem]",
+              result.ok ? "text-muted-foreground" : "text-destructive",
+            )}
+          >
+            {result.ok ? <Check className="size-3 text-emerald-600" aria-hidden /> : null}
+            {result.message}
+          </p>
+        ) : null}
+        <Button
+          size="sm"
+          disabled={!changed || saving || name.trim() === ""}
+          onClick={save}
+          className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}
+        >
+          {saving ? "Saving…" : "Save changes"}
+        </Button>
+      </div>
     </div>
   );
 }
 
+/** "today", "3 days ago", "4 months ago" — or null when there is no date to tell. */
+function changedAgo(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return formatDistanceToNowStrict(date, { addSuffix: true, roundingMethod: "floor" });
+}
+
+/**
+ * Change password, opened in place under its row. Same pieces as the other
+ * password screens — Caps Lock badge, strength hint, show/hide — so all of them
+ * behave alike. The backend checks the current password, keeps this device
+ * signed in and signs out every other one.
+ */
+function ChangePasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const currentCaps = useCapsLock();
+  const nextCaps = useCapsLock();
+  const confirmCaps = useCapsLock();
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    startTransition(async () => {
+      const result = await changePassword({ currentPassword: current, newPassword: next, confirmPassword: confirm });
+      if (result.ok) onDone();
+      else setError(result.error);
+    });
+  };
+
+  const type = show ? "text" : "password";
+
+  return (
+    <form onSubmit={submit} className="mb-3 flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
+      <Field>
+        <FieldLabel htmlFor="current-password">Current password</FieldLabel>
+        <div className="relative">
+          <Input
+            id="current-password"
+            {...currentCaps.fieldProps}
+            type={type}
+            autoComplete="current-password"
+            value={current}
+            onChange={(event) => setCurrent(event.target.value)}
+            className={cn("h-8 text-xs", currentCaps.on ? "pr-24" : "pr-8")}
+            autoFocus
+            required
+          />
+          <CapsLockBadge on={currentCaps.on} withToggle />
+          <Button
+            type="button"
+            variant="ghost"
+            aria-controls="current-password new-password confirm-new-password"
+            onClick={() => setShow((visible) => !visible)}
+            className="absolute inset-y-0 right-0 h-full w-8 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          >
+            {show ? <EyeOffIcon className="size-3.5" aria-hidden /> : <EyeIcon className="size-3.5" aria-hidden />}
+            <span className="sr-only">{show ? "Hide passwords" : "Show passwords"}</span>
+          </Button>
+        </div>
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field className="-mb-1">
+          <FieldLabel htmlFor="new-password">New password</FieldLabel>
+          <div className="relative">
+            <Input
+              id="new-password"
+              {...nextCaps.fieldProps}
+              type={type}
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={72}
+              value={next}
+              onChange={(event) => setNext(event.target.value)}
+              className={cn("h-8 text-xs", nextCaps.on && "pr-20")}
+              required
+            />
+            <CapsLockBadge on={nextCaps.on} />
+          </div>
+          <PasswordStrengthHint password={next} />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="confirm-new-password">Confirm new password</FieldLabel>
+          <div className="relative">
+            <Input
+              id="confirm-new-password"
+              {...confirmCaps.fieldProps}
+              type={type}
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={72}
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+              className={cn("h-8 text-xs", confirmCaps.on && "pr-20")}
+              required
+            />
+            <CapsLockBadge on={confirmCaps.on} />
+          </div>
+        </Field>
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        {error ? <p role="alert" className="mr-auto text-[0.65rem] text-destructive">{error}</p> : null}
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="h-7 px-3 text-[0.65rem] font-normal">
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={pending} className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}>
+          {pending ? "Saving…" : "Save new password"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function SecuritySettings() {
+  const user = useSessionUser();
+  const router = useRouter();
+  const [changing, setChanging] = useState(false);
+  const [changedNow, setChangedNow] = useState(false);
+  const ago = changedAgo(user.settings.passwordChangedAt);
+
   return (
     <div className="flex flex-col gap-6">
-      {/* ⚠️ Said once, at the top, rather than only on each row. A reader who
-          starts changing things should learn immediately that none of it is
-          connected — not after the third disabled control. */}
+      {/* ⚠️ Said once, at the top, rather than only on each row: only the
+          password works today, and the rest is marked "Coming soon". */}
       <div className="flex items-start gap-2.5 rounded-lg border border-dashed p-3">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
         <p className="text-[0.7rem] leading-relaxed text-muted-foreground">
-          Account security is designed but not yet wired up. Every control below
-          is here so the shape is settled; none of them does anything yet.
+          Changing your password works now. Two-factor, sessions and API tokens
+          are designed but not connected yet.
         </p>
       </div>
 
       <Section title="Sign in" description="How you prove it is you.">
         <Rows>
-          <Row
-            title={<>Password <ComingSoon /></>}
-            description="Last changed 4 months ago."
-            control={
-              <Button size="sm" disabled className={cn(whiteStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}>
-                <KeyRound className="size-3" />
-                Change
-              </Button>
-            }
-          />
+          <div>
+            <Row
+              title="Password"
+              description={
+                changedNow
+                  ? "Changed just now. Your other devices were signed out."
+                  : ago
+                    ? `Last changed ${ago}.`
+                    : "Never changed."
+              }
+              control={
+                <Button
+                  size="sm"
+                  disabled={changing}
+                  onClick={() => {
+                    setChanging(true);
+                    setChangedNow(false);
+                  }}
+                  className={cn(whiteStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}
+                >
+                  <KeyRound className="size-3" />
+                  Change
+                </Button>
+              }
+            />
+            {changing ? (
+              <ChangePasswordForm
+                onCancel={() => setChanging(false)}
+                onDone={() => {
+                  setChanging(false);
+                  setChangedNow(true);
+                  router.refresh();
+                }}
+              />
+            ) : null}
+          </div>
           <Row
             title={<>Two-factor authentication <ComingSoon /></>}
             description="A code from your phone on top of your password."

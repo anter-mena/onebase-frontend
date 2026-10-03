@@ -36,6 +36,16 @@ export default async function PrivateLayout({ children }: { children: ReactNode 
     email: me.data.email,
     initials: initialsFromName(me.data.fullName),
     role: roleFrom(me.data.role),
+    settings: {
+      language: me.data.language,
+      timeZone: me.data.timeZone,
+      dateFormat: me.data.dateFormat,
+      // The ?? fallbacks only matter while an older backend (without these) is still live.
+      notifyRenewals: me.data.notifyRenewals ?? true,
+      notifyFailedPayments: me.data.notifyFailedPayments ?? true,
+      notifyWeeklyDigest: me.data.notifyWeeklyDigest ?? false,
+      passwordChangedAt: me.data.passwordChangedAt ?? null,
+    },
   };
 
   return (

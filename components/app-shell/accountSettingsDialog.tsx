@@ -20,6 +20,8 @@ import {
   SupportSettings,
 } from "@/components/app-shell/settingsSections";
 import { ThemeChooser } from "@/components/app-shell/themeChooser";
+import { useSessionUser } from "@/components/app-shell/sessionUser";
+import type { Role } from "@/lib/access";
 import {
   Dialog,
   DialogClose,
@@ -48,6 +50,8 @@ type Section = {
   id: SectionId;
   label: string;
   icon: LucideIcon;
+  /** Only these roles see it. Left out = everyone. */
+  roles?: readonly Role[];
 };
 
 /** The ordinary destinations, in the order they are read. */
@@ -55,8 +59,11 @@ const sections: readonly Section[] = [
   { id: "general", label: "General", icon: SlidersHorizontal },
   { id: "theme", label: "Theme", icon: SunMoon },
   { id: "security", label: "Security", icon: ShieldCheck },
-  { id: "db", label: "DB", icon: Database },
+  // The workspace's data, not the person's: a Commercial has no business with backups or a full export.
+  { id: "db", label: "DB", icon: Database, roles: ["ADMIN"] },
 ];
+
+const visibleTo = (role: Role) => (section: Section) => !section.roles || section.roles.includes(role);
 
 /**
  * Held apart from the list above so it can sit at the foot of the rail.
@@ -126,10 +133,14 @@ export function AccountSettingsDialog({
  * on the way out, while the window is still on screen animating away.
  */
 function SettingsPanes() {
+  const { role } = useSessionUser();
   const [section, setSection] = useState<SectionId>("general");
 
+  // Not just hidden in the rail: a panel the role may not see is not rendered at all.
+  const railSections = sections.filter(visibleTo(role));
+  const shownSections = allSections.filter(visibleTo(role));
   const active =
-    allSections.find((entry) => entry.id === section) ?? allSections[0];
+    shownSections.find((entry) => entry.id === section) ?? shownSections[0];
 
   return (
     <>
@@ -172,7 +183,7 @@ function SettingsPanes() {
           {/* flex-col on the list itself, so the support entry below can claim
               the space between it and the rest with mt-auto. */}
           <Tabs.List className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 pt-0">
-            {sections.map((entry) => (
+            {railSections.map((entry) => (
               <RailTab key={entry.id} section={entry} />
             ))}
 
@@ -193,7 +204,7 @@ function SettingsPanes() {
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-gutter:stable]">
-            {allSections.map(({ id }) => (
+            {shownSections.map(({ id }) => (
               <Tabs.Panel key={id} value={id} className="outline-none">
                 {panels[id]}
               </Tabs.Panel>

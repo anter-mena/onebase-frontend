@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
+import { AutoRefresh } from "@/components/app-shell/autoRefresh";
+import { LoadError } from "@/components/errors/loadError";
 import { UsersTable } from "@/components/users/usersTable";
 import { USER_COLUMNS_COOKIE, parseHiddenColumns } from "@/lib/users/columns";
 import { getUsers } from "@/lib/users/users";
@@ -19,7 +21,8 @@ export default async function UsersPage() {
    */
   const cookieStore = await cookies();
   const hiddenColumns = parseHiddenColumns(cookieStore.get(USER_COLUMNS_COOKIE)?.value);
-  // The real accounts, asked fresh on every visit (and again after each change).
+  // The real accounts, asked fresh on every visit, after each change, and every
+  // few seconds by AutoRefresh — so someone joining or signing in shows up by itself.
   const users = await getUsers();
 
   return (
@@ -40,10 +43,9 @@ export default async function UsersPage() {
           <UsersTable users={users.data} defaultHiddenColumns={hiddenColumns} />
         ) : (
           // Not an empty table: "no users" would be a lie when the list simply did not load.
-          <div role="alert" className="flex h-full min-h-48 items-center justify-center px-6 text-center text-xs text-muted-foreground">
-            The user list could not be loaded. {users.error.message}
-          </div>
+          <LoadError title="The user list could not be loaded." reason={users.error.message} />
         )}
+        <AutoRefresh />
       </section>
     </div>
   );

@@ -1,6 +1,5 @@
 "use server"
 
-import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { apiFetch } from "@/lib/api"
@@ -30,12 +29,10 @@ export async function login(_previous: LoginState, formData: FormData): Promise<
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
 
-  const forwarded = (await headers()).get("x-forwarded-for")
+  // apiFetch passes the person's address and browser along, for the sign-in records.
   const result = await apiFetch<LoginResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
-    // So the backend's session list records the person's address, not this server's.
-    headers: forwarded ? { "X-Forwarded-For": forwarded } : undefined,
   })
 
   if (!result.ok) {

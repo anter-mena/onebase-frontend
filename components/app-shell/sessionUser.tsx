@@ -17,6 +17,17 @@ export type SessionUser = {
   email: string;
   initials: string;
   role: Role;
+  /** What Account settings shows and saves. */
+  settings: {
+    language: string;
+    timeZone: string;
+    dateFormat: string;
+    notifyRenewals: boolean;
+    notifyFailedPayments: boolean;
+    notifyWeeklyDigest: boolean;
+    /** ISO time, or null if never set (an account from before this was recorded). */
+    passwordChangedAt: string | null;
+  };
 };
 
 const SessionUserContext = createContext<SessionUser | null>(null);

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
 import { ActionLogTable } from "@/components/action-log/actionLogTable";
+import { AutoRefresh } from "@/components/app-shell/autoRefresh";
+import { LoadError } from "@/components/errors/loadError";
+import { getActionLog } from "@/lib/action-log/actionLog";
 import {
   ACTION_LOG_COLUMNS_COOKIE,
   parseHiddenColumns,
@@ -21,6 +24,8 @@ export default async function ActionLogPage() {
    */
   const cookieStore = await cookies();
   const hiddenColumns = parseHiddenColumns(cookieStore.get(ACTION_LOG_COLUMNS_COOKIE)?.value);
+  // Asked fresh on every visit, and again every few seconds by AutoRefresh.
+  const log = await getActionLog();
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col">
@@ -38,7 +43,13 @@ export default async function ActionLogPage() {
         className="mt-4 min-h-0 flex-1 overflow-hidden rounded-xl border bg-background"
         aria-label="Action log content"
       >
-        <ActionLogTable defaultHiddenColumns={hiddenColumns} />
+        {log.ok ? (
+          <ActionLogTable entries={log.data} defaultHiddenColumns={hiddenColumns} />
+        ) : (
+          // Not an empty log: "nothing happened" would be a lie when the list simply did not load.
+          <LoadError title="The action log could not be loaded." reason={log.error.message} />
+        )}
+        <AutoRefresh />
       </section>
     </div>
   );

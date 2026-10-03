@@ -31,7 +31,7 @@ import {
   serializeHiddenColumns,
   type ActionLogColumnId,
 } from "@/lib/action-log/columns";
-import { logEntries, type ActionKind, type LogEntry } from "@/lib/action-log/sample";
+import type { ActionKind, LogEntry } from "@/lib/action-log/types";
 
 /**
  * Every change made in the workspace, newest first.
@@ -91,9 +91,12 @@ type SortField = "at" | "actor" | "action" | "targetName" | "source";
 const pageSizes = [10, 20, 50] as const;
 
 export function ActionLogTable({
+  entries,
   /** Read from the cookie by the page, so the first HTML is already correct. */
   defaultHiddenColumns = [],
 }: {
+  /** From the backend, newest first; refreshed by the page while it is open. */
+  entries: readonly LogEntry[];
   defaultHiddenColumns?: readonly ActionLogColumnId[];
 }) {
   const [query, setQuery] = useState("");
@@ -138,7 +141,7 @@ export function ActionLogTable({
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return logEntries
+    return entries
       .filter((entry) => {
         const matchesQuery =
           !normalizedQuery ||
@@ -162,7 +165,7 @@ export function ActionLogTable({
         const comparison = String(left).localeCompare(String(right));
         return sort.direction === "asc" ? comparison : -comparison;
       });
-  }, [action, dateRange, query, sort]);
+  }, [action, dateRange, entries, query, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filteredEntries.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -246,7 +249,6 @@ export function ActionLogTable({
                   setDateRange(range);
                   setPage(1);
                 }}
-                defaultMonth={new Date("2026-09-01T00:00:00Z")}
                 numberOfMonths={2}
                 fixedWeeks
               />
@@ -384,7 +386,7 @@ export function ActionLogTable({
 
         {visibleEntries.length === 0 ? (
           <div className="flex min-h-48 items-center justify-center text-xs text-muted-foreground">
-            Nothing in the log matches your filters.
+            {entries.length === 0 ? "Nothing has been logged yet." : "Nothing in the log matches your filters."}
           </div>
         ) : null}
       </div>

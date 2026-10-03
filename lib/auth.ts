@@ -14,11 +14,16 @@ export type CurrentUser = {
   id: number
   fullName: string
   email: string
-  /** Still OWNER / ADMIN / MANAGER on the backend; read it through `roleFrom` in lib/access. */
+  /** ADMIN or COMMERCIAL; read it through `roleFrom` in lib/access. */
   role: string
   language: string
   timeZone: string
   dateFormat: string
+  notifyRenewals: boolean
+  notifyFailedPayments: boolean
+  notifyWeeklyDigest: boolean
+  /** When the password was last set; null for an account older than this record. */
+  passwordChangedAt: string | null
 }
 
 export function getCurrentUser(): Promise<ApiResult<CurrentUser>> {

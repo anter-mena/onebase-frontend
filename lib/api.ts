@@ -1,5 +1,7 @@
 import "server-only"
 
+import { headers } from "next/headers"
+
 import { getSessionToken } from "@/lib/session"
 
 /**
@@ -50,6 +52,7 @@ export async function apiFetch<T>(
   const { authenticated, headers, ...rest } = init
   const requestHeaders = new Headers(headers)
   requestHeaders.set("Content-Type", "application/json")
+  await passCallerAlong(requestHeaders)
 
   if (authenticated) {
     const token = await getSessionToken()
@@ -99,6 +102,24 @@ export async function apiFetch<T>(
   }
 
   return { ok: true, data: parsed as T }
+}
+
+/**
+ * The person's own address and browser, for the backend's sign-in records and
+ * Action log ("Signed in from a new device"). Without this the backend would
+ * only ever see this server. Outside a request (at build time) there is no
+ * caller, and nothing is added.
+ */
+async function passCallerAlong(outgoing: Headers) {
+  try {
+    const incoming = await headers()
+    const forwarded = incoming.get("x-forwarded-for")
+    const agent = incoming.get("user-agent")
+    if (forwarded && !outgoing.has("X-Forwarded-For")) outgoing.set("X-Forwarded-For", forwarded)
+    if (agent && !outgoing.has("User-Agent")) outgoing.set("User-Agent", agent)
+  } catch {
+    // Not inside a request.
+  }
 }
 
 function safeJson(text: string) {
