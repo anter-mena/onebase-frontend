@@ -1,5 +1,6 @@
 import "server-only"
 
+import { canOpen, homeFor, type Role } from "@/lib/access"
 import { apiFetch, type ApiResult } from "@/lib/api"
 
 /**
@@ -9,18 +10,19 @@ import { apiFetch, type ApiResult } from "@/lib/api"
  * check that a session is still alive. `proxy.ts` only reads the cookie and
  * cannot know the backend has ended a session.
  */
-export type SessionUser = {
+export type CurrentUser = {
   id: number
   fullName: string
   email: string
-  role: "OWNER" | "ADMIN" | "MANAGER"
+  /** Still OWNER / ADMIN / MANAGER on the backend; read it through `roleFrom` in lib/access. */
+  role: string
   language: string
   timeZone: string
   dateFormat: string
 }
 
-export function getCurrentUser(): Promise<ApiResult<SessionUser>> {
-  return apiFetch<SessionUser>("/api/auth/me", { authenticated: true })
+export function getCurrentUser(): Promise<ApiResult<CurrentUser>> {
+  return apiFetch<CurrentUser>("/api/auth/me", { authenticated: true })
 }
 
 /** "Admin" → "AD", "Amine El Idrissi" → "AE": the tile in the sidebar's user box. */
@@ -34,12 +36,15 @@ export function initialsFromName(fullName: string): string {
 /**
  * Where to send someone after signing in, from the `next` the proxy attached.
  *
- * <p>Only paths on this site: `//evil.com` and `https://…` are refused, so the
- * sign-in page cannot be used to bounce someone to another site.
+ * <p>Only paths on this site — `//evil.com` and `https://…` are refused, so the
+ * sign-in page cannot be used to bounce someone to another site — and only
+ * pages their role may open. Anything else lands on the role's start page:
+ * a Commercial who followed an old Dashboard link goes to Clients, not to a 403.
  */
-export function safeNextPath(next: unknown): string {
+export function safeNextPath(next: unknown, role: Role): string {
   if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
-    return "/dashboard"
+    return homeFor(role)
   }
-  return next
+  const pathname = next.split(/[?#]/)[0]
+  return canOpen(role, pathname) ? next : homeFor(role)
 }

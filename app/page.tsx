@@ -5,6 +5,7 @@ const pages = [
   { href: "/", title: "All pages" },
   { href: "/login", title: "Login" },
   { href: "/reset-password", title: "Reset password" },
+  { href: "/accept-invite", title: "Accept invitation" },
   { href: "/dashboard", title: "Dashboard" },
   { href: "/seo-overview", title: "SEO Overview" },
   { href: "/clients", title: "Clients" },

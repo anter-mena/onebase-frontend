@@ -1,4 +1,4 @@
-import { Globe, LayoutDashboard, MessageCircle, RefreshCcw, ScrollText, Server, Settings, Users, UsersRound } from "lucide-react";
+import { Globe, LayoutDashboard, Mail, MessageCircle, RefreshCcw, ScrollText, Server, Settings, Users, UsersRound } from "lucide-react";
 
 export const settingsNavigation = [
   { label: "Panel", value: "panel", href: "/configuration?tab=panel", description: "Manage the panels available in your workspace." },
@@ -46,6 +46,13 @@ export const appNavigation = [
     available: true,
     // The pulsing red dot in the sidebar; the text is what screen readers announce for it.
     indicator: "New WhatsApp messages",
+  },
+  {
+    section: "Communication",
+    label: "Inbox",
+    href: "/inbox",
+    icon: Mail,
+    available: true,
   },
   {
     section: "Administration",

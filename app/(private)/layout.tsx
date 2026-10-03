@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell/appShell";
 import { ErrorScreen } from "@/components/errors/errorScreen";
+import { roleFrom } from "@/lib/access";
 import { getCurrentUser, initialsFromName } from "@/lib/auth";
 import { SIDEBAR_COOKIE_NAME, parseSidebarOpen } from "@/lib/sidebar/state";
 
@@ -34,6 +35,7 @@ export default async function PrivateLayout({ children }: { children: ReactNode 
     fullName: me.data.fullName,
     email: me.data.email,
     initials: initialsFromName(me.data.fullName),
+    role: roleFrom(me.data.role),
   };
 
   return (

@@ -14,15 +14,16 @@ export const metadata: Metadata = {
 const notices: Record<string, string> = {
   "session-expired": "Your session has ended. Please sign in again.",
   done: "Your password has been changed. Sign in with the new one.",
+  accepted: "Your account is ready. Sign in with the password you just chose.",
 };
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reason?: string; reset?: string; next?: string }>;
+  searchParams: Promise<{ reason?: string; reset?: string; invite?: string; next?: string }>;
 }) {
-  const { reason, reset, next } = await searchParams;
-  const notice = notices[reason ?? ""] ?? notices[reset ?? ""];
+  const { reason, reset, invite, next } = await searchParams;
+  const notice = notices[reason ?? ""] ?? notices[reset ?? ""] ?? notices[invite ?? ""];
 
   return (
     <div className="grid min-h-svh bg-background lg:grid-cols-[64.5fr_35.5fr]">

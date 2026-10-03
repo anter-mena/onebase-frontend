@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { apiFetch } from "@/lib/api"
+import { roleFrom } from "@/lib/access"
 import { safeNextPath } from "@/lib/auth"
 import { createSession } from "@/lib/session"
 
@@ -14,7 +15,7 @@ export type LoginState = {
   email?: string
 }
 
-type LoginResponse = { accessToken: string; expiresIn: number }
+type LoginResponse = { accessToken: string; expiresIn: number; user: { role: string } }
 
 /**
  * Sign in.
@@ -44,5 +45,5 @@ export async function login(_previous: LoginState, formData: FormData): Promise<
 
   await createSession(result.data.accessToken, result.data.expiresIn)
   // Outside any try/catch: redirect() works by throwing.
-  redirect(safeNextPath(formData.get("next")))
+  redirect(safeNextPath(formData.get("next"), roleFrom(result.data.user.role)))
 }

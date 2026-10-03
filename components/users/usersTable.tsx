@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
+import { useMemo, useState, useTransition, type ComponentProps, type ReactNode } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
   ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronLeft,
-  ChevronRight, ChevronsLeft, ChevronsRight, FileDown, Mail, MoreVertical, Pencil,
-  Search, Send, SlidersHorizontal, Trash2, UserPlus,
+  ChevronRight, ChevronsLeft, ChevronsRight, FileDown, Mail, MailX, MoreVertical,
+  Search, Send, SlidersHorizontal, UserPlus,
 } from "lucide-react";
 import { cn } from "cn";
 
@@ -42,7 +42,9 @@ import {
   userColumns,
   type UserColumnId,
 } from "@/lib/users/columns";
-import { workspaceUsers, type UserRole, type WorkspaceUser } from "@/lib/users/sample";
+import type { UserRole, WorkspaceUser } from "@/lib/users/types";
+import { cancelInvite, resendInvite, setUserActive } from "@/app/(private)/users/actions";
+import { showTopBanner } from "@/components/ui/topBanner";
 
 /**
  * Who can sign in, and what they can reach.
@@ -51,14 +53,15 @@ import { workspaceUsers, type UserRole, type WorkspaceUser } from "@/lib/users/s
  * filter, same sticky header, same column control, same footer. A reader who
  * has used Clients should not have to learn a second table.
  *
- * <p>⚠️ <b>The Owner cannot be switched off or deleted here.</b> A workspace
- * with no owner has nobody who can be billed, nobody who can restore it and
- * nobody who can hand it over — and the shortest route to one is a table that
- * lets the last owner deactivate themselves by accident. Those controls are
- * disabled on that row and say why.
+ * <p>⚠️ <b>Admins can never be switched off</b> (decided 2026-10-02), so the
+ * workspace can never be left without one. Their switch is shown, locked, so
+ * the rule is visible rather than a missing control. The backend refuses it too.
+ *
+ * <p>The Admin looking at the list is not in it: the backend leaves them out,
+ * because this screen is for managing the others.
  */
 
-const roleFilters = ["All", "Owner", "Admin", "Manager"] as const;
+const roleFilters = ["All", "Admin", "Commercial"] as const;
 
 /**
  * Shown beside the role so the reach is legible without opening anything.
@@ -67,9 +70,8 @@ const roleFilters = ["All", "Owner", "Admin", "Manager"] as const;
  * is a type error rather than an empty tooltip somebody finds later.
  */
 const roleDescriptions: Record<UserRole, string> = {
-  Owner: "Everything, including billing",
-  Admin: "Everything except billing",
-  Manager: "Clients and renewals",
+  Admin: "Everything",
+  Commercial: "Clients, renewals and WhatsApp",
 };
 
 type SortField = "name" | "role" | "lastActiveAt" | "addedAt";
@@ -85,12 +87,15 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 });
 
 export function UsersTable({
+  users,
   /** Read from the cookie by the page, so the first HTML is already correct. */
   defaultHiddenColumns = [],
 }: {
+  /** The real accounts, from the page. Every change reloads them from the backend. */
+  users: readonly WorkspaceUser[];
   defaultHiddenColumns?: readonly UserColumnId[];
 }) {
-  const [users, setUsers] = useState<WorkspaceUser[]>(workspaceUsers);
+  const [busy, startBusy] = useTransition();
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<(typeof roleFilters)[number]>("All");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -188,19 +193,41 @@ export function UsersTable({
     });
   }
 
+  /**
+   * Each change goes to the backend, which applies its own rules (not yourself,
+   * never the last Admin) and then the page reloads the list. If it refuses,
+   * its sentence is shown and nothing on screen changes.
+   */
   function setActive(id: number, active: boolean) {
-    setUsers((current) => current.map((user) => (user.id === id ? { ...user, active } : user)));
+    startBusy(async () => {
+      const result = await setUserActive(id, active);
+      if (!result.ok) showTopBanner(result.error);
+    });
   }
 
-  function deleteUser() {
-    if (!userToDelete) return;
-    setUsers((current) => current.filter((user) => user.id !== userToDelete.id));
-    setSelected((current) => {
-      const next = new Set(current);
-      next.delete(userToDelete.id);
-      return next;
+  function resend(user: WorkspaceUser) {
+    startBusy(async () => {
+      const result = await resendInvite(user.id);
+      showTopBanner(result.ok ? `Invitation sent again to ${user.email}.` : result.error);
     });
+  }
+
+  function confirmCancelInvite() {
+    if (!userToDelete) return;
+    const target = userToDelete;
     setUserToDelete(null);
+    startBusy(async () => {
+      const result = await cancelInvite(target.id);
+      if (!result.ok) {
+        showTopBanner(result.error);
+        return;
+      }
+      setSelected((current) => {
+        const next = new Set(current);
+        next.delete(target.id);
+        return next;
+      });
+    });
   }
 
   function exportCsv() {
@@ -373,9 +400,8 @@ export function UsersTable({
 
           <TableBody>
             {visibleUsers.map((user) => {
-              // ⚠️ Stated once and used by both the switch and the menu, so
-              // the two can never disagree about who may be switched off.
-              const isOwner = user.role === "Owner";
+              // Admins are never switched off: the switch stays, locked.
+              const locked = user.role === "Admin";
 
               return (
                 <TableRow
@@ -408,7 +434,7 @@ export function UsersTable({
                     <TableCell>
                       <Tooltip>
                         <TooltipTrigger render={<span className="inline-flex" />}>
-                          <Badge variant={isOwner ? "default" : "outline"}>{user.role}</Badge>
+                          <Badge variant={user.role === "Admin" ? "default" : "outline"}>{user.role}</Badge>
                         </TooltipTrigger>
                         <TooltipContent>{roleDescriptions[user.role]}</TooltipContent>
                       </Tooltip>
@@ -429,10 +455,10 @@ export function UsersTable({
                           </Badge>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-2">
+                        <span className="inline-flex items-center gap-2" title={locked ? "Admins can't be switched off" : undefined}>
                           <Switch
                             checked={user.active}
-                            disabled={isOwner}
+                            disabled={locked || busy}
                             onCheckedChange={(checked) => setActive(user.id, checked)}
                             size="sm"
                             aria-label={`${user.active ? "Deactivate" : "Activate"} ${user.name}`}
@@ -458,32 +484,30 @@ export function UsersTable({
                   ) : null}
 
                   <TableCell className="text-right">
+                    {/* Only people who have not joined yet have anything to do here:
+                        send the invitation again, or cancel it. Accounts that are
+                        in use are never edited or deleted — only switched off. */}
+                    {user.invitePending ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${user.name}`} />}>
                         <MoreVertical className="size-3.5" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-auto min-w-36 whitespace-nowrap">
-                        <DropdownMenuItem className="text-xs">
-                          <Pencil className="size-3.5" /> Edit user
+                        <DropdownMenuItem className="text-xs" disabled={busy} onClick={() => resend(user)}>
+                          <Send className="size-3.5" /> Resend invite
                         </DropdownMenuItem>
-                        {user.invitePending ? (
-                          <DropdownMenuItem className="text-xs">
-                            <Send className="size-3.5" /> Resend invite
-                          </DropdownMenuItem>
-                        ) : null}
                         <DropdownMenuSeparator />
-                        {/* Disabled on the Owner for the same reason the switch
-                            is: a workspace has to keep one. */}
                         <DropdownMenuItem
                           variant="destructive"
                           className="text-xs"
-                          disabled={isOwner}
+                          disabled={busy}
                           onClick={() => setUserToDelete(user)}
                         >
-                          <Trash2 className="size-3.5" /> Remove user
+                          <MailX className="size-3.5" /> Cancel invite
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               );
@@ -493,7 +517,7 @@ export function UsersTable({
 
         {visibleUsers.length === 0 ? (
           <div className="flex min-h-48 items-center justify-center text-xs text-muted-foreground">
-            No users match your filters.
+            {users.length === 0 ? "No users yet." : "No users match your filters."}
           </div>
         ) : null}
       </div>
@@ -543,15 +567,15 @@ export function UsersTable({
       <AlertDialog open={Boolean(userToDelete)} onOpenChange={(open) => { if (!open) setUserToDelete(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {userToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>Cancel the invitation for {userToDelete?.email}?</AlertDialogTitle>
             <AlertDialogDescription>
-              They lose access to this workspace immediately. Anything they did
-              stays in the action log. This cannot be undone.
+              The link in their email stops working, and they leave this list.
+              You can invite the same address again later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" size="sm" onClick={deleteUser}>Remove user</AlertDialogAction>
+            <AlertDialogCancel size="sm">Keep it</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" size="sm" onClick={confirmCancelInvite}>Cancel invite</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

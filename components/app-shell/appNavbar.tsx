@@ -7,9 +7,11 @@ import { cn } from "cn";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { appNavigation, getConfigurationTab, navbarPages } from "@/components/app-shell/navigation";
+import { useSessionUser } from "@/components/app-shell/sessionUser";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTheme } from "@/hooks/use-theme";
+import { canOpen } from "@/lib/access";
 
 // useSearchParams() lives here, not in AppNavbar: on prerendered pages it makes
 // everything up to the nearest Suspense render in the browser only, and the
@@ -67,6 +69,7 @@ export function AppNavbar() {
   // Only the toggle is used here — never `mode`, which would not survive
   // hydration on a server-rendered component. See the button below.
   const { toggleMode } = useTheme();
+  const user = useSessionUser();
 
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:px-6">
@@ -78,17 +81,20 @@ export function AppNavbar() {
       </div>
 
       <div className="flex items-center gap-1.5">
-        <Link
-          href="/inbox"
-          className={cn(
-            whiteStyle.button,
-            "relative flex size-7 items-center justify-center p-0! text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-          )}
-          aria-label="Inbox"
-          title="Inbox"
-        >
-          <Inbox className="size-3" aria-hidden />
-        </Link>
+        {/* Shown only to roles that may open the Inbox (lib/access) — today, both. */}
+        {canOpen(user.role, "/inbox") && (
+          <Link
+            href="/inbox"
+            className={cn(
+              whiteStyle.button,
+              "relative flex size-7 items-center justify-center p-0! text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            )}
+            aria-label="Inbox"
+            title="Inbox"
+          >
+            <Inbox className="size-3" aria-hidden />
+          </Link>
+        )}
         <button
           type="button"
           className={cn(

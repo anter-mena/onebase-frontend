@@ -1,15 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { canOpen, homeFor, roleFrom, type Role } from "@/lib/access"
 import { SESSION_COOKIE } from "@/lib/cookieNames"
 
 /**
  * Decides where someone belongs before a single byte of HTML is written.
  *
  * <p>Three kinds of route:
- * - <b>Guest-only</b> — sign in and the password pages. Signed in? Sent to the dashboard.
+ * - <b>Guest-only</b> — sign in, the password pages, and accepting an invitation. Signed in? Sent to their role's start page.
  * - <b>Open</b> — the error pages. Anyone, either way.
  * - <b>Private</b> — everything else, by default. Signed out? Sent to sign in, with
  *   the page they wanted kept in `?next=` so they land back on it afterwards.
+ *   Signed in but the role may not open it (lib/access)? The 403 page.
  *
  * <p>Private is the default on purpose (the LMS learned this): a page added later
  * is protected because nobody did anything, and making one public is a
@@ -23,25 +25,29 @@ import { SESSION_COOKIE } from "@/lib/cookieNames"
  * thrown out of it.
  */
 
-const GUEST_ONLY = ["/login", "/reset-password"]
+const GUEST_ONLY = ["/login", "/reset-password", "/accept-invite"]
 const OPEN = ["/401", "/403", "/404", "/429", "/500", "/503"]
 
-/** The token's expiry, read without verification. Malformed means "no session". */
-function sessionLooksAlive(token: string | undefined): boolean {
-  if (!token) return false
+/**
+ * The token's expiry and role, read without verification. Malformed or expired
+ * means "no session" — which fails towards sending people to sign in.
+ */
+function readSession(token: string | undefined): { role: Role } | null {
+  if (!token) return null
   try {
     const payload = token.split(".")[1]
-    if (!payload) return false
-    const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number }
-    return typeof claims.exp === "number" && claims.exp * 1000 > Date.now()
+    if (!payload) return null
+    const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number; role?: string }
+    if (typeof claims.exp !== "number" || claims.exp * 1000 <= Date.now()) return null
+    return { role: roleFrom(claims.role) }
   } catch {
-    return false
+    return null
   }
 }
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
-  const signedIn = sessionLooksAlive(request.cookies.get(SESSION_COOKIE)?.value)
+  const session = readSession(request.cookies.get(SESSION_COOKIE)?.value)
   const go = (to: string) => NextResponse.redirect(new URL(to, request.url))
 
   if (OPEN.includes(pathname)) {
@@ -61,13 +67,21 @@ export function proxy(request: NextRequest) {
       response.cookies.delete(SESSION_COOKIE)
       return response
     }
-    return signedIn ? go("/dashboard") : NextResponse.next()
+    return session ? go(homeFor(session.role)) : NextResponse.next()
   }
 
-  if (!signedIn) {
+  if (!session) {
     const login = new URL("/login", request.url)
     if (pathname !== "/") login.searchParams.set("next", pathname + search)
     return NextResponse.redirect(login)
+  }
+
+  if (!canOpen(session.role, pathname)) {
+    // "/" is a way in, not a destination: send each role to its own start page.
+    if (pathname === "/") return go(homeFor(session.role))
+    // Rewritten, not redirected: the address stays what they typed, and the
+    // answer is a real 403 — the 403 page, with its "go back" link.
+    return NextResponse.rewrite(new URL("/403", request.url), { status: 403 })
   }
 
   return NextResponse.next()

@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useSessionUser } from "@/components/app-shell/sessionUser";
+import { roleLabels } from "@/lib/access";
 
 /**
  * The panels behind the settings window's rail.
@@ -138,8 +140,9 @@ const dateFormats = [
 ];
 
 export function GeneralSettings() {
-  const [name, setName] = useState("Admin User");
-  const [email, setEmail] = useState("admin@onebase.app");
+  const user = useSessionUser();
+  const [name, setName] = useState(user.fullName);
+  const [email, setEmail] = useState(user.email);
   const [language, setLanguage] = useState("en");
   const [timeZone, setTimeZone] = useState("casablanca");
   const [dateFormat, setDateFormat] = useState("dmy");
@@ -176,7 +179,7 @@ export function GeneralSettings() {
         <Row
           title="Role"
           description="Set by whoever owns the workspace. You cannot change your own."
-          control={<Badge variant="outline">Owner</Badge>}
+          control={<Badge variant="outline">{roleLabels[user.role]}</Badge>}
         />
       </Section>
 

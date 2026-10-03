@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Plus, Send, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Send, X } from "lucide-react";
 import { cn } from "cn";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,9 @@ import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { workspaceUsers, type UserRole } from "@/lib/users/sample";
+import { inviteUsers } from "@/app/(private)/users/actions";
+import { showTopBanner } from "@/components/ui/topBanner";
+import type { UserRole } from "@/lib/users/types";
 
 /**
  * Invite people into the workspace.
@@ -22,16 +25,16 @@ import { workspaceUsers, type UserRole } from "@/lib/users/sample";
  * addresses are entered as chips so each one can be checked and removed before
  * anything is sent.
  *
- * <p>⚠️ <b>Owner is not offered.</b> There is one owner — the workspace's
- * billing and deletion authority — and it is transferred, never granted. A
- * picker that lets you invite a second one is a picker that will eventually be
- * asked which of them is real.
+ * <p>Both roles can be given: a workspace may have several Admins.
+ *
+ * <p>⚠️ "Already in this workspace" is not checked here any more — that list was
+ * invented. The backend will refuse an address that already has an account once
+ * sending is connected.
  */
 
-/** ⚠️ Excludes Owner by construction rather than by filtering a longer list. */
-const invitableRoles: readonly { value: Exclude<UserRole, "Owner">; label: string; description: string }[] = [
-  { value: "Admin", label: "Admin", description: "Everything except billing." },
-  { value: "Manager", label: "Manager", description: "Clients and renewals." },
+const invitableRoles: readonly { value: UserRole; label: string; description: string }[] = [
+  { value: "Commercial", label: "Commercial", description: "Clients, renewals and the WhatsApp inbox. Nothing else." },
+  { value: "Admin", label: "Admin", description: "Everything, including users and configuration." },
 ];
 
 /**
@@ -46,15 +49,34 @@ function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-const existingEmails = new Set(workspaceUsers.map((user) => user.email.toLowerCase()));
 
 export function InviteUserForm() {
   const [draft, setDraft] = useState("");
   const [emails, setEmails] = useState<string[]>([]);
-  const [role, setRole] = useState<Exclude<UserRole, "Owner">>("Manager");
+  const [role, setRole] = useState<UserRole>("Commercial");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sending, startSending] = useTransition();
+  const router = useRouter();
+
+  /**
+   * One request for everyone on the list. The backend invites all of them or
+   * none — if one address already has an account, its sentence names it and
+   * nothing is sent, so the list can be fixed and sent again as it is.
+   */
+  function send() {
+    setSendError(null);
+    startSending(async () => {
+      const result = await inviteUsers(emails, role, note);
+      if (!result.ok) {
+        setSendError(result.error);
+        return;
+      }
+      showTopBanner(`${emails.length} invitation${emails.length === 1 ? "" : "s"} sent.`);
+      router.push("/users");
+    });
+  }
 
   function addEmail(value: string) {
     const candidate = value.trim().replace(/,$/, "");
@@ -62,10 +84,6 @@ export function InviteUserForm() {
 
     if (!looksLikeEmail(candidate)) {
       setError(`"${candidate}" does not look like an email address.`);
-      return;
-    }
-    if (existingEmails.has(candidate.toLowerCase())) {
-      setError(`${candidate} is already in this workspace.`);
       return;
     }
     if (emails.some((entry) => entry.toLowerCase() === candidate.toLowerCase())) {
@@ -76,12 +94,12 @@ export function InviteUserForm() {
     setEmails((current) => [...current, candidate]);
     setDraft("");
     setError(null);
-    setSent(false);
+    setSendError(null);
   }
 
   function removeEmail(value: string) {
     setEmails((current) => current.filter((entry) => entry !== value));
-    setSent(false);
+    setSendError(null);
   }
 
   return (
@@ -172,13 +190,13 @@ export function InviteUserForm() {
       <section>
         <h2 className="text-sm font-semibold">What they can do</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Everyone in this invitation gets the same role. You can change it
-          afterwards.
+          Everyone in this invitation gets the same role. Each role has fixed
+          access, set for the whole workspace.
         </p>
 
         {/* Cards rather than a select: there are two of them, the difference
             between them is the whole decision, and a dropdown would hide the
-            descriptions behind a click. */}
+            descriptions behind a click. Commercial first: the usual choice. */}
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {invitableRoles.map((option) => {
             const checked = role === option.value;
@@ -221,10 +239,6 @@ export function InviteUserForm() {
           })}
         </div>
 
-        <p className="mt-2 text-[0.65rem] leading-relaxed text-muted-foreground">
-          Owner is not on this list. A workspace has one, and it is handed over
-          rather than given out.
-        </p>
       </section>
 
       <section>
@@ -246,13 +260,9 @@ export function InviteUserForm() {
       </section>
 
       <footer className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
-        {/* ⚠️ "Prepared", not "Sent". No mail leaves the browser yet, and a
-            confirmation that claims otherwise means somebody waits for a reply
-            that was never requested. */}
-        {sent ? (
-          <p className="mr-auto flex items-center gap-1.5 text-[0.65rem] text-muted-foreground">
-            <Check className="size-3 text-emerald-600" aria-hidden />
-            {emails.length} invitation{emails.length === 1 ? "" : "s"} prepared — sending is not connected yet.
+        {sendError ? (
+          <p role="alert" className="mr-auto text-[0.65rem] text-destructive">
+            {sendError}
           </p>
         ) : (
           <p className="mr-auto text-[0.65rem] text-muted-foreground">
@@ -269,12 +279,12 @@ export function InviteUserForm() {
         <Button
           type="button"
           size="sm"
-          disabled={emails.length === 0}
-          onClick={() => setSent(true)}
+          disabled={emails.length === 0 || sending}
+          onClick={send}
           className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}
         >
           <Send className="size-3" />
-          Send {emails.length > 0 ? emails.length : ""} invitation{emails.length === 1 ? "" : "s"}
+          {sending ? "Sending…" : `Send ${emails.length > 0 ? emails.length : ""} invitation${emails.length === 1 ? "" : "s"}`}
         </Button>
       </footer>
 

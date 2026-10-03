@@ -15,7 +15,8 @@ import {
 } from "@/components/app-shell/navigation";
 import { logout } from "@/app/(private)/actions";
 import { AccountSettingsDialog } from "@/components/app-shell/accountSettingsDialog";
-import type { ShellUser } from "@/components/app-shell/appShell";
+import { useSessionUser } from "@/components/app-shell/sessionUser";
+import { canOpen } from "@/lib/access";
 import { SecurityCard } from "@/components/app-shell/securityCard";
 import {
   AlertDialog,
@@ -79,7 +80,11 @@ function SettingsLinks({ items, activeValue }: { items: readonly SettingsItem[];
   );
 }
 
-export function AppSidebar({ user }: { user: ShellUser }) {
+export function AppSidebar() {
+  const user = useSessionUser();
+  // Only what this role can open; a section left with nothing in it disappears.
+  const visibleNavigation = appNavigation.filter((item) => canOpen(user.role, item.href));
+  const visibleSections = navigationSections.filter((section) => visibleNavigation.some((item) => item.section === section));
   const pathname = usePathname();
   const { setOpen, isMobile } = useSidebar();
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -124,14 +129,14 @@ export function AppSidebar({ user }: { user: ShellUser }) {
       </SidebarHeader>
 
       <SidebarContent className="py-1">
-        {navigationSections.map((section) => (
+        {visibleSections.map((section) => (
           <SidebarGroup key={section} className="py-1.5">
             <SidebarGroupLabel className="h-5 px-2 text-[0.55rem] uppercase tracking-wider group-data-[collapsible=icon]:-mt-5">
               {section}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
-                {appNavigation
+                {visibleNavigation
                   .filter((item) => item.section === section)
                   .map((item) => {
                     const Icon = item.icon;
