@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Fingerprint } from "lucide-react";
 
+import { cn } from "cn";
+import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { CheckEmail } from "@/components/reset-password/checkEmail";
 import { ResetPasswordForm } from "@/components/reset-password/resetPasswordForm";
 
@@ -18,7 +20,7 @@ export function ResetPasswordFlow() {
   return (
     <div className="mx-auto flex w-full max-w-xs flex-col gap-4">
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="mb-1 flex size-9 items-center justify-center rounded-lg border bg-card shadow-sm">
+        <div className={cn(whiteStyle.button, "mb-1 flex size-9 items-center justify-center p-0! text-foreground")}>
           <Fingerprint className="size-4" aria-hidden />
         </div>
         <h1 className="font-heading text-lg font-bold tracking-tight text-balance">Forgot password?</h1>

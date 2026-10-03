@@ -6,6 +6,8 @@ import { ArrowLeft, MailCheck } from "lucide-react";
 
 import { requestResetLink } from "@/app/(auth)/reset-password/actions";
 import { showTopBanner } from "@/components/ui/topBanner";
+import { cn } from "cn";
+import whiteStyle from "@/components/ui/button-styles/white.module.css";
 
 /**
  * Matches the backend: a second request within 60 s sends nothing, so the
@@ -34,7 +36,7 @@ export function CheckEmail({ email, onChangeEmail }: { email: string; onChangeEm
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-4 text-center">
       <div className="flex flex-col items-center gap-2">
-        <div className="mb-1 flex size-9 items-center justify-center rounded-lg border bg-card shadow-sm">
+        <div className={cn(whiteStyle.button, "mb-1 flex size-9 items-center justify-center p-0! text-foreground")}>
           <MailCheck className="size-4" aria-hidden />
         </div>
         <h1 className="font-heading text-lg font-bold tracking-tight">Check your email</h1>

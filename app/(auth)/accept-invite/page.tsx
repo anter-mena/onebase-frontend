@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, MailWarning, UserPlus } from "lucide-react";
+import { cn } from "cn";
 
 import { AcceptInviteForm } from "@/components/accept-invite/acceptInviteForm";
 import { AuthFooter } from "@/components/auth/authFooter";
+import { LinkExpiry } from "@/components/auth/linkExpiry";
+import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { apiFetch } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Join One Base",
 };
 
-type InvitationInfo = { email: string; role: "ADMIN" | "COMMERCIAL" };
+type InvitationInfo = { email: string; role: "ADMIN" | "COMMERCIAL"; expiresAt?: string };
 
 /**
  * The page the invitation email opens (`/accept-invite?token=…`).
@@ -21,7 +24,7 @@ type InvitationInfo = { email: string; role: "ADMIN" | "COMMERCIAL" };
  * someone has typed a password.
  *
  * <p>Same frame as the password pages: icon tile, title, one-line help, form,
- * "Back to login".
+ * "Back to login", and how long the link still works.
  */
 export default async function AcceptInvitePage({
   searchParams,
@@ -34,26 +37,29 @@ export default async function AcceptInvitePage({
     : null;
 
   return (
-    <div className="grid min-h-svh grid-rows-[1fr_auto_1fr] bg-background">
-      <main className="row-start-2 flex items-center justify-center px-6 py-16 md:px-10">
+    // The form area takes the free space and the footer sits under it — a 1fr / auto / 1fr
+    // grid made the empty top row as tall as the footer, adding a scrollbar on short windows.
+    <div className="flex min-h-svh flex-col bg-background">
+      <main className="flex flex-1 items-center justify-center px-6 py-16 md:px-10">
         <div className="mx-auto flex w-full max-w-xs flex-col gap-4">
           {token && invitation?.ok ? (
             <>
               <div className="flex flex-col items-center gap-2 text-center">
-                <div className="mb-1 flex size-9 items-center justify-center rounded-lg border bg-card shadow-sm">
+                <div className={cn(whiteStyle.button, "mb-1 flex size-9 items-center justify-center p-0! text-foreground")}>
                   <UserPlus className="size-4" aria-hidden />
                 </div>
                 <h1 className="font-heading text-lg font-bold tracking-tight text-balance">Join One Base</h1>
                 <p className="text-xs text-muted-foreground">
-                  You were invited as {invitation.data.role === "ADMIN" ? "an Admin" : "a Commercial"}. Choose your
+                  You were invited as {invitation.data.role === "ADMIN" ? "an Admin" : "a Commercial"} with{" "}
+                  <span className="font-medium whitespace-nowrap text-foreground">{invitation.data.email}</span>. Choose your
                   name and a password to finish.
                 </p>
               </div>
-              <AcceptInviteForm token={token} email={invitation.data.email} />
+              <AcceptInviteForm token={token} />
             </>
           ) : (
             <div className="flex flex-col items-center gap-2 text-center">
-              <div className="mb-1 flex size-9 items-center justify-center rounded-lg border bg-card shadow-sm">
+              <div className={cn(whiteStyle.button, "mb-1 flex size-9 items-center justify-center p-0! text-foreground")}>
                 <MailWarning className="size-4" aria-hidden />
               </div>
               <h1 className="font-heading text-lg font-bold tracking-tight text-balance">This invitation can&apos;t be used</h1>
@@ -69,11 +75,10 @@ export default async function AcceptInvitePage({
             <ArrowLeft className="size-3" aria-hidden />
             Back to login
           </Link>
+          {invitation?.ok && invitation.data.expiresAt && <LinkExpiry expiresAt={invitation.data.expiresAt} />}
         </div>
       </main>
-      <div className="row-start-3 self-end">
-        <AuthFooter />
-      </div>
+      <AuthFooter />
     </div>
   );
 }

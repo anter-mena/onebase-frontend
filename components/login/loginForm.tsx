@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 import { login, type LoginState } from "@/app/(auth)/login/actions";
+import { CapsLockBadge, useCapsLock } from "@/components/auth/capsLock";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import { Input } from "@/components/ui/input";
 export function LoginForm({ notice, next }: { notice?: string; next?: string }) {
   const [showPassword, setShowPassword] = useState(false);
   const [state, formAction, pending] = useActionState<LoginState, FormData>(login, {});
+  const caps = useCapsLock();
 
   return (
     <form action={formAction}>
@@ -60,13 +62,15 @@ export function LoginForm({ notice, next }: { notice?: string; next?: string }) 
           <div className="relative">
             <Input
               id="password"
+              {...caps.fieldProps}
               name="password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               placeholder="Enter your password"
-              className="pr-8"
+              className={caps.on ? "pr-24" : "pr-8"}
               required
             />
+            <CapsLockBadge on={caps.on} withToggle />
             <Button
               type="button"
               variant="ghost"

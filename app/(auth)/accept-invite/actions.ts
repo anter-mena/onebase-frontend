@@ -15,7 +15,11 @@ export type AcceptState = { error?: string }
  */
 export async function acceptInvitation(_previous: AcceptState, formData: FormData): Promise<AcceptState> {
   const token = String(formData.get("token") ?? "")
-  const fullName = String(formData.get("fullName") ?? "").trim()
+  // Asked as two fields, stored as one name.
+  const fullName = [formData.get("firstName"), formData.get("lastName")]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" ")
   const password = String(formData.get("password") ?? "")
   const confirm = String(formData.get("confirmPassword") ?? "")
 

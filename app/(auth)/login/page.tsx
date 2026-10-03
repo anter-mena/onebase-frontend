@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Command, GalleryVerticalEnd } from "lucide-react";
 
 import { LoginForm } from "@/components/login/loginForm";
+import { cn } from "cn";
+import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { AuthFooter } from "@/components/auth/authFooter";
 import { RotatingTips } from "@/components/login/rotatingTips";
 
@@ -31,7 +33,7 @@ export default async function LoginPage({
         <main className="flex flex-1 items-center justify-center px-6 py-16 md:px-10 lg:pt-32">
           <div className="mx-auto flex w-full max-w-xs flex-col gap-4">
             <div className="flex flex-col items-center gap-2 text-center">
-              <div className="mb-1 flex size-9 items-center justify-center rounded-lg border bg-card shadow-sm">
+              <div className={cn(whiteStyle.button, "mb-1 flex size-9 items-center justify-center p-0! text-foreground")}>
                 <GalleryVerticalEnd className="size-4" aria-hidden />
               </div>
               <h1 className="font-heading text-lg font-bold tracking-tight text-balance">
