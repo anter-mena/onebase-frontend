@@ -12,6 +12,7 @@ import { Subscriptions } from "@/components/settings/subscriptions";
 import type { PaymentMethodsView } from "@/lib/settings/paymentMethodsView";
 import type { BrandRow } from "@/lib/brands/types";
 import type { PlanPrice } from "@/lib/plans/plans";
+import type { PaymentMethodRow } from "@/lib/paymentMethods/types";
 
 export function ConfigurationTabs({
   paymentMethodsView,
@@ -19,6 +20,8 @@ export function ConfigurationTabs({
   brandsError,
   plans,
   plansError,
+  paymentMethods,
+  paymentMethodsError,
 }: {
   paymentMethodsView: PaymentMethodsView;
   /** Null when the list could not be loaded; brandsError says why. */
@@ -27,6 +30,9 @@ export function ConfigurationTabs({
   /** Null when the prices could not be loaded; plansError says why. */
   plans: PlanPrice[] | null;
   plansError: string | null;
+  /** Null when the methods could not be loaded; paymentMethodsError says why. */
+  paymentMethods: PaymentMethodRow[] | null;
+  paymentMethodsError: string | null;
 }) {
   const router = useRouter();
   const activeTab = getConfigurationTab(useSearchParams().get("tab"));
@@ -63,7 +69,7 @@ export function ConfigurationTabs({
       {settingsNavigation.map(({ value }) => (
         <Tabs.Panel key={value} value={value} className="mt-4 min-h-0 flex-1 overflow-auto rounded-xl border bg-background p-4">
           {value === "payment-methods" ? (
-            <PaymentMethods initialView={paymentMethodsView} />
+            <PaymentMethods initialView={paymentMethodsView} methods={paymentMethods} loadError={paymentMethodsError} />
           ) : value === "subscriptions" ? (
             <Subscriptions plans={plans} loadError={plansError} />
           ) : value === "expenses" ? (

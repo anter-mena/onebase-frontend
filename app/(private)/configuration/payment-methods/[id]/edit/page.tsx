@@ -3,15 +3,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { LoadError } from "@/components/errors/loadError";
 import { PaymentMethodForm } from "@/components/settings/paymentMethodForm";
-import { findPaymentMethod, toFormValues } from "@/components/settings/paymentMethodsSample";
+import { getPaymentMethod } from "@/lib/paymentMethods/paymentMethods";
 
 export const metadata: Metadata = { title: "Edit payment method | One Base" };
 
 export default async function EditPaymentMethodPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const method = findPaymentMethod(id);
-  if (!method) notFound();
+  if (!/^\d+$/.test(id)) notFound();
+  const result = await getPaymentMethod(id);
+  if (!result.ok && result.error.status === 404) notFound();
+  const method = result.ok ? result.data : null;
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col">
@@ -25,7 +28,7 @@ export default async function EditPaymentMethodPage({ params }: { params: Promis
         </Link>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Edit payment method</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Update the details of {method.name}.
+          {method ? `Update the details of ${method.name}.` : "Update the details of this method."}
         </p>
       </header>
 
@@ -34,7 +37,23 @@ export default async function EditPaymentMethodPage({ params }: { params: Promis
         className="mt-4 flex min-h-0 flex-1 flex-col overflow-auto rounded-xl border bg-background p-4 md:p-6"
         aria-label="Edit payment method form"
       >
-        <PaymentMethodForm mode="edit" initialValues={toFormValues(method)} />
+        {method ? (
+          <PaymentMethodForm
+            mode="edit"
+            methodId={method.id}
+            balance={method.balance}
+            initialValues={{
+              provider: method.provider,
+              name: method.name,
+              holder: method.holder,
+              cardNetwork: method.cardNetwork,
+              active: method.active,
+              instructions: method.instructions ?? "",
+            }}
+          />
+        ) : (
+          <LoadError title="This payment method could not be loaded." reason={result.ok ? "" : result.error.message} />
+        )}
       </section>
     </div>
   );

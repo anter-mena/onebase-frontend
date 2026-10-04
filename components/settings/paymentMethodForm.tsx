@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useState } from "react";
-import { NumberField } from "@base-ui/react/number-field";
-import { Minus, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Fragment, useState, useTransition, type FormEvent } from "react";
 import { PaymentIcon } from "react-svg-credit-card-payment-icons";
 import { cn } from "cn";
 
-import { CurrencyFlag } from "@/components/settings/currencyFlag";
+import { savePaymentMethod } from "@/app/(private)/configuration/paymentMethodActions";
 import { PaymentMethodCard } from "@/components/settings/paymentMethodCard";
 import { Button } from "@/components/ui/button";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
@@ -17,34 +16,28 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  amountFormatter,
+  networkLogos,
+  providerToCard,
+  type BackendCardNetwork,
+  type BackendProvider,
+} from "@/lib/paymentMethods/types";
 
 // The only supported types. Each one decides how its card looks in the preview.
-const methodTypes = [
-  { value: "paypal", label: "PayPal", provider: "paypal" },
-  { value: "binance", label: "Binance", provider: "crypto" },
-  { value: "interac", label: "Interac", provider: "interac" },
-  { value: "other", label: "Other", provider: "other" },
-] as const;
+const methodTypes: readonly { value: BackendProvider; label: string }[] = [
+  { value: "PAYPAL", label: "PayPal" },
+  { value: "BINANCE", label: "Binance" },
+  { value: "INTERAC", label: "Interac" },
+  { value: "OTHER", label: "Other" },
+];
 
-// The balance currency, each with its flag.
-const currencyOptions = [
-  { value: "CAD", name: "Canadian dollar", flag: "CA" },
-  { value: "USD", name: "US dollar", flag: "US" },
-  { value: "EUR", name: "Euro", flag: "EU" },
-] as const;
-
-type Currency = (typeof currencyOptions)[number]["value"];
-
-type MethodType = (typeof methodTypes)[number]["value"];
-
-// Which card networks the method supports. Both by default.
-const networkOptions = [
-  { value: "both", label: "Both", networks: ["Visa", "Mastercard"] },
-  { value: "visa", label: "Visa", networks: ["Visa"] },
-  { value: "mastercard", label: "Mastercard", networks: ["Mastercard"] },
-] as const;
-
-type NetworkChoice = (typeof networkOptions)[number]["value"];
+// Which card logos are drawn on the card — decoration only. Both by default.
+const networkOptions: readonly { value: BackendCardNetwork; label: string }[] = [
+  { value: "BOTH", label: "Both" },
+  { value: "VISA", label: "Visa" },
+  { value: "MASTERCARD", label: "Mastercard" },
+];
 
 // Active by default. Active cards show the green contactless animation in the preview.
 const statusOptions = [
@@ -52,51 +45,64 @@ const statusOptions = [
   { value: "inactive", label: "Inactive" },
 ] as const;
 
-type Status = (typeof statusOptions)[number]["value"];
-
-// 12480.5 → "12,480.50", the way amounts read on the cards. An empty field shows 0.00.
-const amountFormatter = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-// The − and + buttons beside the balance: white style, a little smaller than the input.
-const stepButtonClassName = cn(whiteStyle.button, "flex size-7 shrink-0 items-center justify-center p-0! text-foreground data-disabled:opacity-40");
-
 export type PaymentMethodFormValues = {
-  type: MethodType;
-  methodName: string;
+  provider: BackendProvider;
+  name: string;
   holder: string;
-  balance: number | null;
-  networkChoice: NetworkChoice;
-  status: Status;
-  currency: Currency;
+  cardNetwork: BackendCardNetwork;
+  active: boolean;
   instructions: string;
 };
 
-// What a new method starts with.
+// What a new method starts with. No balance and no currency (decided 2026-10-04):
+// a method starts at $0, its total comes from the payments recorded on it, and everything is USD.
 const emptyValues: PaymentMethodFormValues = {
-  type: "paypal",
-  methodName: "",
+  provider: "PAYPAL",
+  name: "",
   holder: "",
-  balance: null,
-  networkChoice: "both",
-  status: "active",
-  currency: "USD",
+  cardNetwork: "BOTH",
+  active: true,
   instructions: "",
 };
 
 // One form for both pages: "create" starts empty, "edit" starts from the method's saved values.
-export function PaymentMethodForm({ mode, initialValues = emptyValues }: { mode: "create" | "edit"; initialValues?: PaymentMethodFormValues }) {
-  const [type, setType] = useState<MethodType>(initialValues.type);
-  const [methodName, setMethodName] = useState(initialValues.methodName);
+export function PaymentMethodForm({
+  mode,
+  methodId = null,
+  balance = 0,
+  initialValues = emptyValues,
+}: {
+  mode: "create" | "edit";
+  /** The method being edited; null when adding. */
+  methodId?: number | null;
+  /** Total received on it, in USD (shown on the card preview). */
+  balance?: number;
+  initialValues?: PaymentMethodFormValues;
+}) {
+  const router = useRouter();
+  const [provider, setProvider] = useState<BackendProvider>(initialValues.provider);
+  const [name, setName] = useState(initialValues.name);
   const [holder, setHolder] = useState(initialValues.holder);
-  const [balance, setBalance] = useState<number | null>(initialValues.balance);
-  const [networkChoice, setNetworkChoice] = useState<NetworkChoice>(initialValues.networkChoice);
-  const [status, setStatus] = useState<Status>(initialValues.status);
-  const [currency, setCurrency] = useState<Currency>(initialValues.currency);
-  const selectedType = methodTypes.find((option) => option.value === type) ?? methodTypes[0];
-  const selectedNetworks = networkOptions.find((option) => option.value === networkChoice) ?? networkOptions[0];
-  // Binance only holds USDT: the currency choice is locked and USDT is used everywhere.
-  const currencyLocked = type === "binance";
-  const effectiveCurrency = currencyLocked ? "USDT" : currency;
+  const [cardNetwork, setCardNetwork] = useState<BackendCardNetwork>(initialValues.cardNetwork);
+  const [active, setActive] = useState(initialValues.active);
+  const [instructions, setInstructions] = useState(initialValues.instructions);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, startSaving] = useTransition();
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    startSaving(async () => {
+      const result = await savePaymentMethod(methodId, { provider, name, holder, cardNetwork, instructions, active });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.push("/configuration?tab=payment-methods");
+      // The list was kept by the browser from before: ask the server for it again, so the change shows at once.
+      router.refresh();
+    });
+  }
 
   return (
     // Two equal halves once the section is wide enough (64rem): the form centered in the left half,
@@ -112,31 +118,27 @@ export function PaymentMethodForm({ mode, initialValues = emptyValues }: { mode:
 
     <div className="@container mt-4 flex-1">
     <div className="grid h-full gap-8 @5xl:grid-cols-2">
-    {/* Interface only: saving is wired in the logic phase. */}
-    <form onSubmit={(event) => event.preventDefault()} className="w-full max-w-xl min-w-0 self-center justify-self-center rounded-2xl border bg-card p-5 shadow-sm">
+    <form onSubmit={submit} className="w-full max-w-xl min-w-0 self-center justify-self-center rounded-2xl border bg-card p-5 shadow-sm">
       <FieldGroup className="gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="method-name">Method name</FieldLabel>
-            <Input id="method-name" name="name" placeholder="e.g. Main PayPal" required value={methodName} onChange={(event) => setMethodName(event.target.value)} />
+            <Input id="method-name" name="name" placeholder="e.g. Main PayPal" maxLength={100} required value={name} onChange={(event) => setName(event.target.value)} />
           </Field>
 
           <Field>
             <FieldLabel htmlFor="method-holder">Holder name</FieldLabel>
-            <Input id="method-holder" name="holder" placeholder="e.g. Admin User" autoComplete="name" required value={holder} onChange={(event) => setHolder(event.target.value)} />
+            <Input id="method-holder" name="holder" placeholder="e.g. Admin User" autoComplete="name" maxLength={120} required value={holder} onChange={(event) => setHolder(event.target.value)} />
           </Field>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* Type and Status on one row: the balance and the currency are gone (a method starts at $0, everything is USD). */}
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
           <Field>
             <FieldLabel htmlFor="method-type">Type</FieldLabel>
-            <Select
-              name="type"
-              value={type}
-              onValueChange={(value) => { if (value) setType(value as MethodType); }}
-            >
+            <Select name="type" value={provider} onValueChange={(value) => { if (value) setProvider(value as BackendProvider); }}>
               <SelectTrigger id="method-type" className="h-8 w-full">
-                {/* A formatter, so the trigger shows "PayPal" rather than the raw value "paypal". */}
+                {/* A formatter, so the trigger shows "PayPal" rather than the raw value. */}
                 <SelectValue>
                   {(value: string | null) => methodTypes.find((option) => option.value === value)?.label}
                 </SelectValue>
@@ -149,49 +151,35 @@ export function PaymentMethodForm({ mode, initialValues = emptyValues }: { mode:
             </Select>
           </Field>
 
-          <Field>
-            <FieldLabel htmlFor="method-balance">Current balance</FieldLabel>
-            {/* Base UI NumberField: − and + outside the input (hold to repeat, arrow keys work too), never below 0,
-                shown with 2 decimals. locale is fixed so the server and the browser format the same way. */}
-            <NumberField.Root
-              id="method-balance"
-              name="balance"
-              value={balance}
-              onValueChange={(value) => setBalance(value)}
-              min={0}
-              step={1}
-              locale="en-US"
-              format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
-            >
-              <NumberField.Group className="flex items-center gap-2">
-                <NumberField.Decrement aria-label="Decrease balance" className={stepButtonClassName}>
-                  <Minus className="size-3" aria-hidden />
-                </NumberField.Decrement>
-                <div className="relative min-w-0 flex-1">
-                  {/* inputMode decimal: phones show a keyboard with a decimal point, for cents. */}
-                  <NumberField.Input render={<Input className="pr-14 tabular-nums" />} placeholder="0.00" inputMode="decimal" />
-                  {/* The currency chosen below, next to Status. */}
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
-                    {effectiveCurrency}
-                  </span>
-                </div>
-                <NumberField.Increment aria-label="Increase balance" className={stepButtonClassName}>
-                  <Plus className="size-3" aria-hidden />
-                </NumberField.Increment>
-              </NumberField.Group>
-            </NumberField.Root>
-          </Field>
+          <FieldSet>
+            <FieldLegend variant="label">Status</FieldLegend>
+            <div className="rounded-xl border bg-background sm:py-1.5">
+              <RadioGroup
+                name="status"
+                value={active ? "active" : "inactive"}
+                onValueChange={(value) => setActive(value === "active")}
+                className="flex flex-col divide-y divide-border sm:flex-row sm:divide-x sm:divide-y-0"
+              >
+                {statusOptions.map((option) => (
+                  <Field key={option.value} orientation="horizontal" className="min-w-0 flex-1 justify-start gap-1.5 px-3 py-2.5 *:data-[slot=field-label]:flex-none sm:justify-center sm:py-0">
+                    <RadioGroupItem id={`status-${option.value}`} value={option.value} />
+                    <FieldLabel htmlFor={`status-${option.value}`} className="text-xs font-normal">{option.label}</FieldLabel>
+                  </Field>
+                ))}
+              </RadioGroup>
+            </div>
+          </FieldSet>
         </div>
 
         {/* Option cards: options share the full width with a divider between them, centered.
             On phones they stack vertically, one per line. The label stretch from Field is turned off (flex-none) so each option centers as one group. */}
         <FieldSet>
-          <FieldLegend variant="label">Card network</FieldLegend>
+          <FieldLegend variant="label">Card network <span className="ml-1 text-xs font-normal text-muted-foreground">· the logos on the card</span></FieldLegend>
           <div className="rounded-xl border bg-background sm:py-2.5">
             <RadioGroup
               name="networks"
-              value={networkChoice}
-              onValueChange={(value) => setNetworkChoice(value as NetworkChoice)}
+              value={cardNetwork}
+              onValueChange={(value) => setCardNetwork(value as BackendCardNetwork)}
               className="flex flex-col divide-y divide-border sm:flex-row sm:divide-x sm:divide-y-0"
             >
               {networkOptions.map((option) => (
@@ -200,7 +188,7 @@ export function PaymentMethodForm({ mode, initialValues = emptyValues }: { mode:
                   <FieldLabel htmlFor={`network-${option.value}`} className="font-normal">
                     {/* The network logos in their brand colors, then the name. */}
                     <span className="flex items-center gap-1.5" aria-hidden>
-                      {option.networks.map((network, index) => (
+                      {networkLogos[option.value].map((network, index) => (
                         <Fragment key={network}>
                           {/* A thin line between the two logos on "Both", like on the cards. */}
                           {index > 0 ? <span className="h-3.5 w-px bg-border" /> : null}
@@ -216,58 +204,20 @@ export function PaymentMethodForm({ mode, initialValues = emptyValues }: { mode:
           </div>
         </FieldSet>
 
-        {/* Status and currency on one row. Status only takes what it needs, so the three currencies fit on one line. */}
-        <div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)]">
-          <FieldSet>
-            <FieldLegend variant="label">Status</FieldLegend>
-            <div className="rounded-xl border bg-background sm:py-2.5">
-              <RadioGroup
-                name="status"
-                value={status}
-                onValueChange={(value) => setStatus(value as Status)}
-                className="flex flex-col divide-y divide-border sm:flex-row sm:divide-x sm:divide-y-0"
-              >
-                {statusOptions.map((option) => (
-                  <Field key={option.value} orientation="horizontal" className="min-w-0 flex-1 justify-start gap-1.5 px-3 py-2.5 *:data-[slot=field-label]:flex-none sm:justify-center sm:py-0">
-                    <RadioGroupItem id={`status-${option.value}`} value={option.value} />
-                    <FieldLabel htmlFor={`status-${option.value}`} className="text-xs font-normal">{option.label}</FieldLabel>
-                  </Field>
-                ))}
-              </RadioGroup>
-            </div>
-          </FieldSet>
-
-          <FieldSet>
-            <FieldLegend variant="label">
-              Currency
-              {currencyLocked ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">· USDT only on Binance</span> : null}
-            </FieldLegend>
-            <div className="rounded-xl border bg-background sm:py-2.5">
-              <RadioGroup
-                name="currency"
-                value={currency}
-                onValueChange={(value) => setCurrency(value as Currency)}
-                disabled={currencyLocked}
-                className="flex flex-col divide-y divide-border sm:flex-row sm:divide-x sm:divide-y-0"
-              >
-                {currencyOptions.map((option) => (
-                  <Field key={option.value} orientation="horizontal" data-disabled={currencyLocked ? "true" : undefined} className="min-w-0 flex-1 justify-start gap-1.5 px-3 py-2.5 *:data-[slot=field-label]:flex-none sm:justify-center sm:py-0">
-                    <RadioGroupItem id={`currency-${option.value}`} value={option.value} />
-                    <FieldLabel htmlFor={`currency-${option.value}`} className="gap-1.5 text-xs font-normal" title={option.name}>
-                      <CurrencyFlag flag={option.flag} />
-                      {option.value}
-                    </FieldLabel>
-                  </Field>
-                ))}
-              </RadioGroup>
-            </div>
-          </FieldSet>
-        </div>
-
         <Field>
           <FieldLabel htmlFor="method-instructions">Instructions for clients (optional)</FieldLabel>
-          <Textarea id="method-instructions" name="instructions" defaultValue={initialValues.instructions} placeholder="e.g. Add your client number as the payment reference." className="min-h-14" />
+          <Textarea
+            id="method-instructions"
+            name="instructions"
+            maxLength={1000}
+            value={instructions}
+            onChange={(event) => setInstructions(event.target.value)}
+            placeholder="e.g. Add your client number as the payment reference."
+            className="min-h-14"
+          />
         </Field>
+
+        {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
 
         <div className="flex justify-end gap-2 border-t pt-4">
           <Button
@@ -279,8 +229,8 @@ export function PaymentMethodForm({ mode, initialValues = emptyValues }: { mode:
           >
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled className={cn(blackStyle.button, "px-3! py-0! text-xs! font-medium!")}>
-            {mode === "edit" ? "Save changes" : "Save method"}
+          <Button type="submit" size="sm" disabled={saving || !name.trim() || !holder.trim()} className={cn(blackStyle.button, "px-3! py-0! text-xs! font-medium! disabled:opacity-50")}>
+            {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Save method"}
           </Button>
         </div>
       </FieldGroup>
@@ -292,16 +242,18 @@ export function PaymentMethodForm({ mode, initialValues = emptyValues }: { mode:
       <p className="mb-3 w-full max-w-96 text-xs font-medium text-muted-foreground">Preview</p>
       <div className="flex w-full max-w-96">
         <PaymentMethodCard
-          provider={selectedType.provider}
-          active={status === "active"}
-          methodName={methodName.trim() || "Method name"}
-          amount={amountFormatter.format(balance ?? 0)}
-          currency={effectiveCurrency}
+          provider={providerToCard[provider]}
+          active={active}
+          methodName={name.trim() || "Method name"}
+          amount={amountFormatter.format(balance)}
+          currency="USD"
           holder={holder.trim() || "Holder name"}
-          networks={selectedNetworks.networks}
+          networks={networkLogos[cardNetwork]}
         />
       </div>
-      <p className="mt-3 w-full max-w-96 text-xs text-muted-foreground">Updates as you fill in the form.</p>
+      <p className="mt-3 w-full max-w-96 text-xs text-muted-foreground">
+        {mode === "create" ? "A new method starts at $0.00: payments recorded on it add up here." : "Updates as you fill in the form."}
+      </p>
     </aside>
     </div>
     </div>

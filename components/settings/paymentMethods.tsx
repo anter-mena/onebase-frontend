@@ -1,13 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useState, type CSSProperties, type ReactNode } from "react";
-import { CircleCheck, CirclePlus, CircleSlash, LayoutGrid, MoreVertical, Pencil, Rows3, Trash2, WalletCards } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Fragment, useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { CircleCheck, CirclePlus, CircleSlash, LayoutGrid, MoreVertical, Pencil, Rows3, WalletCards } from "lucide-react";
 import { PaymentIcon } from "react-svg-credit-card-payment-icons";
 import { cn } from "cn";
 
+import { setPaymentMethodActive } from "@/app/(private)/configuration/paymentMethodActions";
+import { AutoRefresh } from "@/components/app-shell/autoRefresh";
+import { LoadError } from "@/components/errors/loadError";
 import { PaymentMethodCard, ProviderLogo, providerLogos } from "@/components/settings/paymentMethodCard";
-import { paymentMethods, type PaymentMethod } from "@/components/settings/paymentMethodsSample";
+import { showTopBanner } from "@/components/ui/topBanner";
+import {
+  amountFormatter,
+  networkLogos,
+  providerDetails,
+  providerToCard,
+  type PaymentMethodRow,
+} from "@/lib/paymentMethods/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +34,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,10 +45,10 @@ import {
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import styles from "./paymentMethods.module.css";
 
-type MethodId = PaymentMethod["id"];
+type PaymentMethod = PaymentMethodRow;
 type View = PaymentMethodsView;
 
-const editHref = (id: MethodId) => `/configuration/payment-methods/${id}/edit`;
+const editHref = (id: number) => `/configuration/payment-methods/${id}/edit`;
 
 // Same look as the tabs in the Configuration header.
 function ViewSwitch({ view, onChange }: { view: View; onChange: (view: View) => void }) {
@@ -122,14 +132,12 @@ function CornerAction({ x, y, index, children }: { x: number; y: number; index: 
 }
 
 type ActionsProps = {
-  activeById: Record<MethodId, boolean>;
   /** Asks for confirmation rather than switching — see the dialog at the foot of PaymentMethods. */
   onToggleActive: (method: PaymentMethod) => void;
-  onDelete: (method: PaymentMethod) => void;
 };
 
 // The table view, built with the same classes as the clients table.
-function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: ActionsProps & { methods: readonly PaymentMethod[] }) {
+function PaymentMethodsTable({ methods, onToggleActive }: ActionsProps & { methods: readonly PaymentMethod[] }) {
   return (
     <div className="mt-5">
       <div className="overflow-x-auto [&>[data-slot=table-container]]:overflow-visible">
@@ -151,30 +159,30 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     {/* A small swatch of the card: same background, same logo. */}
-                    <span className={cn(styles.fixed, styles.card, styles[method.id], "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg")}>
-                      <ProviderLogo id={method.id} compact />
+                    <span className={cn(styles.fixed, styles.card, styles[providerToCard[method.provider]], "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg")}>
+                      <ProviderLogo id={providerToCard[method.provider]} compact />
                     </span>
                     <div className="min-w-0">
                       {/* The method's own name first, then which provider and type it is. */}
                       <p className="truncate font-medium text-foreground">{method.name}</p>
-                      <p className="mt-0.5 truncate text-[0.6rem] text-muted-foreground">{providerLogos[method.id].name} · {method.type}</p>
+                      <p className="mt-0.5 truncate text-[0.6rem] text-muted-foreground">{providerLogos[providerToCard[method.provider]].name} · {providerDetails[method.provider].type}</p>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[0.6rem] font-medium", statusStyles[activeById[method.id] ? "active" : "inactive"])}>
+                  <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[0.6rem] font-medium", statusStyles[method.active ? "active" : "inactive"])}>
                     <span className="size-1.5 rounded-full bg-current opacity-70" />
-                    {activeById[method.id] ? "Active" : "Inactive"}
+                    {method.active ? "Active" : "Inactive"}
                   </span>
                 </TableCell>
                 <TableCell>
-                  <span className="font-medium text-foreground tabular-nums">{method.amount}</span>{" "}
-                  <span className="text-[0.6rem] text-muted-foreground">{method.currency}</span>
+                  <span className="font-medium text-foreground tabular-nums">{amountFormatter.format(method.balance)}</span>{" "}
+                  <span className="text-[0.6rem] text-muted-foreground">USD</span>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{method.holder}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    {method.networks.map((network, index) => (
+                    {networkLogos[method.cardNetwork].map((network, index) => (
                       <Fragment key={network}>
                         {index > 0 ? <span aria-hidden className="h-4 w-px bg-border" /> : null}
                         <PaymentIcon type={network} format="logo" className="h-auto w-8" />
@@ -182,7 +190,7 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
                     ))}
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{method.region}</TableCell>
+                <TableCell className="text-muted-foreground">{providerDetails[method.provider].region}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${method.name}`} />}>
@@ -194,20 +202,17 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
                       <DropdownMenuItem
                         className={cn(
                           "text-xs",
-                          activeById[method.id]
+                          method.active
                             ? "text-destructive focus:text-destructive"
                             : "text-emerald-700 focus:text-emerald-700",
                         )}
                         onClick={() => onToggleActive(method)}
                       >
-                        {activeById[method.id] ? <><CircleSlash className="size-3.5" /> Deactivate</> : <><CircleCheck className="size-3.5" /> Activate</>}
+                        {method.active ? <><CircleSlash className="size-3.5" /> Deactivate</> : <><CircleCheck className="size-3.5" /> Activate</>}
                       </DropdownMenuItem>
+                      {/* No delete (decided 2026-10-04): switch a method off instead, so old payments keep it. */}
                       <DropdownMenuItem className="text-xs" render={<Link href={editHref(method.id)} />}>
                         <Pencil className="size-3.5" /> Edit method
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" className="text-xs" onClick={() => onDelete(method)}>
-                        <Trash2 className="size-3.5" /> Delete method
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -231,7 +236,17 @@ function PaymentMethodsTable({ methods, activeById, onToggleActive, onDelete }: 
   );
 }
 
-export function PaymentMethods({ initialView }: { initialView: View }) {
+export function PaymentMethods({
+  initialView,
+  methods: loaded,
+  loadError,
+}: {
+  initialView: View;
+  /** Null when the list could not be loaded; loadError says why. */
+  methods: PaymentMethod[] | null;
+  loadError: string | null;
+}) {
+  const router = useRouter();
   // Starts from the cookie the page read on the server, and writes the cookie back when switched.
   const [view, setViewState] = useState<View>(initialView);
   function setView(next: View) {
@@ -239,39 +254,36 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
     document.cookie = `${PAYMENT_METHODS_VIEW_COOKIE}=${next}; Path=/; Max-Age=${PAYMENT_METHODS_VIEW_COOKIE_MAX_AGE}; SameSite=Lax`;
   }
 
-  // Active status and deletions start from the sample data and are shown in both views.
-  // Kept on screen only for now: they reset on reload until they are saved for real.
-  const [activeById, setActiveById] = useState(
-    () => Object.fromEntries(paymentMethods.map((method) => [method.id, method.active])) as Record<MethodId, boolean>,
-  );
-  // Switching a method off stops clients being able to pay with it, which is
-  // not something to do by brushing past a button on a card — so it is asked
-  // for the same way deleting is.
+  // Switching a method off stops it being chosen for new payments, which is
+  // not something to do by brushing past a button on a card — so it is asked first.
   const [methodToToggle, setMethodToToggle] = useState<PaymentMethod | null>(null);
-  const togglingActive = methodToToggle ? activeById[methodToToggle.id] : false;
+  const [switching, startSwitching] = useTransition();
 
   function toggleActive() {
     if (!methodToToggle) return;
-    setActiveById((current) => ({ ...current, [methodToToggle.id]: !current[methodToToggle.id] }));
-    setMethodToToggle(null);
+    const method = methodToToggle;
+    startSwitching(async () => {
+      const result = await setPaymentMethodActive(method.id, !method.active);
+      if (!result.ok) showTopBanner(result.error);
+      setMethodToToggle(null);
+      router.refresh();
+    });
   }
 
-  const [deletedIds, setDeletedIds] = useState<ReadonlySet<MethodId>>(() => new Set());
-  const [methodToDelete, setMethodToDelete] = useState<PaymentMethod | null>(null);
-  const methods = paymentMethods.filter((method) => !deletedIds.has(method.id));
-
-  function deleteMethod() {
-    if (!methodToDelete) return;
-    setDeletedIds((current) => new Set(current).add(methodToDelete.id));
-    setMethodToDelete(null);
+  if (!loaded) {
+    return <LoadError title="The payment methods could not be loaded." reason={loadError ?? "Please try again."} />;
   }
+  const methods = loaded;
 
   return (
     <>
+      {/* Another Admin's changes show up by themselves. */}
+      <AutoRefresh />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-medium">Payment methods</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Choose how your clients can pay you.</p>
+          <p className="mt-1 text-xs text-muted-foreground">The accounts you receive money on. Amounts are in US dollars.</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full border bg-muted/40 px-2.5 py-1 text-[0.65rem] text-muted-foreground">
@@ -282,7 +294,7 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
       </div>
 
       {view === "table" ? (
-        <PaymentMethodsTable methods={methods} activeById={activeById} onToggleActive={setMethodToToggle} onDelete={setMethodToDelete} />
+        <PaymentMethodsTable methods={methods} onToggleActive={setMethodToToggle} />
       ) : (
       // Columns follow the panel's width, not the window's, so they adapt when the sidebar opens or closes:
       // 1 → 2 (448px) → 3 (768px) → 4 (1152px). Three columns wait for 768px so each card stays about 245px wide.
@@ -296,24 +308,22 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
 
         {methods.map((method) => (
           // Hovering the card grows it and pops its actions out of the top-right corner.
-          // No tabIndex: the card itself was never a destination, and making it one is what
-          // let a click leave it focused with its actions stuck open. The actions are buttons
-          // and a link, so they are reachable by keyboard on their own.
+          // No tabIndex: the actions are a link and a button, reachable by keyboard on their own.
           <div key={method.id} className="group relative flex rounded-2xl">
             <div className="flex flex-1 rounded-2xl transition-transform group-hover:scale-[1.03] group-has-[:focus-visible]:scale-[1.03] motion-reduce:group-hover:scale-100 motion-reduce:group-has-[:focus-visible]:scale-100">
               <PaymentMethodCard
-                provider={method.id}
-                active={activeById[method.id]}
+                provider={providerToCard[method.provider]}
+                active={method.active}
                 methodName={method.name}
-                amount={method.amount}
-                currency={method.currency}
+                amount={amountFormatter.format(method.balance)}
+                currency="USD"
                 holder={method.holder}
-                networks={method.networks}
+                networks={networkLogos[method.cardNetwork]}
               />
             </div>
 
             {/* The arc's center: over the contactless icon, 32px in from the top-right corner.
-                The three buttons sit 56px away from it: to the left, diagonally, and below. */}
+                Two buttons sit 56px away from it: to the left, and diagonally. No delete (decided 2026-10-04). */}
             <div className="absolute top-8 right-8 z-10">
               <CornerAction x={-56} y={0} index={0}>
                 <Link href={editHref(method.id)} aria-label={`Edit ${method.name}`} title="Edit" className={cardActionClassName}>
@@ -324,22 +334,11 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
                 <button
                   type="button"
                   onClick={() => setMethodToToggle(method)}
-                  aria-label={`${activeById[method.id] ? "Deactivate" : "Activate"} ${method.name}`}
-                  title={activeById[method.id] ? "Deactivate" : "Activate"}
-                  className={cardToggleClassName(activeById[method.id])}
+                  aria-label={`${method.active ? "Deactivate" : "Activate"} ${method.name}`}
+                  title={method.active ? "Deactivate" : "Activate"}
+                  className={cardToggleClassName(method.active)}
                 >
-                  {activeById[method.id] ? <CircleSlash className="size-3.5" aria-hidden /> : <CircleCheck className="size-3.5" aria-hidden />}
-                </button>
-              </CornerAction>
-              <CornerAction x={0} y={56} index={2}>
-                <button
-                  type="button"
-                  onClick={() => setMethodToDelete(method)}
-                  aria-label={`Delete ${method.name}`}
-                  title="Delete"
-                  className={cn(cardActionClassName, "text-destructive!")}
-                >
-                  <Trash2 className="size-3.5" aria-hidden />
+                  {method.active ? <CircleSlash className="size-3.5" aria-hidden /> : <CircleCheck className="size-3.5" aria-hidden />}
                 </button>
               </CornerAction>
             </div>
@@ -362,39 +361,25 @@ export function PaymentMethods({ initialView }: { initialView: View }) {
       )}
 
       {/* Switching a method off is not destructive, so it is not drawn in red —
-          but it does stop clients paying, which is worth a moment's pause.
+          but it does stop it being used, which is worth a moment's pause.
           Cards and table both come here. */}
-      <AlertDialog open={Boolean(methodToToggle)} onOpenChange={(open) => { if (!open) setMethodToToggle(null); }}>
+      <AlertDialog open={Boolean(methodToToggle)} onOpenChange={(open) => { if (!open && !switching) setMethodToToggle(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {togglingActive ? "Deactivate" : "Activate"} {methodToToggle?.name}?
+              {methodToToggle?.active ? "Deactivate" : "Activate"} {methodToToggle?.name}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {togglingActive
-                ? "Clients will no longer be able to pay with this method. Payments already made are not affected."
-                : "Clients will be able to pay with this method again."}
+              {methodToToggle?.active
+                ? "It won't appear when recording new payments. Payments already recorded keep it, and nothing is deleted."
+                : "It will appear again when recording new payments."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-            <AlertDialogAction size="sm" onClick={toggleActive}>
-              {togglingActive ? "Deactivate" : "Activate"}
+            <AlertDialogCancel size="sm" disabled={switching}>Cancel</AlertDialogCancel>
+            <AlertDialogAction size="sm" onClick={toggleActive} disabled={switching}>
+              {switching ? "Saving…" : methodToToggle?.active ? "Deactivate" : "Activate"}
             </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* One confirmation for both views, like deleting a client. */}
-      <AlertDialog open={Boolean(methodToDelete)} onOpenChange={(open) => { if (!open) setMethodToDelete(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {methodToDelete?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>This payment method will be removed. This action cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" size="sm" onClick={deleteMethod}>Delete method</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
