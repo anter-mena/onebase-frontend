@@ -29,6 +29,8 @@ export type TargetKind =
   | "Subscription"
   | "Workspace"
   | "User"
+  | "Perk"
+  | "Panel credit"
 
 export type LogEntry = {
   id: number

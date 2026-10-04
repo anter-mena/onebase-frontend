@@ -491,6 +491,16 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
   const [saving, startSaving] = useTransition();
   const fileInput = useRef<HTMLInputElement>(null);
 
+  // Edit: Save stays grey until something differs from what is saved. Adding is always a change.
+  const sameSocials = (a: Socials, b: Socials) => socialOrder.every((network) => (a[network] ?? "").trim() === (b[network] ?? "").trim());
+  const changed =
+    !editing ||
+    name.trim() !== state.draft.name ||
+    website.trim() !== state.draft.websiteUrl ||
+    !sameSocials(socials, state.draft.socials) ||
+    logo !== state.draft.logo ||
+    removeLogo;
+
   function fetchAgain() {
     setMessage(null);
     startFetching(async () => {
@@ -643,7 +653,7 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
             </Button>
             <span className="flex gap-2">
               <DialogClose render={<Button size="sm" variant="outline" className="h-7 px-3 text-[0.65rem] font-normal" />}>Cancel</DialogClose>
-              <Button type="submit" size="sm" disabled={saving || fetching || !name.trim()} className={cn(blackStyle.button, "h-7 px-3! py-0! text-[0.65rem]! font-normal!")}>
+              <Button type="submit" size="sm" disabled={saving || fetching || !name.trim() || !changed} className={cn(blackStyle.button, "h-7 px-3! py-0! text-[0.65rem]! font-normal! disabled:opacity-50")}>
                 {saving ? "Saving…" : editing ? "Save changes" : "Add brand"}
               </Button>
             </span>

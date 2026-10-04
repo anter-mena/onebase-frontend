@@ -89,6 +89,16 @@ export function PaymentMethodForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
 
+  // Edit: Save stays grey until something differs from what is saved. Adding is always a change.
+  const changed =
+    mode === "create" ||
+    provider !== initialValues.provider ||
+    name.trim() !== initialValues.name ||
+    holder.trim() !== initialValues.holder ||
+    cardNetwork !== initialValues.cardNetwork ||
+    active !== initialValues.active ||
+    instructions.trim() !== initialValues.instructions.trim();
+
   function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -229,7 +239,7 @@ export function PaymentMethodForm({
           >
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled={saving || !name.trim() || !holder.trim()} className={cn(blackStyle.button, "px-3! py-0! text-xs! font-medium! disabled:opacity-50")}>
+          <Button type="submit" size="sm" disabled={saving || !name.trim() || !holder.trim() || !changed} className={cn(blackStyle.button, "px-3! py-0! text-xs! font-medium! disabled:opacity-50")}>
             {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Save method"}
           </Button>
         </div>

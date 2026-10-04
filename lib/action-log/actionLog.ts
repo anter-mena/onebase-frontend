@@ -18,7 +18,7 @@ type BackendEntry = {
   userId: number | null
   actor: string
   action: "CREATED" | "UPDATED" | "ACTIVATED" | "DEACTIVATED" | "DELETED" | "EXPORTED" | "SIGNED_IN"
-  targetType: "CLIENT" | "BRAND" | "PAYMENT_METHOD" | "SUBSCRIPTION" | "WORKSPACE" | "USER"
+  targetType: "CLIENT" | "BRAND" | "PAYMENT_METHOD" | "SUBSCRIPTION" | "WORKSPACE" | "USER" | "PERK" | "PANEL_CREDIT"
   targetId: number | null
   targetName: string
   detail: string | null
@@ -43,6 +43,8 @@ const targets: Record<BackendEntry["targetType"], TargetKind> = {
   SUBSCRIPTION: "Subscription",
   WORKSPACE: "Workspace",
   USER: "User",
+  PERK: "Perk",
+  PANEL_CREDIT: "Panel credit",
 }
 
 const sources: Record<BackendEntry["source"], LogEntry["source"]> = { WEB: "Web", MOBILE: "Mobile", API: "API" }

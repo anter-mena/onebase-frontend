@@ -2,11 +2,14 @@ import "server-only"
 
 import { apiFetch, type ApiResult } from "@/lib/api"
 
-/** One price of the Subscriptions grid, in USD. */
+/** One plan of the grid: its price (Subscriptions), and its cost and panel credit (Expenses). USD. */
 export type PlanPrice = {
   devices: number
   months: number
   price: number
+  /** Null only before the Expenses values exist. */
+  cost: number | null
+  credits: number | null
   updatedAt: string
 }
 

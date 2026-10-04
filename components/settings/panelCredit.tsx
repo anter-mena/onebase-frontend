@@ -1,15 +1,29 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { preload } from "react-dom";
 import { Plus } from "lucide-react";
 import { cn } from "cn";
 
+import { topUpCredit } from "@/app/(private)/configuration/expenseActions";
 import { Button } from "@/components/ui/button";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
 import { CoinLoader } from "@/components/settings/coinLoader";
 import { hatch } from "@/components/dashboard/hatch";
-import { creditBalance, creditsPerLine } from "@/lib/settings/credit";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import type { CreditSummary } from "@/lib/expenses/types";
 
 /**
  * ⚠️ Loaded on demand, and never on the server.
@@ -48,17 +62,26 @@ const Coin3D = dynamic(() => import("@/components/settings/coin3d").then((m) => 
  * The card it sits on follows the theme, as everything else does.
  */
 
-// ⚠️ From the shared module, not restated here. The grid on the other side of
-// this tab prices every plan off the same table, and two copies of a rate is
-// two figures that eventually disagree in front of somebody.
-const monthlyRate = creditsPerLine[1];
-
-const used = creditBalance.total - creditBalance.remaining;
-const linesLeft = Math.floor(creditBalance.remaining / monthlyRate);
+const moneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const perCreditFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+// "4 Oct 2026", in UTC and a fixed locale, so the server and the browser agree.
+const dateFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 const numberFormatter = new Intl.NumberFormat("en-GB");
 
-export function PanelCredit() {
+/**
+ * The panel credit card on the Expenses tab: credit left, and Top up.
+ *
+ * <p>Credit left = all top-ups − credits used (0 until Payments exists). A
+ * top-up records the credits and what they cost; it is never edited or deleted.
+ * `monthLineCredits` is the credit of 1 device · 1 month, from the cost grid,
+ * so "lines left" follows the real rate.
+ */
+export function PanelCredit({ credit, monthLineCredits }: { credit: CreditSummary; monthLineCredits: number }) {
+  const [toppingUp, setToppingUp] = useState(false);
+  const used = credit.usedCredits;
+  const linesLeft = monthLineCredits > 0 ? Math.floor(credit.remainingCredits / monthLineCredits) : null;
+
   /**
    * ⚠️ Starts the model downloading now, not after the 3D chunk lands.
    *
@@ -88,17 +111,16 @@ export function PanelCredit() {
         <div className="min-w-0">
           <h3 className="text-xs font-semibold">Panel credit</h3>
           <p className="mt-0.5 text-[0.7rem] leading-relaxed text-muted-foreground">
-            What lines are created against upstream.
+            The credit your panel spends to create lines.
           </p>
         </div>
 
-        {/* ⚠️ Here rather than at the foot of the card, and only here. Topping
-            up is the one action this panel offers, and a control that sits at
-            the bottom of a column that now stretches could end up a long way
-            from the number it acts on. */}
+        {/* Here rather than at the foot of the card, and only here: topping up is
+            the one action this panel offers, so it sits beside what it changes. */}
         <Button
           type="button"
           size="sm"
+          onClick={() => setToppingUp(true)}
           aria-label="Top up credit"
           title="Top up credit"
           className={cn(blackStyle.button, "size-7 shrink-0 justify-center px-0! py-0!")}
@@ -109,80 +131,159 @@ export function PanelCredit() {
 
       {/* Takes the slack the full height creates, so the coin and the figure
           sit in the middle of the card rather than bunched under the heading. */}
-      {/* `py-5` above and `mt-5` below, so the coin is not crowded by the
-          heading on one side and the balance on the other — it is the one
-          picture in a card of text and needs room to read as one. */}
       <div className="flex min-h-0 flex-1 flex-col justify-center py-5">
         <Coin3D className="mx-auto h-[9rem] w-full max-w-[11rem]" />
 
         <div className="mt-5 text-center">
           <p className="text-3xl font-semibold tracking-tight tabular-nums">
-            {numberFormatter.format(creditBalance.remaining)}
+            {numberFormatter.format(credit.remainingCredits)}
           </p>
           <p className="mt-0.5 text-[0.7rem] text-muted-foreground">credits remaining</p>
         </div>
 
-        {/* ⚠️ What the number buys, not just the number. "1,240 credits" means
-            nothing to anyone who does not already know the rate; "62 lines" is
-            the same fact in the unit the business actually sells. */}
-        <p className="mt-3 text-center text-[0.7rem] leading-relaxed text-muted-foreground">
-          About <span className="font-medium text-foreground">{linesLeft} one-month lines</span> left,
-          at {monthlyRate} credits each.
-        </p>
+        {/* What the number buys, in the unit the business sells: one-month lines at the grid's own rate. */}
+        {linesLeft !== null ? (
+          <p className="mt-3 text-center text-[0.7rem] leading-relaxed text-muted-foreground">
+            About <span className="font-medium text-foreground">{numberFormatter.format(linesLeft)} one-month lines</span> left,
+            at {monthLineCredits} {monthLineCredits === 1 ? "credit" : "credits"} each.
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-4 shrink-0">
-        {/* ⚠️ Remaining, not used — the filled part is what you still have.
-            The headline above says "1,240 credits remaining", and a bar whose
-            solid portion grew as the balance shrank would contradict it: at
-            38% spent it read as a nearly-empty bar over a mostly-full account. */}
+        {/* Remaining, not used — the filled part is what you still have. */}
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-[0.65rem] text-muted-foreground">Remaining</span>
           <span className="text-[0.65rem] font-medium tabular-nums">
-            {numberFormatter.format(creditBalance.remaining)} of{" "}
-            {numberFormatter.format(creditBalance.total)}
+            {numberFormatter.format(credit.remainingCredits)} of {numberFormatter.format(credit.totalCredits)}
           </span>
         </div>
 
-        {/* The dashboard's meter, drawn here rather than imported.
-            ⚠️ `hatch` is the shared piece; `Meter` is not, and pulling it in
-            from `components/dashboard/figures` would drag that module's gauge
-            — and the chart library behind it — into the Configuration bundle
-            for one bar. Same call `DeviceSplit` makes on the SEO page. */}
         <div className="mt-1.5 flex h-7 w-full gap-1">
-          <span
-            className="h-full min-w-1.5 rounded-[6px]"
-            style={{
-              flex: "1 1 0",
-              flexGrow: creditBalance.remaining,
-              backgroundImage: hatch("var(--viz-ramp-2)", { line: 2.5, pitch: 9 }),
-            }}
-          />
-          {used > 0 ? (
-            // Flat, not hatched: the texture marks what is there, and this is
-            // the part that has been spent.
-            <span
-              className="h-full min-w-1.5 rounded-[6px]"
-              style={{ flex: "1 1 0", flexGrow: used, background: "var(--viz-ramp-rest)" }}
-            />
-          ) : null}
+          {credit.totalCredits === 0 ? (
+            // Nothing bought yet: an empty track, not a full bar of nothing.
+            <span className="h-full flex-1 rounded-[6px]" style={{ background: "var(--viz-ramp-rest)" }} />
+          ) : (
+            <>
+              {credit.remainingCredits > 0 ? (
+                <span
+                  className="h-full min-w-1.5 rounded-[6px]"
+                  style={{ flex: "1 1 0", flexGrow: credit.remainingCredits, backgroundImage: hatch("var(--viz-ramp-2)", { line: 2.5, pitch: 9 }) }}
+                />
+              ) : null}
+              {used > 0 ? (
+                // Flat, not hatched: the texture marks what is there, and this is what has been spent.
+                <span className="h-full min-w-1.5 rounded-[6px]" style={{ flex: "1 1 0", flexGrow: used, background: "var(--viz-ramp-rest)" }} />
+              ) : null}
+            </>
+          )}
         </div>
 
         <p className="mt-2 text-[0.65rem] text-muted-foreground">
-          Last top-up {creditBalance.at} · {numberFormatter.format(creditBalance.total)} credits
+          {credit.lastTopup
+            ? `Last top-up ${dateFormatter.format(new Date(credit.lastTopup.at))} · ${numberFormatter.format(credit.lastTopup.credits)} credits for ${moneyFormatter.format(credit.lastTopup.amount)}`
+            : "No credit bought yet."}
         </p>
+        {credit.averageCostPerCredit !== null ? (
+          <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
+            On average {perCreditFormatter.format(credit.averageCostPerCredit)} per credit · {moneyFormatter.format(credit.totalPaid)} paid in total
+          </p>
+        ) : null}
       </div>
 
-        {/* No second top-up button down here: the one in the header is it.
-            Two controls for one action in one card is a card that makes the
-            reader check whether they do the same thing. */}
-
-      {/* Ties back to what the Panel tab says: nothing reads this from a
-          provider yet, so the figure is whatever was last entered by hand. */}
       <p className="mt-3 text-[0.65rem] leading-relaxed text-muted-foreground">
-        Entered by hand for now. It will read from the provider once the panel
-        API arrives.
+        Top-ups are recorded here with what they cost. Credits used by payments will be taken off once Payments is connected.
       </p>
+
+      {toppingUp ? <TopUpDialog onClose={() => setToppingUp(false)} /> : null}
     </div>
+  );
+}
+
+/** Credits are whole units; the amount is USD with up to two decimals. */
+const isValidCredits = (value: string) => /^\d+$/.test(value.trim()) && Number(value) > 0 && Number(value) <= 1_000_000;
+const isValidAmount = (value: string) => /^\d+(\.\d{1,2})?$/.test(value.trim()) && Number(value) <= 999_999.99;
+
+/** Top up: how many credits, what they cost, an optional note. Save stays grey until both numbers are valid. */
+function TopUpDialog({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  const [credits, setCredits] = useState("");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, startSaving] = useTransition();
+  const valid = isValidCredits(credits) && isValidAmount(amount);
+
+  function save() {
+    if (!valid) return;
+    setError(null);
+    startSaving(async () => {
+      const result = await topUpCredit(Number(credits), Number(amount), note);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      onClose();
+      router.refresh();
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Top up panel credit</DialogTitle>
+          <DialogDescription>Record the credits you bought and what they cost. A top-up can&apos;t be edited or deleted later.</DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); save(); }}>
+          <div className="grid grid-cols-2 gap-3">
+            <Field>
+              <FieldLabel htmlFor="topup-credits">Credits</FieldLabel>
+              <Input
+                id="topup-credits"
+                inputMode="numeric"
+                value={credits}
+                onChange={(event) => setCredits(event.target.value)}
+                placeholder="120"
+                aria-invalid={(credits !== "" && !isValidCredits(credits)) || undefined}
+                className="h-8 text-xs tabular-nums"
+                autoFocus
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="topup-amount">Paid (USD)</FieldLabel>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-xs text-muted-foreground" aria-hidden>$</span>
+                <Input
+                  id="topup-amount"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="100.00"
+                  aria-invalid={(amount !== "" && !isValidAmount(amount)) || undefined}
+                  className="h-8 pl-6 text-xs tabular-nums"
+                  required
+                />
+              </div>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel htmlFor="topup-note">Note (optional)</FieldLabel>
+            <Input id="topup-note" value={note} maxLength={255} onChange={(event) => setNote(event.target.value)} placeholder="e.g. Bought from the reseller" className="h-8 text-xs" />
+          </Field>
+          {valid && Number(amount) > 0 ? (
+            <p className="text-[0.65rem] text-muted-foreground">{perCreditFormatter.format(Number(amount) / Number(credits))} per credit.</p>
+          ) : null}
+          {error ? <p role="alert" className="text-[0.65rem] text-destructive">{error}</p> : null}
+          <DialogFooter>
+            <DialogClose render={<Button size="sm" variant="outline" className="h-7 px-3 text-[0.65rem] font-normal" />}>Cancel</DialogClose>
+            <Button type="submit" size="sm" disabled={!valid || saving} className={cn(blackStyle.button, "h-7 px-3! py-0! text-[0.65rem]! font-normal! disabled:opacity-50")}>
+              {saving ? "Saving…" : "Top up"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
