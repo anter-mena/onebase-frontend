@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, FileDown, ImageUp, Link2, MoreVertical, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ExternalLink, FileDown, Globe, ImageUp, Link2, MoreVertical, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { cn } from "cn";
 
 import { lookUpBrand, saveBrand, setBrandActive, type BrandDraft } from "@/app/(private)/configuration/brandActions";
@@ -49,6 +49,11 @@ import type { BrandLookup, BrandRow, SocialNetwork, Socials } from "@/lib/brands
 
 const socialLabels: Record<SocialNetwork, string> = { instagram: "Instagram", facebook: "Facebook", x: "X", tiktok: "TikTok" };
 const socialOrder: readonly SocialNetwork[] = ["instagram", "facebook", "x", "tiktok"];
+/** Fields in the Add / Edit window: a border that shows in every theme (the theme's input border can be very pale). */
+const dialogInputClass = "h-8 border-foreground/15 bg-background text-xs dark:bg-input/30";
+
+/** The order of the link fields in the Add / Edit window. */
+const dialogSocialOrder: readonly SocialNetwork[] = ["facebook", "x", "instagram", "tiktok"];
 const socialPlaceholders: Record<SocialNetwork, string> = {
   instagram: "instagram.com/brand",
   facebook: "facebook.com/brand",
@@ -548,7 +553,7 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{editing ? `Edit ${state.draft.name}` : "Add brand"}</DialogTitle>
           <DialogDescription>
@@ -576,9 +581,9 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
+                  variant="destructive"
                   onClick={() => { setRemoveLogo(true); setLogo(null); }}
-                  className="h-7 gap-1.5 px-2.5 text-[0.65rem] font-normal text-muted-foreground"
+                  className="h-7 gap-1.5 border-destructive/40 px-2.5 text-[0.65rem] font-normal"
                 >
                   <Trash2 className="size-3" aria-hidden /> Remove
                 </Button>
@@ -590,30 +595,32 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
           <div className="grid gap-3 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="brand-name">Name</FieldLabel>
-              <Input id="brand-name" value={name} maxLength={100} onChange={(event) => setName(event.target.value)} className="h-8 text-xs" required />
+              <Input id="brand-name" value={name} maxLength={100} onChange={(event) => setName(event.target.value)} className={dialogInputClass} required />
             </Field>
             <Field>
-              <FieldLabel htmlFor="brand-website">Website</FieldLabel>
-              <Input id="brand-website" value={website} inputMode="url" onChange={(event) => setWebsite(event.target.value)} className="h-8 text-xs" required />
+              <FieldLabel htmlFor="brand-website" className="flex items-center gap-1.5">
+                <Globe className="size-3 text-muted-foreground" aria-hidden />
+                Website
+              </FieldLabel>
+              <Input id="brand-website" value={website} inputMode="url" onChange={(event) => setWebsite(event.target.value)} className={dialogInputClass} required />
             </Field>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {socialOrder.map((network) => (
-              <Field key={network}>
-                <FieldLabel htmlFor={`brand-${network}`} className="flex items-center gap-1.5">
-                  <SocialIcon network={network} className="size-3 text-muted-foreground" />
-                  {socialLabels[network]}
-                </FieldLabel>
+            {dialogSocialOrder.map((network) => (
+              // No label: the network's icon sits inside the field, on the same row (the name is kept for screen readers).
+              <div key={network} className="relative">
+                <SocialIcon network={network} className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id={`brand-${network}`}
+                  aria-label={socialLabels[network]}
                   value={socials[network] ?? ""}
                   inputMode="url"
                   placeholder={socialPlaceholders[network]}
                   onChange={(event) => setSocials((currentSocials) => ({ ...currentSocials, [network]: event.target.value }))}
-                  className="h-8 text-xs"
+                  className={cn(dialogInputClass, "pl-8")}
                 />
-              </Field>
+              </div>
             ))}
           </div>
 
