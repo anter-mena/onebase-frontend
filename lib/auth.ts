@@ -16,7 +16,6 @@ export type CurrentUser = {
   email: string
   /** ADMIN or COMMERCIAL; read it through `roleFrom` in lib/access. */
   role: string
-  language: string
   timeZone: string
   dateFormat: string
   notifyRenewals: boolean

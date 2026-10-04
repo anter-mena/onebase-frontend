@@ -19,7 +19,6 @@ export type SessionUser = {
   role: Role;
   /** What Account settings shows and saves. */
   settings: {
-    language: string;
     timeZone: string;
     dateFormat: string;
     notifyRenewals: boolean;

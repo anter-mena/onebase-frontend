@@ -129,14 +129,9 @@ function ComingSoon() {
 
 /*
  * The values are what the backend stores and accepts (it refuses anything
- * else): language codes, IANA time zones, and date patterns.
+ * else): IANA time zones and date patterns. No language: One Base is English
+ * only (the setting was removed 2026-10-04).
  */
-const languages = [
-  { value: "en", label: "English" },
-  { value: "fr", label: "Français" },
-  { value: "ar", label: "العربية" },
-];
-
 const timeZones = [
   { value: "UTC", label: "UTC" },
   { value: "Africa/Casablanca", label: "Africa/Casablanca" },
@@ -159,7 +154,6 @@ export function GeneralSettings() {
   const user = useSessionUser();
   const router = useRouter();
   const [name, setName] = useState(user.fullName);
-  const [language, setLanguage] = useState(user.settings.language);
   const [timeZone, setTimeZone] = useState(user.settings.timeZone);
   const [dateFormat, setDateFormat] = useState(user.settings.dateFormat);
   const [renewalEmails, setRenewalEmails] = useState(user.settings.notifyRenewals);
@@ -170,7 +164,6 @@ export function GeneralSettings() {
 
   const changed =
     name.trim() !== user.fullName ||
-    language !== user.settings.language ||
     timeZone !== user.settings.timeZone ||
     dateFormat !== user.settings.dateFormat ||
     renewalEmails !== user.settings.notifyRenewals ||
@@ -181,7 +174,6 @@ export function GeneralSettings() {
     startSaving(async () => {
       const saved = await saveAccountSettings({
         fullName: name,
-        language,
         timeZone,
         dateFormat,
         notifyRenewals: renewalEmails,
@@ -232,24 +224,8 @@ export function GeneralSettings() {
         />
       </Section>
 
-      <Section title="Locale" description="How dates and numbers are written for you.">
+      <Section title="Locale" description="How dates are written for you.">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor="settings-language">Language</FieldLabel>
-            <Select value={language} onValueChange={(value) => { if (value) setLanguage(value as string); }}>
-              <SelectTrigger id="settings-language" className="h-8 w-full text-xs">
-                <SelectValue>
-                  {(value: string | null) => languages.find((entry) => entry.value === value)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false}>
-                {languages.map((entry) => (
-                  <SelectItem key={entry.value} value={entry.value}>{entry.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
           <Field>
             <FieldLabel htmlFor="settings-timezone">Time zone</FieldLabel>
             <Select value={timeZone} onValueChange={(value) => { if (value) setTimeZone(value as string); }}>

@@ -42,7 +42,6 @@ function firstError(error: { message: string; fieldErrors?: Record<string, strin
 
 export type AccountSettings = {
   fullName: string
-  language: string
   timeZone: string
   dateFormat: string
   notifyRenewals: boolean

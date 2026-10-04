@@ -37,7 +37,6 @@ export default async function PrivateLayout({ children }: { children: ReactNode 
     initials: initialsFromName(me.data.fullName),
     role: roleFrom(me.data.role),
     settings: {
-      language: me.data.language,
       timeZone: me.data.timeZone,
       dateFormat: me.data.dateFormat,
       // The ?? fallbacks only matter while an older backend (without these) is still live.

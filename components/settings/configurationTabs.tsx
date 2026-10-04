@@ -10,8 +10,18 @@ import { Panel } from "@/components/settings/panel";
 import { PaymentMethods } from "@/components/settings/paymentMethods";
 import { Subscriptions } from "@/components/settings/subscriptions";
 import type { PaymentMethodsView } from "@/lib/settings/paymentMethodsView";
+import type { BrandRow } from "@/lib/brands/types";
 
-export function ConfigurationTabs({ paymentMethodsView }: { paymentMethodsView: PaymentMethodsView }) {
+export function ConfigurationTabs({
+  paymentMethodsView,
+  brands,
+  brandsError,
+}: {
+  paymentMethodsView: PaymentMethodsView;
+  /** Null when the list could not be loaded; brandsError says why. */
+  brands: BrandRow[] | null;
+  brandsError: string | null;
+}) {
   const router = useRouter();
   const activeTab = getConfigurationTab(useSearchParams().get("tab"));
 
@@ -55,7 +65,7 @@ export function ConfigurationTabs({ paymentMethodsView }: { paymentMethodsView: 
           ) : value === "panel" ? (
             <Panel />
           ) : (
-            <Brands />
+            <Brands brands={brands} loadError={brandsError} />
           )}
         </Tabs.Panel>
       ))}
