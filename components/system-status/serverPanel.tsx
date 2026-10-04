@@ -1,10 +1,10 @@
 import type { ComponentType, ReactNode } from "react";
 import { Cpu, Gauge, HardDrive, MemoryStick, Server } from "lucide-react";
 
-import { Donut } from "@/components/system-status/donut";
 import { HintedLabel } from "@/components/system-status/hint";
 import { Panel, StatusText } from "@/components/system-status/panel";
 import { Sparkline } from "@/components/system-status/sparkline";
+import { UsageRing } from "@/components/system-status/usageRing";
 import type { Sample } from "@/components/system-status/useSystemHealth";
 import { bitsPerSecond, bytes, duration, percent } from "@/lib/format";
 import type { SystemHealth } from "@/lib/system/healthTypes";
@@ -66,7 +66,7 @@ function Usage({
         {detail ? <span className="text-[0.65rem] text-muted-foreground tabular-nums">{detail}</span> : null}
       </div>
       <div className="flex flex-1 items-stretch gap-2">
-        <Sparkline className="h-16 flex-1" values={series} tone="text-foreground" />
+        <Sparkline className="h-16 flex-1" values={series} tone="text-(--viz-1)" />
         <div className="flex w-8 shrink-0 flex-col justify-between text-[0.6rem] text-muted-foreground tabular-nums">
           <span>{ceiling}</span>
           <span>{floor}</span>
@@ -123,9 +123,7 @@ export function ServerPanel({ health, history, online }: { health: SystemHealth;
           className="lg:flex-1"
           bodyClassName="items-center justify-center gap-3"
         >
-          <div className="size-32">
-            <Donut percent={diskPercent} label={percent(diskPercent)} sublabel={`${bytes(diskUsed)} / ${bytes(server.diskTotal)}`} />
-          </div>
+          <UsageRing percent={diskPercent} sublabel={`${bytes(diskUsed)} / ${bytes(server.diskTotal)}`} />
           <p className="text-center text-[0.65rem] text-muted-foreground">{bytes(server.diskFree)} free</p>
         </Panel>
       </div>
@@ -172,7 +170,7 @@ export function ServerPanel({ health, history, online }: { health: SystemHealth;
             className="min-h-14 flex-1"
             values={history.map((s) => s.networkIn)}
             max={Math.max(1, ...history.map((s) => s.networkIn))}
-            tone="text-foreground"
+            tone="text-(--viz-1)"
           />
           <div className="flex items-center justify-between border-t pt-2 text-xs">
             <span className="text-muted-foreground">Upload</span>
@@ -183,7 +181,7 @@ export function ServerPanel({ health, history, online }: { health: SystemHealth;
             className="min-h-14 flex-1 scale-y-[-1]"
             values={history.map((s) => s.networkOut)}
             max={Math.max(1, ...history.map((s) => s.networkOut))}
-            tone="text-muted-foreground"
+            tone="text-(--viz-2)"
           />
         </Panel>
       </div>

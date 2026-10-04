@@ -1,3 +1,4 @@
+import { useId } from "react"
 import { cn } from "cn"
 
 /**
@@ -43,7 +44,7 @@ function toPath(values: number[], max: number): { line: string; area: string } {
 function Sparkline({
   values,
   max = 100,
-  tone = "text-foreground",
+  tone = "text-(--viz-1)",
   className,
 }: {
   values: number[]
@@ -55,7 +56,8 @@ function Sparkline({
   className?: string
 }) {
   const { line, area } = toPath(values, max)
-  const id = `fade-${tone.replace(/[^a-z]/gi, "")}`
+  // One fill per graph: two graphs must never share a gradient id, or one paints in the other's colour.
+  const id = `fade-${useId().replace(/:/g, "")}`
 
   return (
     <div className={cn("relative", tone, className)}>

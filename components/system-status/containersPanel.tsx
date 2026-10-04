@@ -53,7 +53,7 @@ function ContainerCard({ container, history, hostMemory }: { container: Containe
               <span className="text-sm font-semibold tabular-nums">{percent(container.cpuPercent)}</span>
             </div>
             {/* Scaled to its own peak: 2% of a four-core machine is real work, and its shape is the point. */}
-            <Sparkline className="h-12 sm:h-14" values={series} max={Math.max(5, ...series)} tone="text-foreground" />
+            <Sparkline className="h-12 sm:h-14" values={series} max={Math.max(5, ...series)} tone="text-(--viz-1)" />
           </div>
           <StatRow
             compact
@@ -115,7 +115,7 @@ export function ContainersPanel({ health, history }: { health: SystemHealth; his
           {stopped > 0 ? ` · ${count(stopped)} stopped` : ""}
         </span>
       </p>
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr))]">
+      <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr))]">
         {shown.map((container) => (
           <ContainerCard key={container.id} container={container} history={history} hostMemory={health.server.memoryTotal} />
         ))}

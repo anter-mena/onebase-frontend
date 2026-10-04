@@ -15,23 +15,12 @@ export const metadata: Metadata = {
  * instead of a spinner; the browser then asks again every five seconds. A
  * failure is not fatal: the page says why and keeps trying — which matters
  * most exactly when the backend is unwell, the moment someone opens this page.
+ *
+ * <p>The header is drawn by `SystemOverview`, because the tabs sit in it (as on
+ * Configuration) and they are state the browser owns.
  */
 export default async function SystemStatusPage() {
   const first = await getSystemHealth();
 
-  return (
-    <div className="flex h-full w-full min-h-0 flex-col">
-      <header className="shrink-0">
-        <p className="text-xs font-medium text-muted-foreground">Administration</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">System status</h1>
-        <p className="mt-1 text-xs text-muted-foreground">How One Base and the server under it are doing.</p>
-      </header>
-
-      <section className="mt-4 min-h-0 flex-1 overflow-hidden rounded-xl border bg-background" aria-label="System status content">
-        <div className="h-full overflow-y-auto p-4 [scrollbar-gutter:stable] lg:overflow-hidden">
-          <SystemOverview initial={first.ok ? first.data : null} initialError={first.ok ? null : first.error.message} />
-        </div>
-      </section>
-    </div>
-  );
+  return <SystemOverview initial={first.ok ? first.data : null} initialError={first.ok ? null : first.error.message} />;
 }

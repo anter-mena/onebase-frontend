@@ -25,6 +25,8 @@ const HISTORY = 60
 const INTERVAL_MS = 5000
 
 export type Sample = {
+  /** When this reading was taken (ms since 1970) — the live graphs' time axis. */
+  at: number
   cpu: number
   memory: number
   heap: number
@@ -76,6 +78,7 @@ export function useSystemHealth(initial: SystemHealth | null, initialError: stri
         if (last) {
           const seconds = Math.max((now - last.at) / 1000, 0.001)
           const sample: Sample = {
+            at: now,
             cpu: health.server.cpuPercent,
             memory: share(health.server.memoryTotal - health.server.memoryAvailable, health.server.memoryTotal),
             heap: share(health.backend.heapUsed, health.backend.heapMax),

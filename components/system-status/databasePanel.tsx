@@ -1,6 +1,6 @@
 import { cn } from "cn";
 
-import { Donut } from "@/components/system-status/donut";
+import { UsageRing } from "@/components/system-status/usageRing";
 import { Panel } from "@/components/system-status/panel";
 import { StatRow } from "@/components/system-status/statRow";
 import { bytes, count, duration, percent } from "@/lib/format";
@@ -33,9 +33,7 @@ export function DatabasePanel({ health }: { health: SystemHealth }) {
           className="lg:flex-1"
           bodyClassName="items-center justify-center gap-3"
         >
-          <div className="size-32">
-            <Donut percent={database.cacheHitRatio} label={percent(database.cacheHitRatio, 1)} sublabel="from memory" />
-          </div>
+          <UsageRing percent={database.cacheHitRatio} sublabel="from memory" />
           <p className="text-center text-[0.65rem] text-muted-foreground">Below 99% is usually a missing index, not too little memory</p>
         </Panel>
       </div>

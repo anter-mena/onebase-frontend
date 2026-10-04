@@ -888,3 +888,58 @@
   /* Light text does not want a dark halo under it. */
   --skin-white-text-shadow: transparent;
 }
+
+/*
+ * ── Charts follow the palette ────────────────────────────────────────────
+ *
+ * Every chart draws its data with the `--viz-*` tokens from `globals.css`
+ * (series, and the part-to-whole ramp). Those are fixed colours, checked for
+ * colour-blind readability — so on their own, charts looked the same whatever
+ * palette was on. Here, each palette with real chart colours points them at its
+ * own `--chart-1..5`, so the bars, lines and gauges take the theme's colours.
+ *
+ * Because these are `var()` references, light and dark both follow: each half
+ * of a palette redefines `--chart-*`, and the reference resolves to whichever
+ * half is on.
+ *
+ * ⚠️ Not Default and Mono (decided 2026-10-03): their chart tokens are greys
+ * only, and revenue against expenses would become two near-identical greys. They
+ * keep the validated `--viz-*` colours.
+ *
+ * ⚠️ `--viz-good` / `--viz-critical` are NOT re-pointed. They mean up/down and
+ * success/danger, and must stay green and red in every palette.
+ *
+ * ⚠️ `--viz-ramp-rest` stays the neutral grey: it means "nothing / the rest",
+ * not a series.
+ */
+:root:is(
+  [data-theme="claude"],
+  [data-theme="caffeine"],
+  [data-theme="darkmatter"],
+  [data-theme="supabase"],
+  [data-theme="twitter"],
+  [data-theme="sage-garden"],
+  [data-theme="sunset-horizon"]
+),
+:is(
+  [data-theme="claude"],
+  [data-theme="caffeine"],
+  [data-theme="darkmatter"],
+  [data-theme="supabase"],
+  [data-theme="twitter"],
+  [data-theme="sage-garden"],
+  [data-theme="sunset-horizon"]
+) {
+  --viz-1: var(--chart-1);
+  --viz-2: var(--chart-2);
+  --viz-3: var(--chart-3);
+
+  /* The ramp's first two slots are the ones most charts use (e.g. revenue and
+     expenses), so they get the palette's two most different colours. */
+  --viz-ramp-1: var(--chart-2);
+  --viz-ramp-2: var(--chart-1);
+  --viz-ramp-3: var(--chart-3);
+  --viz-ramp-4: var(--chart-4);
+  --viz-ramp-5: var(--chart-5);
+  --viz-ramp-6: color-mix(in oklab, var(--chart-1) 55%, var(--chart-3));
+}

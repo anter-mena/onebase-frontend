@@ -30,9 +30,9 @@ export function QuarterSparkline({ values, total, unit }: { values: number[]; to
     <div className="inline-flex items-center gap-2" aria-label={`${total} ${total === 1 ? unit.one : unit.many} in 2026`}>
       <div className="relative h-6 w-[4.5rem]">
         <svg viewBox="0 0 72 24" className="absolute inset-0 size-full overflow-visible" aria-hidden>
-          <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.28" /><stop offset="100%" stopColor="#3b82f6" stopOpacity="0" /></linearGradient></defs>
+          <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--viz-1)" stopOpacity="0.28" /><stop offset="100%" stopColor="var(--viz-1)" stopOpacity="0" /></linearGradient></defs>
           <polygon points={`${points} 70,22 2,22`} fill={`url(#${gradientId})`} />
-          <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points={points} fill="none" stroke="var(--viz-1)" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {coordinates.map(({ x, y, value }, index) => (
           <Tooltip key={quarters[index].label}>
@@ -40,13 +40,13 @@ export function QuarterSparkline({ values, total, unit }: { values: number[]; to
               render={
                 <button
                   type="button"
-                  className="group absolute z-10 flex size-3 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  className="group absolute z-10 flex size-3 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-(--viz-1)"
                   style={{ left: `${(x / 72) * 100}%`, top: `${(y / 24) * 100}%` }}
                   aria-label={`${quarters[index].label}: ${value} ${value === 1 ? unit.one : unit.many}`}
                 />
               }
             >
-              <span className="size-1.5 rounded-full border border-white bg-blue-500 opacity-0 transition-opacity group-hover:opacity-100" />
+              <span className="size-1.5 rounded-full border border-white bg-(--viz-1) opacity-0 transition-opacity group-hover:opacity-100" />
             </TooltipTrigger>
             <TooltipContent>
               <span className="font-medium">{quarters[index].label}</span>

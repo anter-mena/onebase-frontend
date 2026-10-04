@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "cn";
 
+import { hatch } from "@/components/dashboard/hatch";
 import { HintedLabel } from "@/components/system-status/hint";
 
 /**
@@ -16,7 +17,7 @@ export function StatRow({
   value,
   detail,
   percent,
-  tone = "bg-foreground/70",
+  color = "var(--viz-1)",
   compact = false,
 }: {
   label: string;
@@ -26,7 +27,8 @@ export function StatRow({
   detail?: string;
   /** 0–100. Omit where there is no meaningful ceiling. */
   percent?: number;
-  tone?: string;
+  /** Any CSS colour, normally a `--viz-*` token so it follows the theme. */
+  color?: string;
   /** Tighter, without the divider — for the small lists inside a container card. */
   compact?: boolean;
 }) {
@@ -42,11 +44,24 @@ export function StatRow({
         </span>
       </div>
 
-      {percent !== undefined ? (
-        <div className="h-1 overflow-hidden rounded-full bg-muted">
-          <div className={cn("h-full rounded-full", tone)} style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }} />
-        </div>
+      {percent !== undefined ? <Meter percent={percent} color={color} /> : null}
+    </div>
+  );
+}
+
+/**
+ * The bar under a figure — styled like the rings: the used part hatched with the
+ * Dashboard's diagonal rules, slightly rounded, with a clear gap before the
+ * grey track. Finer rules than on the Dashboard bars, which are much taller.
+ */
+function Meter({ percent, color }: { percent: number; color: string }) {
+  const share = Math.min(Math.max(percent, 0), 100);
+  return (
+    <div className="flex h-2 gap-[3px]" aria-hidden>
+      {share > 0 ? (
+        <div className="h-full shrink-0 rounded-[3px]" style={{ width: `${share}%`, background: hatch(color, { line: 1, pitch: 4 }) }} />
       ) : null}
+      {share < 100 ? <div className="h-full min-w-0 flex-1 rounded-[3px] bg-muted" /> : null}
     </div>
   );
 }

@@ -7,7 +7,8 @@ import { Hint } from "@/components/system-status/hint";
  * The card every block on the System status page sits in.
  *
  * <p>The LMS layout, in One Base's own card: the same shape as `InfoCard` on the
- * client profile — white card, grey title strip, small caps with wide tracking —
+ * client profile — white card, small-caps title with wide tracking — with the
+ * title on an inset rounded grey bar like the Action log table header —
  * so this page reads as part of the app, not one dropped into it.
  *
  * <p>`min-h-0` so a card told to fill can also be told to shrink, and the body
@@ -32,7 +33,8 @@ export function Panel({
 }) {
   return (
     <section aria-label={title} className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card", className)}>
-      <header className="flex h-9 shrink-0 items-center justify-between gap-2 border-b bg-muted/50 px-4">
+      {/* Inset and rounded, with no rule under it — the same grey bar as the Action log's table header. */}
+      <header className="mx-2 mt-2 flex h-8 shrink-0 items-center justify-between gap-2 rounded-lg bg-muted/95 px-3">
         <h3 className="flex min-w-0 items-center gap-1.5 text-[0.6rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
           <span className="truncate">{title}</span>
           {hint ? <Hint>{hint}</Hint> : null}

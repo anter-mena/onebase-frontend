@@ -26,7 +26,7 @@ export function BackendPanel({ health, history }: { health: SystemHealth; histor
             of {bytes(backend.heapMax)} · {percent(heapPercent)}
           </span>
         </div>
-        <Sparkline className="h-16 lg:h-auto lg:min-h-16 lg:flex-1" values={history.map((s) => s.heap)} tone="text-foreground" />
+        <Sparkline className="h-16 lg:h-auto lg:min-h-16 lg:flex-1" values={history.map((s) => s.heap)} tone="text-(--viz-1)" />
       </Panel>
 
       <Panel
@@ -43,7 +43,7 @@ export function BackendPanel({ health, history }: { health: SystemHealth; histor
           className="h-16 lg:h-auto lg:min-h-16 lg:flex-1"
           values={history.map((s) => s.latency)}
           max={Math.max(50, ...history.map((s) => s.latency))}
-          tone="text-foreground"
+          tone="text-(--viz-1)"
         />
       </Panel>
 
@@ -60,7 +60,7 @@ export function BackendPanel({ health, history }: { health: SystemHealth; histor
           value={percent(backend.error5xxRate, 2)}
           detail={`${count(backend.errors5xx)} of ${count(backend.totalRequests)}`}
           percent={backend.error5xxRate}
-          tone="bg-(--viz-critical)/70"
+          color="var(--viz-critical)"
         />
         <StatRow
           label="4xx refusals"
@@ -68,7 +68,7 @@ export function BackendPanel({ health, history }: { health: SystemHealth; histor
           value={count(backend.errors4xx)}
           detail={percent(refusedShare, 1)}
           percent={refusedShare}
-          tone="bg-amber-500/70"
+          color="var(--color-amber-500)"
         />
         <StatRow label="Uptime" hint="Since the backend last started — usually the last deploy." value={duration(backend.uptimeSeconds)} />
       </Panel>
@@ -87,7 +87,7 @@ export function BackendPanel({ health, history }: { health: SystemHealth; histor
           value={count(backend.pool.idle)}
           detail={`of ${backend.pool.max}`}
           percent={poolShare(backend.pool.idle)}
-          tone="bg-muted-foreground/40"
+          color="color-mix(in oklab, var(--muted-foreground) 50%, transparent)"
         />
         <StatRow label="Threads waiting" hint="Waiting for a free connection. Above zero is a problem." value={count(backend.pool.pending)} />
         <StatRow
