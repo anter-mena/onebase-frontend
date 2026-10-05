@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { preload } from "react-dom";
-import { Plus } from "lucide-react";
+import { Coins, DollarSign, NotebookPen, Plus } from "lucide-react";
 import { cn } from "cn";
 
 import { topUpCredit } from "@/app/(private)/configuration/expenseActions";
@@ -200,6 +200,17 @@ export function PanelCredit({ credit, monthLineCredits }: { credit: CreditSummar
   );
 }
 
+/** Same input skin as the Brands dialog: a visible border, the icon inside on the left. */
+const topUpInputClass = "h-8 border-foreground/15 bg-background pl-8 text-xs dark:bg-input/30";
+const topUpIconClass = "pointer-events-none absolute inset-y-0 left-2.5 my-auto size-3.5 text-muted-foreground";
+
+/**
+ * The usual price of one credit, to show what a top-up should cost. The grid sells
+ * 1 credit at $0.83; the user rounds that to $1 (decided 2026-10-04). Only a hint:
+ * the amount actually paid is typed in, since credit is sometimes bought for less.
+ */
+const usualPricePerCredit = 1;
+
 /** Credits are whole units; the amount is USD with up to two decimals. */
 const isValidCredits = (value: string) => /^\d+$/.test(value.trim()) && Number(value) > 0 && Number(value) <= 1_000_000;
 const isValidAmount = (value: string) => /^\d+(\.\d{1,2})?$/.test(value.trim()) && Number(value) <= 999_999.99;
@@ -239,22 +250,32 @@ function TopUpDialog({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <Field>
               <FieldLabel htmlFor="topup-credits">Credits</FieldLabel>
-              <Input
-                id="topup-credits"
-                inputMode="numeric"
-                value={credits}
-                onChange={(event) => setCredits(event.target.value)}
-                placeholder="120"
-                aria-invalid={(credits !== "" && !isValidCredits(credits)) || undefined}
-                className="h-8 text-xs tabular-nums"
-                autoFocus
-                required
-              />
+              <div className="relative">
+                <Coins className={topUpIconClass} aria-hidden />
+                <Input
+                  id="topup-credits"
+                  inputMode="numeric"
+                  value={credits}
+                  onChange={(event) => setCredits(event.target.value)}
+                  placeholder="120"
+                  aria-invalid={(credits !== "" && !isValidCredits(credits)) || undefined}
+                  className={cn(topUpInputClass, "tabular-nums")}
+                  autoFocus
+                  required
+                />
+              </div>
             </Field>
             <Field>
-              <FieldLabel htmlFor="topup-amount">Paid (USD)</FieldLabel>
+              <div className="flex items-baseline justify-between gap-2">
+                <FieldLabel htmlFor="topup-amount">Paid (USD)</FieldLabel>
+                {isValidCredits(credits) ? (
+                  <span className="text-[0.65rem] text-muted-foreground tabular-nums" title="At the usual $1 per credit">
+                    Usual: {moneyFormatter.format(Number(credits) * usualPricePerCredit)}
+                  </span>
+                ) : null}
+              </div>
               <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-xs text-muted-foreground" aria-hidden>$</span>
+                <DollarSign className={topUpIconClass} aria-hidden />
                 <Input
                   id="topup-amount"
                   inputMode="decimal"
@@ -262,7 +283,7 @@ function TopUpDialog({ onClose }: { onClose: () => void }) {
                   onChange={(event) => setAmount(event.target.value)}
                   placeholder="100.00"
                   aria-invalid={(amount !== "" && !isValidAmount(amount)) || undefined}
-                  className="h-8 pl-6 text-xs tabular-nums"
+                  className={cn(topUpInputClass, "tabular-nums")}
                   required
                 />
               </div>
@@ -270,7 +291,10 @@ function TopUpDialog({ onClose }: { onClose: () => void }) {
           </div>
           <Field>
             <FieldLabel htmlFor="topup-note">Note (optional)</FieldLabel>
-            <Input id="topup-note" value={note} maxLength={255} onChange={(event) => setNote(event.target.value)} placeholder="e.g. Bought from the reseller" className="h-8 text-xs" />
+            <div className="relative">
+              <NotebookPen className={topUpIconClass} aria-hidden />
+              <Input id="topup-note" value={note} maxLength={255} onChange={(event) => setNote(event.target.value)} placeholder="e.g. Bought from the reseller" className={topUpInputClass} />
+            </div>
           </Field>
           {valid && Number(amount) > 0 ? (
             <p className="text-[0.65rem] text-muted-foreground">{perCreditFormatter.format(Number(amount) / Number(credits))} per credit.</p>

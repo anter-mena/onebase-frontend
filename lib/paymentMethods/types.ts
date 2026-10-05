@@ -5,7 +5,7 @@
 
 import type { CardNetwork, ProviderId } from "@/components/settings/paymentMethodCard"
 
-export type BackendProvider = "PAYPAL" | "BINANCE" | "INTERAC" | "OTHER"
+export type BackendProvider = "PAYPAL" | "BINANCE" | "INTERAC" | "DEBIT_CARD"
 export type BackendCardNetwork = "VISA" | "MASTERCARD" | "BOTH"
 
 export type PaymentMethodRow = {
@@ -26,7 +26,7 @@ export const providerToCard: Record<BackendProvider, ProviderId> = {
   PAYPAL: "paypal",
   BINANCE: "crypto",
   INTERAC: "interac",
-  OTHER: "other",
+  DEBIT_CARD: "debit",
 }
 
 /** The small line under a method's name in the table. */
@@ -34,7 +34,7 @@ export const providerDetails: Record<BackendProvider, { type: string; region: st
   PAYPAL: { type: "Digital wallet", region: "ONLINE" },
   BINANCE: { type: "Cryptocurrency", region: "ON-CHAIN" },
   INTERAC: { type: "e-Transfer", region: "CANADA" },
-  OTHER: { type: "Other method", region: "WORLDWIDE" },
+  DEBIT_CARD: { type: "Debit card", region: "WORLDWIDE" },
 }
 
 /** The logos drawn on the card — decoration only. */

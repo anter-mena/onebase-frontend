@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNowStrict } from "date-fns";
 import {
@@ -38,6 +38,9 @@ import { CapsLockBadge, useCapsLock } from "@/components/auth/capsLock";
 import { PasswordStrengthHint } from "@/components/auth/passwordStrengthHint";
 import { changePassword, saveAccountSettings } from "@/app/(private)/actions";
 import { roleLabels } from "@/lib/access";
+import { readSystemHealth } from "@/app/(private)/system-status/actions";
+import { bytes, duration } from "@/lib/format";
+import type { SystemHealth } from "@/lib/system/healthTypes";
 
 /**
  * The panels behind the settings window's rail.
@@ -551,15 +554,33 @@ export function SecuritySettings() {
   );
 }
 
+/**
+ * The DB tab. Connection and Storage are real: the same reading the System
+ * status page shows (`GET /api/system/health`), taken once when the tab opens.
+ */
 export function DatabaseSettings() {
-  const [autoBackup, setAutoBackup] = useState(true);
-  const [frequency, setFrequency] = useState("daily");
+  const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Invented, and consistent with a workspace this size — 12 clients, a handful
-  // of brands and a few months of log.
-  const usedMb = 184;
-  const limitMb = 1024;
-  const usedShare = (usedMb / limitMb) * 100;
+  useEffect(() => {
+    let live = true;
+    void readSystemHealth().then((result) => {
+      if (!live) return;
+      if (result.ok) setHealth(result.data);
+      else setError(result.error);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  // The version is the database container's image tag ("postgres:16-alpine" → 16).
+  const dbImage = health?.containers.items.find((item) => item.image.startsWith("postgres"))?.image;
+  const version = dbImage?.match(/:(d+)/)?.[1];
+  const server = health?.server;
+  const diskUsed = server ? server.diskTotal - server.diskFree : 0;
+  const diskShare = server && server.diskTotal > 0 ? (diskUsed / server.diskTotal) * 100 : 0;
+  const dbShare = health && server && server.diskTotal > 0 ? (health.database.onDiskBytes / server.diskTotal) * 100 : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -569,56 +590,67 @@ export function DatabaseSettings() {
             <div className="flex items-start gap-2.5 min-w-0">
               <Database className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
               <div className="min-w-0">
-                <p className="text-xs font-medium">PostgreSQL 16</p>
+                <p className="text-xs font-medium">PostgreSQL{version ? ` ${version}` : ""}</p>
                 <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
-                  eu-west-1 · one-base-production
+                  {health
+                    ? `${health.server.os} · running for ${duration(health.database.uptimeSeconds)} · ${health.database.activeConnections} of ${health.database.maxConnections} connections in use`
+                    : error ?? "Checking…"}
                 </p>
               </div>
             </div>
             {/* The dot and the word, not the dot alone — the same rule the
                 status pills follow. */}
-            <Badge variant="outline" className="gap-1.5">
-              <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
-              Connected
+            <Badge variant="outline" className="shrink-0 gap-1.5">
+              <span aria-hidden className={cn("size-1.5 rounded-full", health ? "bg-emerald-500" : error ? "bg-red-500" : "bg-muted-foreground")} />
+              {health ? "Connected" : error ? "Unreachable" : "Checking"}
             </Badge>
           </div>
         </div>
       </Section>
 
-      <Section title="Storage" description="How much of your plan you are using.">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Used</span>
-          <span className="text-xs font-medium tabular-nums">
-            {usedMb} MB of {limitMb / 1024} GB
-          </span>
-        </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <span
-            className="block h-full rounded-full bg-primary"
-            style={{ width: `${usedShare}%` }}
-          />
-        </div>
-        <p className="mt-1.5 text-[0.65rem] text-muted-foreground">
-          {(limitMb - usedMb).toLocaleString("en-GB")} MB left on this plan.
-        </p>
+      <Section title="Storage" description="The database's size, and the server disk it lives on.">
+        {health && server ? (
+          <>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-xs text-muted-foreground">Database</span>
+              <span className="text-xs font-medium tabular-nums">
+                {bytes(health.database.sizeBytes)} of data · {bytes(health.database.onDiskBytes)} on disk
+              </span>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between gap-2">
+              <span className="text-xs text-muted-foreground">Server disk</span>
+              <span className="text-xs font-medium tabular-nums">
+                {bytes(diskUsed)} of {bytes(server.diskTotal)} used
+              </span>
+            </div>
+            {/* The database's share in front, the rest of the server's use behind it. */}
+            <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-muted">
+              <span className="block h-full bg-primary" style={{ width: `${dbShare}%`, minWidth: dbShare > 0 ? 3 : 0 }} title="Database" />
+              <span className="block h-full bg-primary/35" style={{ width: `${Math.max(0, diskShare - dbShare)}%` }} title="Everything else" />
+            </div>
+            <p className="mt-1.5 text-[0.65rem] text-muted-foreground">
+              {bytes(server.diskFree)} free. Details on the System status page.
+            </p>
+          </>
+        ) : (
+          <p className="text-[0.7rem] text-muted-foreground">{error ? "The storage could not be read." : "Loading…"}</p>
+        )}
       </Section>
 
+      {/* Not built yet (decided 2026-10-04): shown switched off and greyed, like
+          Two-factor on Security, rather than a made-up "last taken" date. */}
       <Section title="Backups" description="Copies taken automatically, kept for 30 days.">
         <Rows>
           <Row
-            title="Automatic backups"
-            description="Last taken 24 September 2026, 02:00 UTC."
-            control={<Switch checked={autoBackup} onCheckedChange={setAutoBackup} />}
+            title={<>Automatic backups <ComingSoon /></>}
+            description="Not set up yet."
+            control={<Switch checked={false} disabled aria-label="Automatic backups" />}
           />
           <Row
-            title="Frequency"
+            title={<>Frequency <ComingSoon /></>}
             description="How often a copy is taken."
             control={
-              <Select
-                value={frequency}
-                onValueChange={(value) => { if (value) setFrequency(value as string); }}
-                disabled={!autoBackup}
-              >
+              <Select value="daily" disabled>
                 <SelectTrigger className="h-7 w-32 text-xs" aria-label="Backup frequency">
                   <SelectValue>
                     {(value: string | null) =>

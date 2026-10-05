@@ -6,9 +6,11 @@ import { BellRing, Inbox, MoonStar, Sun } from "lucide-react";
 import { cn } from "cn";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { CurrencyConverter } from "@/components/app-shell/currencyConverter";
 import { appNavigation, getConfigurationTab, navbarPages } from "@/components/app-shell/navigation";
 import { useSessionUser } from "@/components/app-shell/sessionUser";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
+import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTheme } from "@/hooks/use-theme";
 import { canOpen } from "@/lib/access";
@@ -81,6 +83,9 @@ export function AppNavbar() {
       </div>
 
       <div className="flex items-center gap-1.5">
+        {/* A tool rather than a place, so it stands apart from Inbox and Notifications. */}
+        <CurrencyConverter />
+        <Separator orientation="vertical" className="mx-1 h-4 self-center!" />
         {/* Shown only to roles that may open the Inbox (lib/access) — today, both. */}
         {canOpen(user.role, "/inbox") && (
           <Link

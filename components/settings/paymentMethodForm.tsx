@@ -29,7 +29,7 @@ const methodTypes: readonly { value: BackendProvider; label: string }[] = [
   { value: "PAYPAL", label: "PayPal" },
   { value: "BINANCE", label: "Binance" },
   { value: "INTERAC", label: "Interac" },
-  { value: "OTHER", label: "Other" },
+  { value: "DEBIT_CARD", label: "Debit card" },
 ];
 
 // Which card logos are drawn on the card — decoration only. Both by default.

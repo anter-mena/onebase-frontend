@@ -52,9 +52,9 @@
   background: linear-gradient(200deg, rgb(0 0 0 / 40%) 0%, rgb(0 0 0 / 28%) 70%);
 }
 
-/* Other methods: red and white. A soft white glow in the empty middle-right (kept away from the white text and icons),
+/* Debit card: red and white. A soft white glow in the empty middle-right (kept away from the white text and icons),
    a faint white diagonal sheen, a red glow from the right side, fading to near black at the bottom. */
-.other {
+.debit {
   background:
     radial-gradient(40% 55% at 68% 35%, rgb(255 255 255 / 38%) 0%, transparent 70%),
     linear-gradient(120deg, transparent 40%, rgb(255 255 255 / 10%) 52%, transparent 62%),

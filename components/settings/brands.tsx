@@ -295,7 +295,7 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
               placeholder="Paste a brand link, e.g. https://www.reebok.com"
               aria-label="Brand website link"
               aria-invalid={showInvalid || alreadyAdded || Boolean(takenBy) || undefined}
-              className="pl-8 text-xs md:text-xs"
+              className="border-foreground/15 bg-background pl-8 text-xs md:text-xs dark:bg-input/30"
             />
           </div>
           <Button type="submit" size="sm" disabled={!preview || adding} className={cn(blackStyle.button, "h-8 gap-1.5 px-3! py-0! text-xs! font-medium! disabled:opacity-50")}>

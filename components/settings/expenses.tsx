@@ -318,7 +318,7 @@ export function Expenses({
                                 }}
                                 title={costChanged ? `Not saved yet (saved: ${formatter.format(saved[row][column].cost)})` : "Double-click to edit"}
                                 aria-label={`Cost for ${plan}: ${formatter.format(shown[row][column].cost)}${costChanged ? ", not saved yet" : ""}. Double-click to edit.`}
-                                className={cn(costBoxClassName, costChanged ? changedClass : "border-transparent hover:border-border", "focus-visible:border-ring")}
+                                className={cn(costBoxClassName, costChanged ? changedClass : "border-transparent hover:bg-muted", "transition-colors focus-visible:border-ring")}
                               >
                                 {formatter.format(shown[row][column].cost)}
                               </button>
@@ -352,7 +352,7 @@ export function Expenses({
                                 }}
                                 title={creditsChanged ? `Not saved yet (saved: ${saved[row][column].credits} cr)` : "Double-click to edit"}
                                 aria-label={`Credits for ${plan}: ${shown[row][column].credits}${creditsChanged ? ", not saved yet" : ""}. Double-click to edit.`}
-                                className={cn(creditBoxClassName, "-mr-2 text-muted-foreground", creditsChanged ? changedClass : "border-transparent hover:border-border", "focus-visible:border-ring")}
+                                className={cn(creditBoxClassName, "-mr-2 text-muted-foreground", creditsChanged ? changedClass : "border-transparent hover:bg-muted", "transition-colors focus-visible:border-ring")}
                               >
                                 {shown[row][column].credits} cr
                               </button>

@@ -8,7 +8,7 @@ import styles from "./paymentMethods.module.css";
 
 // The card design, shared by the payment methods list and the live preview on the add page.
 
-export type ProviderId = "paypal" | "interac" | "crypto" | "other";
+export type ProviderId = "paypal" | "interac" | "crypto" | "debit";
 export type CardNetwork = "Visa" | "Mastercard";
 
 // Monochrome provider logos, tinted with the text color through a CSS mask.
@@ -17,8 +17,8 @@ export const providerLogos: Record<ProviderId, { name: string; src: string | nul
   // The hand from the official Interac logo, cut out without the text and the yellow square.
   interac: { name: "Interac", src: "/brands/interac-hand.png" },
   crypto: { name: "Binance", src: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/binance.svg" },
-  // Any other method has no brand, so a wallet icon stands in (see ProviderLogo).
-  other: { name: "Other", src: null },
+  // A debit card has no single brand, so a wallet icon stands in (see ProviderLogo).
+  debit: { name: "Debit card", src: null },
 };
 
 // Lucide's Nfc icon, one path per wave, from the smallest (left) to the largest (right).
@@ -75,7 +75,7 @@ function MastercardMark() {
 // compact: the small version used in the table, where a long name does not fit (Interac shows its initial).
 export function ProviderLogo({ id, compact = false }: { id: ProviderId; compact?: boolean }) {
   const logo = providerLogos[id];
-  if (id === "other") {
+  if (id === "debit") {
     // The same wallet icon as the "Add new method" card.
     return <WalletCards role="img" aria-label={logo.name} strokeWidth={1.75} className={cn("text-white/80", compact ? "size-4" : "size-7")} />;
   }
@@ -131,8 +131,8 @@ export function PaymentMethodCard({ provider, active, methodName, amount, curren
           </span>
         ) : null}
 
-        {/* Other only: a maple leaf outline in the bottom right, cropped by the card edge. */}
-        {provider === "other" ? (
+        {/* Debit card only: a maple leaf outline in the bottom right, cropped by the card edge. */}
+        {provider === "debit" ? (
           <span aria-hidden className={cn(styles.leafFade, "pointer-events-none absolute -right-6 -bottom-14 size-44")}>
             <MapleLeafOutline className="size-full" />
           </span>
