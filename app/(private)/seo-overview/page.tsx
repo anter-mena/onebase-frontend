@@ -25,7 +25,11 @@ export default async function SeoOverviewPage({
   const brands = await getSeoBrands();
   let body: React.ReactNode;
   if (!brands.ok) {
-    body = <LoadError title="The SEO overview could not be loaded." reason={brands.error.message} />;
+    body = (
+      <div className="flex h-full items-center justify-center">
+        <LoadError title="The SEO overview could not be loaded." reason={brands.error.message} />
+      </div>
+    );
   } else if (brands.data.length === 0) {
     body = (
       <div className="flex min-h-64 flex-col items-center justify-center gap-1 text-center">
@@ -45,7 +49,9 @@ export default async function SeoOverviewPage({
     body = overview.ok ? (
       <SeoWorkspace brands={brands.data} data={overview.data} />
     ) : (
-      <LoadError title={`${brand.name}: Google Analytics could not be read.`} reason={overview.error.message} />
+      <div className="flex h-full items-center justify-center">
+        <LoadError title={`${brand.name}: Google Analytics could not be read.`} reason={overview.error.message} />
+      </div>
     );
   }
 
@@ -55,7 +61,7 @@ export default async function SeoOverviewPage({
         <p className="text-xs font-medium text-muted-foreground">Workspace</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">SEO Overview</h1>
         {/* Says what the page measures: GA4 has visits, not "search rankings". */}
-        <p className="mt-1 text-xs text-muted-foreground">Each brand's website traffic from Google Analytics 4: every visitor, and what search engines bring.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Each brand&apos;s website traffic from Google Analytics 4: every visitor, and what search engines bring.</p>
       </header>
 
       <section

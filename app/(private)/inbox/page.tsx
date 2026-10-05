@@ -55,7 +55,7 @@ export default async function InboxPage({
       </header>
 
       {!result.ok ? (
-        <div className="mt-4">
+        <div className="mt-4 flex min-h-0 flex-1 items-center justify-center rounded-xl border bg-background">
           <LoadError title="The inbox could not be loaded." reason={result.error} />
         </div>
       ) : (
