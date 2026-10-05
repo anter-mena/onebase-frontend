@@ -40,19 +40,19 @@ export const appNavigation = [
   },
   {
     section: "Communication",
+    label: "Email Inbox",
+    href: "/inbox",
+    icon: Mail,
+    available: true,
+  },
+  {
+    section: "Communication",
     label: "WhatsApp Inbox",
     href: "/whatsapp-inbox",
     icon: MessageCircle,
     available: true,
     // The pulsing red dot in the sidebar; the text is what screen readers announce for it.
     indicator: "New WhatsApp messages",
-  },
-  {
-    section: "Communication",
-    label: "Inbox",
-    href: "/inbox",
-    icon: Mail,
-    available: true,
   },
   {
     section: "Administration",
@@ -89,7 +89,7 @@ export const appNavigation = [
 export const navbarPages = [
   {
     section: "Communication",
-    label: "Inbox",
+    label: "Email Inbox",
     href: "/inbox",
   },
 ] as const;

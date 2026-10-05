@@ -18,6 +18,7 @@ import {
 
 import { mailAction, type MailAction } from "@/app/(private)/inbox/actions"
 import { Composer, type ComposeMode } from "@/components/inbox/composer"
+import { MailBody } from "@/components/inbox/mailBody"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -295,7 +296,7 @@ function MailDisplay({ mail, folderId, can, senders, brandSender, composingNew }
       {/* ── What it says ──────────────────────────────────────────────────── */}
       {/* Plain text from the backend; its blank lines are the author's paragraphs. */}
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <p className="text-sm break-words whitespace-pre-wrap">{mail.body || "(This email has no text.)"}</p>
+        {mail.body ? <MailBody key={mail.id} text={mail.body} /> : <p className="text-sm text-muted-foreground">(This email has no text.)</p>}
 
         {mail.attachments.length > 0 && (
           <ul className="mt-5 flex flex-wrap gap-2" aria-label="Attached files">

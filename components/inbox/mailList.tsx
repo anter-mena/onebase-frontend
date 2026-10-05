@@ -306,6 +306,7 @@ function MailList({
                 selected={mail.id === selectedId}
                 canStar={canStar}
                 showRecipient={folderId === "sent" || folderId === "drafts"}
+                brandLogo={brands.find((brand) => brand.name === mail.brand)?.logo ?? null}
                 now={now}
                 onOpen={() => setParam("mail", mail.id)}
               />
@@ -343,7 +344,7 @@ function BrandLogo({ brand }: { brand: MailBrand }) {
       width={14}
       height={14}
       unoptimized
-      className="size-3.5 shrink-0 object-contain"
+      className="size-3.5 shrink-0 object-contain brightness-0 dark:invert"
     />
   )
 }
@@ -353,6 +354,7 @@ function MailRow({
   selected,
   canStar,
   showRecipient,
+  brandLogo,
   now,
   onOpen,
 }: {
@@ -361,6 +363,8 @@ function MailRow({
   canStar: boolean
   /** Sent and Drafts show who it goes to, not our own name. */
   showRecipient: boolean
+  /** The brand's logo, drawn in black inside its badge. */
+  brandLogo: string | null
   now: Date
   onOpen: () => void
 }) {
@@ -374,6 +378,13 @@ function MailRow({
    */
   const [starred, setStarred] = useState(mail.starred)
   const [, startSaving] = useTransition()
+
+  // Starred elsewhere (the reading pane menu, or Gmail): follow the fresh value from the server.
+  const [lastSeen, setLastSeen] = useState(mail.starred)
+  if (mail.starred !== lastSeen) {
+    setLastSeen(mail.starred)
+    setStarred(mail.starred)
+  }
 
   // How many times this star was switched on, so the animation can replay.
   const [pops, setPops] = useState(0)
@@ -523,9 +534,26 @@ function MailRow({
       {mail.labels.length > 0 && (
         <span className="pointer-events-none relative flex flex-wrap gap-2 pt-1">
           {mail.labels.map((label) => (
-            <Badge key={label} variant={badgeVariant(label, mail.brand)}>
-              {label}
-            </Badge>
+            label === mail.brand ? (
+              // The brand badge: always light, with the logo in black, in both themes.
+              <Badge key={label} variant="outline" className="gap-1 border-black/10 bg-white text-black">
+                {brandLogo ? (
+                  <Image
+                    src={brandLogo}
+                    alt=""
+                    width={12}
+                    height={12}
+                    unoptimized
+                    className="size-3 shrink-0 object-contain brightness-0"
+                  />
+                ) : null}
+                {label}
+              </Badge>
+            ) : (
+              <Badge key={label} variant={badgeVariant(label, mail.brand)}>
+                {label}
+              </Badge>
+            )
           ))}
         </span>
       )}

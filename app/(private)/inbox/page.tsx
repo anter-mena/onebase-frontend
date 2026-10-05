@@ -11,7 +11,7 @@ import { getInbox } from "@/lib/inbox/mail"
 import type { MailAbilities, MailQuery } from "@/lib/inbox/mailTypes"
 
 export const metadata: Metadata = {
-  title: "Inbox | One Base",
+  title: "Email Inbox | One Base",
 }
 
 /**
@@ -46,7 +46,7 @@ export default async function InboxPage({
     <div className="flex h-full w-full min-h-0 flex-col">
       <header className="shrink-0">
         <p className="text-xs font-medium text-muted-foreground">Communication</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Inbox</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Email Inbox</h1>
         <p className="mt-1 text-xs text-muted-foreground">
           {result.ok
             ? `Every brand address, in ${result.data.account.email}. What you do here happens in Gmail too.`
