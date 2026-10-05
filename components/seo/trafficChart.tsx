@@ -10,7 +10,7 @@ import { ChartTooltip } from "@/components/charts/tooltip";
 import { PatternLines } from "@/components/charts/visx-pattern";
 import { HATCH_INK } from "@/components/dashboard/hatch";
 import { count } from "@/lib/format";
-import type { TrafficPoint } from "@/lib/seo/sample";
+import type { TrafficPoint } from "@/lib/seo/types";
 
 /**
  * Organic sessions over the period.

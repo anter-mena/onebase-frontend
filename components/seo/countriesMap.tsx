@@ -10,7 +10,7 @@ import worldAtlas from "world-atlas/countries-110m.json";
 import { count } from "@/lib/format";
 
 /**
- * Organic sessions by country.
+ * Visitors by country (shaded by every visitor; the hover also says how many came from search).
  *
  * <p><b>A map answers "where", and only that.</b> Comparing 8,580 against 2,600
  * by the shade of two countries is the thing a choropleth is worst at, so the
@@ -124,7 +124,10 @@ export type CountryRow = {
   countryId: string;
   /** ISO 3166-1 numeric — what the topology keys its shapes on. */
   atlasId: string;
+  /** Every visitor. */
   sessions: number;
+  /** The ones who came from search. */
+  organicSessions?: number;
 };
 
 export function CountriesMap({
@@ -188,6 +191,7 @@ export function CountriesMap({
               <span className="font-medium">{hovered.name}</span>
               <span className="text-muted-foreground">
                 {count(hoveredRow?.sessions ?? 0)} sessions
+                {hoveredRow?.organicSessions !== undefined ? ` · ${count(hoveredRow.organicSessions)} from search` : ""}
               </span>
             </>
           ) : (
@@ -201,7 +205,7 @@ export function CountriesMap({
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className="block h-auto w-full"
           role="img"
-          aria-label={`Organic sessions by country. ${rows
+          aria-label={`Visitors by country. ${rows
             .map((row) => `${row.country}, ${count(row.sessions)}`)
             .join(". ")}.`}
         >

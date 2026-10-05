@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Monitor, Smartphone, Tablet, TrendingDown, TrendingUp } from "lucide-react";
+import { type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
+import { CalendarDays, Monitor, Smartphone, Tablet, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "cn";
 
 // ⚠️ Borrowed from the dashboard rather than copied. `StatTile`, `SplitBar` and
@@ -14,19 +18,9 @@ import { Panel } from "@/components/dashboard/panels";
 import { CountriesMap } from "@/components/seo/countriesMap";
 import { TrafficChart } from "@/components/seo/trafficChart";
 import { count, percent, signedPercent } from "@/lib/format";
-import {
-  channelsFor,
-  countriesFor,
-  devicesFor,
-  enginesFor,
-  landingPagesFor,
-  seoBrands,
-  seoRanges,
-  totalsFor,
-  trafficFor,
-  type SeoBrandId,
-  type SeoRangeId,
-} from "@/lib/seo/sample";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { rangeNote, seoRanges, seoView, type SeoBrand, type SeoOverview, type SeoRangeId, type TrafficSeries } from "@/lib/seo/types";
 
 /**
  * "1m 36s" — an average engagement time.
@@ -64,24 +58,49 @@ function engagementTime(seconds: number): string {
  * nothing here is fetched yet. Same shape as the dashboard: a thin server page,
  * one client component.
  */
-export function SeoWorkspace() {
-  const [brand, setBrand] = useState<SeoBrandId>("nike");
-  const [range, setRange] = useState<SeoRangeId>("7d");
+export function SeoWorkspace({
+  brands,
+  data,
+}: {
+  /** Every brand with a GA4 property. */
+  brands: SeoBrand[];
+  /** The open brand and range, live from GA4. */
+  data: SeoOverview;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
 
-  const activeBrand = seoBrands.find((entry) => entry.id === brand) ?? seoBrands[0];
-  const activeRange = seoRanges.find((entry) => entry.id === range) ?? seoRanges[0];
-  const changeNote = `vs previous ${activeRange.label.toLowerCase()}`;
+  // Brand and range live in the address bar: the server fetches that brand's GA4.
+  function choose(key: "brand" | "range", value: string, dates?: { from: string; to: string }) {
+    const next = new URLSearchParams(params.toString());
+    next.set(key, value);
+    if (key === "range") {
+      next.delete("from");
+      next.delete("to");
+      if (dates) {
+        next.set("from", dates.from);
+        next.set("to", dates.to);
+      }
+    }
+    router.push(`${pathname}?${next.toString()}`, { scroll: false });
+  }
 
-  const points = trafficFor(brand, range);
-  const totals = totalsFor(brand, range);
-  const channels = channelsFor(brand, range);
-  const engines = enginesFor(brand, range);
-  const countries = countriesFor(brand, range);
-  const devices = devicesFor(brand, range);
-  const { rows: landingPages, tailSessions } = landingPagesFor(brand, range);
+  const brand = data.brand.id;
+  const range = data.range;
+  const activeBrand = data.brand;
+  // The words for the period: "last 7 days", "this month", "1 Jun – 31 Aug 2026".
+  const activeRange = { note: rangeNote(data) };
+  const changeNote = "vs the period before";
+
+  const { points, tabTotals, totals, channels, engines, countries, devices, landingPages, tailSessions } = seoView(data);
+
+  // The chart's tab: every visitor, or only those from search, or only direct.
+  const [series, setSeries] = useState<TrafficSeries>("all");
+  const shown = tabTotals[series];
 
   const allSessions = channels.reduce((total, row) => total + row.sessions, 0);
-  const organicShare = allSessions === 0 ? 0 : (totals.sessions / allSessions) * 100;
+  const shareOfAll = allSessions === 0 ? 0 : (shown.sessions / allSessions) * 100;
 
   const channelRows = channels.map((row, index) => ({
     label: row.channel,
@@ -99,13 +118,19 @@ export function SeoWorkspace() {
     <div className="flex min-w-0 flex-col gap-4">
       {/* ── The two filters ───────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <BrandFilter value={brand} onChange={setBrand} />
+        <BrandFilter brands={brands} value={brand} onChange={(id) => choose("brand", String(id))} />
 
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-xs text-muted-foreground">
-            Organic search, {activeRange.note}.
+            Website traffic, {activeRange.note}.
           </p>
-          <RangeFilter value={range} onChange={setRange} />
+          <RangeFilter
+            value={range}
+            start={data.start}
+            end={data.end}
+            onChange={(id) => choose("range", id)}
+            onCustom={(from, to) => choose("range", "custom", { from, to })}
+          />
         </div>
       </div>
 
@@ -121,7 +146,7 @@ export function SeoWorkspace() {
           are all on the right. Framing them separately invited reading the
           shading as the data. */}
       <section
-        aria-label="Organic sessions by country"
+        aria-label="Visitors by country"
         className="min-w-0 rounded-xl border bg-muted/40 p-2.5"
       >
         <div className="grid min-w-0 gap-2.5 md:grid-cols-[minmax(0,1fr)_17rem]">
@@ -131,8 +156,8 @@ export function SeoWorkspace() {
           <div className="flex min-w-0 flex-col rounded-lg border bg-card p-4">
             <CountriesMap
               rows={countries}
-              title="Organic sessions by country"
-              note={`${activeBrand.label} · ${activeRange.note}`}
+              title="Visitors by country"
+              note={`${activeBrand.name} · ${activeRange.note}`}
             />
           </div>
 
@@ -142,7 +167,7 @@ export function SeoWorkspace() {
           <div className="flex min-w-0 flex-col px-3.5 py-4">
             <h2 className="text-sm font-medium">Top countries</h2>
             <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
-              Share of organic sessions
+              Every visitor, and how many came from search
             </p>
 
             <div className="mt-4 min-w-0">
@@ -150,8 +175,9 @@ export function SeoWorkspace() {
                 rows={countries.map((row) => ({
                   label: row.country,
                   value: row.sessions,
+                  note: `${count(row.organicSessions)} from search`,
                 }))}
-                total={totals.sessions}
+                total={allSessions}
               />
             </div>
           </div>
@@ -187,7 +213,7 @@ export function SeoWorkspace() {
               level with the chart card beside them. */}
           <Panel
             title="Devices"
-            note="Organic sessions by what they were read on"
+            note="Sessions by what they were read on"
             className="flex-1"
           >
             <DeviceSplit rows={devices} total={totals.sessions} />
@@ -203,7 +229,7 @@ export function SeoWorkspace() {
           three beside it are transparent blocks divided by a rule — a column
           of numbers reading off the plot, not three more framed rectangles. */}
       <section
-        aria-label="Organic search overview"
+        aria-label="Traffic overview"
         // ⚠️ `flex flex-col` so the grid inside can be told to fill.
         // The section already stretched to the row — the column beside it is
         // taller — but its contents were sized to themselves, so the extra
@@ -222,11 +248,14 @@ export function SeoWorkspace() {
                 total — not a number standing beside a plot that could
                 disagree with it. */}
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">
-                Organic sessions, {activeRange.note}
-              </p>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {series === "all" ? "Sessions" : series === "organic" ? "Sessions from search" : "Direct sessions"}, {activeRange.note}
+                </p>
+                <SeriesTabs value={series} onChange={setSeries} />
+              </div>
               <p className="mt-1 text-3xl font-semibold tracking-tight">
-                {count(totals.sessions)}
+                {count(shown.sessions)}
               </p>
               {/* Users rides along here rather than taking a fourth slot in
                   the column. It is context for the hero — how many people the
@@ -234,16 +263,15 @@ export function SeoWorkspace() {
                   and three figures beside the plot is the shape that matches
                   the chart's height. */}
               <p className="mt-1 text-[0.65rem] text-muted-foreground">
-                {count(totals.users)} users · {percent(organicShare, 1)} of all
-                traffic
+                {count(shown.users)} users{series === "all" ? "" : ` · ${percent(shareOfAll, 1)} of all traffic`}
               </p>
-              <Trend change={totals.sessionsChange} note={changeNote} />
+              <Trend change={shown.sessionsChange} note={changeNote} />
             </div>
 
             {/* Pinned to the bottom, so the x-axis sits on the card's padding
                 rather than the plot floating with dead space beneath it. */}
             <div className="mt-auto min-w-0 pt-4">
-              <TrafficChart points={points} rangeNote={activeRange.note} />
+              <TrafficChart points={points[series]} rangeNote={activeRange.note} />
             </div>
           </div>
 
@@ -284,7 +312,7 @@ export function SeoWorkspace() {
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Panel
           title="Landing pages"
-          note="Where organic sessions started, most first"
+          note="Where visits started, most first"
         >
           <div className="min-w-0 overflow-x-auto">
             <table className="w-full min-w-[30rem] border-collapse text-xs">
@@ -331,7 +359,7 @@ export function SeoWorkspace() {
           {/* ⚠️ The tail, stated rather than dropped. Five rows with nothing
               under them read as the whole site. */}
           <p className="mt-3 text-[0.65rem] text-muted-foreground">
-            {count(tailSessions)} more organic sessions landed on pages outside
+            {count(tailSessions)} more sessions landed on pages outside
             the top five.
           </p>
         </Panel>
@@ -348,7 +376,7 @@ export function SeoWorkspace() {
       {/* ⚠️ Says plainly what this screen cannot show and why, so nobody spends
           an afternoon looking for the keyword card. */}
       <p className="text-[0.65rem] leading-relaxed text-muted-foreground">
-        Every figure here comes from GA4 ({activeBrand.property}). Queries,
+        Every figure here comes from GA4 (property {activeBrand.propertyId}), updated every 10 minutes. Queries,
         impressions, click-through rate and average position are not in the GA4
         API — they come from Search Console, which is a separate connection.
       </p>
@@ -453,7 +481,7 @@ function ShareList({
   rows,
   total,
 }: {
-  rows: readonly { label: string; value: number }[];
+  rows: readonly { label: string; value: number; note?: string }[];
   total: number;
 }) {
   return (
@@ -481,6 +509,7 @@ function ShareList({
                 {percent(share, 1)}
               </span>
             </div>
+            {row.note ? <p className="mt-0.5 text-[0.6rem] text-muted-foreground">{row.note}</p> : null}
           </li>
         );
       })}
@@ -547,11 +576,13 @@ function Trend({
 
 /** The brand whose GA4 property is on screen. */
 function BrandFilter({
+  brands,
   value,
   onChange,
 }: {
-  value: SeoBrandId;
-  onChange: (next: SeoBrandId) => void;
+  brands: SeoBrand[];
+  value: number;
+  onChange: (next: number) => void;
 }) {
   return (
     <div
@@ -559,7 +590,7 @@ function BrandFilter({
       aria-label="Brand"
       className="inline-flex shrink-0 rounded-lg border border-border/60 bg-muted p-0.5"
     >
-      {seoBrands.map((entry) => (
+      {brands.map((entry) => (
         <button
           key={entry.id}
           type="button"
@@ -572,34 +603,74 @@ function BrandFilter({
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <span
-            aria-hidden
-            className="block size-3 shrink-0 bg-current"
-            style={{
-              mask: `url(https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${entry.logo}.svg) center / contain no-repeat`,
-              WebkitMask: `url(https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${entry.logo}.svg) center / contain no-repeat`,
-            }}
-          />
-          {entry.label}
+          {entry.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- the brand's own small PNG, drawn in one colour
+            <img src={entry.logoUrl} alt="" width={12} height={12} className="size-3 shrink-0 object-contain brightness-0 dark:invert" />
+          ) : null}
+          {entry.name}
         </button>
       ))}
     </div>
   );
 }
 
-/** How far back. The same control the dashboard uses, for the same reason. */
+/** The chart's tabs: every visitor, from search, or direct. */
+function SeriesTabs({ value, onChange }: { value: TrafficSeries; onChange: (next: TrafficSeries) => void }) {
+  const tabs: { id: TrafficSeries; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "organic", label: "Organic" },
+    { id: "direct", label: "Direct" },
+  ];
+  return (
+    <div role="group" aria-label="Which visitors" className="inline-flex shrink-0 rounded-lg border border-border/60 bg-muted p-0.5">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          aria-pressed={value === tab.id}
+          className={cn(
+            "inline-flex h-6 items-center rounded-md border border-transparent px-2.5 text-[0.7rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+            value === tab.id ? "border-border bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The period: five presets and a custom range. The same segmented control the
+ * dashboard uses; the last segment opens a two-month calendar.
+ */
 function RangeFilter({
   value,
+  start,
+  end,
   onChange,
+  onCustom,
 }: {
   value: SeoRangeId;
+  /** The dates on screen, to start the calendar from. */
+  start: string;
+  end: string;
   onChange: (next: SeoRangeId) => void;
+  onCustom: (from: string, to: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState<DateRange | undefined>(() => ({
+    from: new Date(`${start}T00:00:00`),
+    to: new Date(`${end}T00:00:00`),
+  }));
+  const today = new Date();
+
   return (
     <div
       role="group"
       aria-label="Period"
-      className="inline-flex shrink-0 rounded-lg border border-border/60 bg-muted p-0.5"
+      className="inline-flex shrink-0 flex-wrap rounded-lg border border-border/60 bg-muted p-0.5"
     >
       {seoRanges.map((entry) => (
         <button
@@ -617,6 +688,57 @@ function RangeFilter({
           {entry.label}
         </button>
       ))}
+
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              aria-pressed={value === "custom"}
+              className={cn(
+                "inline-flex h-6 items-center gap-1 rounded-md border border-transparent px-2.5 text-[0.7rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+                value === "custom"
+                  ? "border-border bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            />
+          }
+        >
+          <CalendarDays aria-hidden className="size-3" />
+          {value === "custom" ? rangeNote({ range: "custom", start, end }) : "Custom"}
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-max max-w-[calc(100vw-2rem)] p-0">
+          <Calendar
+            mode="range"
+            selected={picked}
+            onSelect={setPicked}
+            numberOfMonths={2}
+            defaultMonth={picked?.from}
+            disabled={{ after: today }}
+            fixedWeeks
+          />
+          <div className="flex items-center justify-end gap-2 px-3 pb-3">
+            <span className="mr-auto text-[0.65rem] text-muted-foreground">
+              {picked?.from ? format(picked.from, "d MMM yyyy") : "Pick a start"}
+              {" – "}
+              {picked?.to ? format(picked.to, "d MMM yyyy") : "and an end"}
+            </span>
+            <button
+              type="button"
+              disabled={!picked?.from}
+              onClick={() => {
+                if (!picked?.from) return;
+                const to = picked.to ?? picked.from;
+                setOpen(false);
+                onCustom(format(picked.from, "yyyy-MM-dd"), format(to, "yyyy-MM-dd"));
+              }}
+              className="h-7 rounded-md border bg-foreground px-3 text-[0.7rem] font-medium text-background disabled:opacity-50"
+            >
+              Apply
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

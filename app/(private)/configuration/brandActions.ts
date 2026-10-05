@@ -37,6 +37,8 @@ export type BrandDraft = {
   removeLogo?: boolean
   /** "Fetch again" was used before saving — the Action log says so. */
   fetchedFromSite?: boolean
+  /** The GA4 property number for the SEO page; "" = none. */
+  ga4PropertyId?: string
 }
 
 /** Add (no id) or Edit (with id). */

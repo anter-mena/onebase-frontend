@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, FileDown, Globe, ImageUp, Link2, MoreVertical, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChartNoAxesColumn, ExternalLink, FileDown, Globe, ImageUp, Link2, MoreVertical, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { cn } from "cn";
 
 import { lookUpBrand, saveBrand, setBrandActive, type BrandDraft } from "@/app/(private)/configuration/brandActions";
@@ -429,7 +429,7 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
                           onClick={() =>
                             setDialog({
                               id: brand.id,
-                              draft: { websiteUrl: brand.websiteUrl, name: brand.name, socials: brand.socials, logo: null },
+                              draft: { websiteUrl: brand.websiteUrl, name: brand.name, socials: brand.socials, logo: null, ga4PropertyId: brand.ga4PropertyId ?? "" },
                               logoPreview: brand.logoUrl,
                             })
                           }
@@ -485,6 +485,7 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
   const [logo, setLogo] = useState<string | null>(state.draft.logo);
   const [logoPreview, setLogoPreview] = useState<string | null>(state.logoPreview);
   const [removeLogo, setRemoveLogo] = useState(false);
+  const [ga4, setGa4] = useState(state.draft.ga4PropertyId ?? "");
   const [fetched, setFetched] = useState(false);
   const [message, setMessage] = useState<{ tone: "error" | "note"; text: string } | null>(null);
   const [fetching, startFetching] = useTransition();
@@ -499,6 +500,7 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
     website.trim() !== state.draft.websiteUrl ||
     !sameSocials(socials, state.draft.socials) ||
     logo !== state.draft.logo ||
+    ga4.trim() !== (state.draft.ga4PropertyId ?? "") ||
     removeLogo;
 
   function fetchAgain() {
@@ -552,6 +554,7 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
         logo,
         removeLogo,
         fetchedFromSite: fetched,
+        ga4PropertyId: ga4.trim(),
       });
       if (!result.ok) {
         setMessage({ tone: "error", text: result.error });
@@ -633,6 +636,23 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
               </div>
             ))}
           </div>
+
+          {/* For the SEO page: the brand's Google Analytics 4 property. Empty = not on the SEO page. */}
+          <Field>
+            <FieldLabel htmlFor="brand-ga4" className="flex items-center gap-1.5">
+              <ChartNoAxesColumn className="size-3 text-muted-foreground" aria-hidden />
+              GA4 property ID
+            </FieldLabel>
+            <Input
+              id="brand-ga4"
+              value={ga4}
+              inputMode="numeric"
+              placeholder="412305881"
+              onChange={(event) => setGa4(event.target.value)}
+              className={dialogInputClass}
+            />
+            <p className="text-[0.6rem] text-muted-foreground">GA4 → Admin → Property details. Leave empty if the brand has no Google Analytics.</p>
+          </Field>
 
           {message ? (
             <p role={message.tone === "error" ? "alert" : "status"} className={cn("text-[0.65rem]", message.tone === "error" ? "text-destructive" : "text-muted-foreground")}>
