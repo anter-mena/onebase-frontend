@@ -1,100 +1,170 @@
 import "server-only"
 
+import { apiFetch } from "@/lib/api"
 import {
-  sampleAccounts,
-  sampleBrands,
-  sampleFolders,
-  sampleMails,
-} from "@/lib/inbox/mailSample"
-import type {
-  Mail,
-  MailAccount,
-  MailBrand,
-  MailFolder,
-  MailQuery,
+  FOLDER_IDS,
+  type FolderId,
+  type Mail,
+  type MailAccount,
+  type MailBrand,
+  type MailDetail,
+  type MailFolder,
+  type MailQuery,
+  type MailSender,
 } from "@/lib/inbox/mailTypes"
 
 /**
- * Where the Inbox gets its messages.
- *
- * <p>The same job `lib/backups.ts` does for the Backups screen and `lib/users.ts`
- * for the user list: one place the page asks, so the page never knows whether
- * the answer came from a backend, a file or — as today — an invented sample.
- * When the API arrives, the body of {@link getInbox} becomes an `apiFetch` call
- * and nothing on the screen changes.
- *
- * <p>Async already, for that reason. A synchronous function here would mean the
- * page's `await` appears on the day the backend does, and a change that touches
- * the page as well as this file is a change that can break the page.
- *
- * <p><b>Filtering and searching happen here, not in the list.</b> Narrowing in
- * the browser means every message has to be sent before any of them can be
- * hidden — fine at five, wrong at five thousand, and the wrong shape to hand a
- * backend later. The same split the user list already uses.
+ * Where the Inbox gets its emails: `GET /api/inbox/*`, which reads the Gmail
+ * mailbox live. Filtering and searching happen there (Gmail search), not in the
+ * browser — the list only ever receives what it shows.
  */
 
-/** Sender, subject and body. The three places a half-remembered message hides. */
-function matches(mail: Mail, needle: string): boolean {
-  const haystack = [mail.name, mail.email, mail.subject, mail.body]
-    .join(" ")
-    .toLowerCase()
-
-  return haystack.includes(needle)
+type Overview = {
+  account: { email: string; name: string }
+  folders: MailFolder[]
+  brands: { name: string; logoUrl: string | null; sender: string | null }[]
+  senders: MailSender[]
 }
 
-/**
- * The list, and whichever message is open.
- *
- * @param query what the address bar says — the filter, the search, the selection.
- *
- * ⚠️ Every message is invented. See `lib/inbox/mailSample.ts`.
- */
-export async function getInbox(query: MailQuery): Promise<{
+type Summary = {
+  id: string
+  folder: FolderId
+  fromName: string
+  fromEmail: string
+  toLabel: string
+  subject: string
+  receivedAt: string | null
+  snippet: string
+  read: boolean
+  starred: boolean
+  labels: string[]
+  brand: string | null
+  attachmentCount: number
+}
+
+type Detail = Omit<Summary, "snippet" | "attachmentCount" | "toLabel"> & {
+  to: MailDetail["to"]
+  cc: MailDetail["cc"]
+  replyTo: MailDetail["replyTo"]
+  body: string
+  attachments: MailDetail["attachments"]
+  replyRecipients: string[]
+  replyAllCc: string[]
+  defaultFrom: string
+}
+
+export const PAGE_SIZE = 50
+
+export type InboxData = {
   mails: Mail[]
-  selected: Mail | null
+  selected: MailDetail | null
   accounts: MailAccount[]
   account: MailAccount
   folders: MailFolder[]
-  folderId: string
-  /** Every brand, for the filter beside the search. */
+  folderId: FolderId
   brands: MailBrand[]
-}> {
-  const accounts = sampleAccounts()
-  const folders = sampleFolders()
+  senders: MailSender[]
+  limit: number
+}
 
-  // An unknown id in the URL falls back to the first mailbox rather than
-  // drawing an empty screen. Somebody editing the address bar is the least of
-  // it — a bookmark to a mailbox that has since been disconnected does the same.
-  const account =
-    accounts.find((entry) => entry.id === query.account) ?? accounts[0]
+export async function getInbox(query: MailQuery): Promise<{ ok: true; data: InboxData } | { ok: false; error: string; status: number }> {
+  const folderId: FolderId = FOLDER_IDS.includes(query.folder as FolderId) ? (query.folder as FolderId) : "inbox"
+  const limit = Math.min(200, Math.max(PAGE_SIZE, Number(query.limit) || PAGE_SIZE))
 
-  const folderId = folders.some((folder) => folder.id === query.folder)
-    ? query.folder!
-    : "inbox"
+  const params = new URLSearchParams({ folder: folderId, limit: String(limit) })
+  if (query.q?.trim()) params.set("q", query.q.trim())
+  if (query.filter === "unread") params.set("unread", "true")
+  if (query.brand) params.set("brand", query.brand)
 
-  const brands = sampleBrands()
+  const [overview, list] = await Promise.all([
+    apiFetch<Overview>("/api/inbox/overview", { authenticated: true }),
+    apiFetch<Summary[]>(`/api/inbox/messages?${params}`, { authenticated: true }),
+  ])
+  if (!overview.ok) return { ok: false, error: overview.error.message, status: overview.error.status }
+  if (!list.ok) return { ok: false, error: list.error.message, status: list.error.status }
 
-  const needle = query.q?.trim().toLowerCase() ?? ""
+  const mails = list.data.map(toMail)
 
-  // ⚠️ The brand and the folder narrow nothing yet. Every sample message belongs
-  // to no mailbox in particular, because a `Mail` has no account on it — and
-  // inventing one would be inventing the relationship the backend has not
-  // described. The controls are wired to the address bar and the list will
-  // narrow the day a message knows where it arrived.
-  const mails = sampleMails()
-    .filter((mail) => (query.filter === "unread" ? !mail.read : true))
-    .filter((mail) => (needle ? matches(mail, needle) : true))
+  // The open email: the one in the address bar (marked read, since somebody opened
+  // it), otherwise the newest — shown but left unread, because nobody chose it.
+  const chosen = query.mail && query.compose !== "new" ? query.mail : null
+  const targetId = chosen ?? (query.compose === "new" ? null : mails[0]?.id ?? null)
+  let selected: MailDetail | null = null
+  if (targetId) {
+    const detail = await apiFetch<Detail>(
+      `/api/inbox/messages/${encodeURIComponent(targetId)}?folder=${folderId}&markRead=${chosen ? "true" : "false"}`,
+      { authenticated: true }
+    )
+    if (detail.ok) {
+      selected = toDetail(detail.data)
+      // The list was read a moment before; show the dot as the open email now is.
+      const row = mails.find((mail) => mail.id === selected?.id)
+      if (row) row.read = selected.read
+    }
+  }
 
-  /**
-   * The open message, and it has to come from the filtered list.
-   *
-   * <p>Reading a message and then switching to Unread should not leave that
-   * message open beside a list it is no longer in — the reading pane would be
-   * showing something the list says is not there. Falling back to the first of
-   * whatever survived is the honest answer, and an empty result opens nothing.
-   */
-  const selected =
-    mails.find((mail) => mail.id === query.mail) ?? mails[0] ?? null
+  const account: MailAccount = {
+    id: "main",
+    label: overview.data.account.name,
+    email: overview.data.account.email,
+    provider: overview.data.account.email.endsWith("@gmail.com") ? "gmail" : "other",
+  }
 
-  return { mails, selected, accounts, account, folders, folderId, brands }
+  return {
+    ok: true,
+    data: {
+      mails,
+      selected,
+      accounts: [account],
+      account,
+      folders: overview.data.folders,
+      folderId,
+      brands: overview.data.brands.map((brand) => ({ name: brand.name, logo: brand.logoUrl, sender: brand.sender })),
+      senders: overview.data.senders,
+      limit,
+    },
+  }
+}
+
+function toMail(summary: Summary): Mail {
+  return {
+    id: summary.id,
+    folder: summary.folder,
+    name: summary.fromName || summary.fromEmail,
+    email: summary.fromEmail,
+    toLabel: summary.toLabel,
+    subject: summary.subject || "(no subject)",
+    receivedAt: summary.receivedAt ?? new Date(0).toISOString(),
+    body: summary.snippet,
+    read: summary.read,
+    starred: summary.starred,
+    labels: summary.labels,
+    brand: summary.brand,
+    attachmentCount: summary.attachmentCount,
+  }
+}
+
+function toDetail(detail: Detail): MailDetail {
+  return {
+    id: detail.id,
+    folder: detail.folder,
+    name: detail.fromName || detail.fromEmail,
+    email: detail.fromEmail,
+    toLabel: detail.to.map((address) => address.name || address.email).join(", "),
+    subject: detail.subject,
+    receivedAt: detail.receivedAt ?? new Date(0).toISOString(),
+    body: detail.body,
+    read: detail.read,
+    starred: detail.starred,
+    labels: detail.labels,
+    brand: detail.brand,
+    attachmentCount: detail.attachments.length,
+    to: detail.to,
+    cc: detail.cc,
+    replyTo: detail.replyTo,
+    attachments: detail.attachments,
+    replyRecipients: detail.replyRecipients,
+    replyAllCc: detail.replyAllCc,
+    defaultFrom: detail.defaultFrom,
+  }
 }

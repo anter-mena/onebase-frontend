@@ -1,13 +1,17 @@
 "use client"
 
-import { useEffect, useRef, useState, type CSSProperties } from "react"
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react"
 import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Search, Star } from "lucide-react"
+import { Paperclip, Search, SquarePen, Star } from "lucide-react"
 
+import { mailAction } from "@/app/(private)/inbox/actions"
 import { AccountSwitcher } from "@/components/inbox/accountSwitcher"
 import { FolderNav } from "@/components/inbox/folderNav"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import blackStyle from "@/components/ui/button-styles/black.module.css"
+import whiteStyle from "@/components/ui/button-styles/white.module.css"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -24,6 +28,7 @@ import {
 } from "@/components/ui/tooltip"
 import { duration } from "@/lib/format"
 import type {
+  FolderId,
   Mail,
   MailAccount,
   MailBrand,
@@ -68,11 +73,17 @@ const ALL_BRANDS = "all"
 /** Directions the sparks fly in when a message is starred. */
 const SPARK_ANGLES = [0, 60, 120, 180, 240, 300]
 
-function badgeVariant(label: string): "default" | "secondary" | "outline" {
-  const lower = label.toLowerCase()
-  if (lower === "work") return "default"
-  if (lower === "personal") return "outline"
-  return "secondary"
+function badgeVariant(label: string, brand: string | null): "default" | "secondary" | "outline" {
+  return brand && label.toLowerCase() === brand.toLowerCase() ? "default" : "secondary"
+}
+
+const EMPTY: Record<FolderId, string> = {
+  inbox: "Your inbox is empty.",
+  drafts: "No drafts.",
+  sent: "Nothing sent yet.",
+  archive: "Nothing archived.",
+  junk: "No spam.",
+  trash: "Trash is empty.",
 }
 
 function MailList({
@@ -85,6 +96,8 @@ function MailList({
   folders,
   folderId,
   canStar,
+  canSend,
+  limit,
   now,
 }: {
   mails: Mail[]
@@ -94,9 +107,12 @@ function MailList({
   accounts: MailAccount[]
   accountId: string
   folders: MailFolder[]
-  folderId: string
+  folderId: FolderId
   /** Whether this account holds `INBOX:STAR`. */
   canStar: boolean
+  canSend: boolean
+  /** How many emails were asked for; a full page offers "Load more". */
+  limit: number
   /** The open message, so the row can mark itself. */
   selectedId: string | null
   /** What the address bar currently says. The single source of truth. */
@@ -126,6 +142,9 @@ function MailList({
     // ends up showing what the list says is not there. Dropping it lets the
     // server pick the first of whatever survived.
     if (key !== "mail") next.delete("mail")
+    // Opening an email, or narrowing the list, leaves the new-email pane.
+    if (key !== "compose") next.delete("compose")
+    if (key !== "limit") next.delete("limit")
 
     router.push(`${pathname}?${next.toString()}`, { scroll: false })
   }
@@ -203,6 +222,17 @@ function MailList({
           border; this is the top of the list itself, and a second line so close
           to the first boxed the search in rather than introducing what follows. */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 p-4 pb-2">
+        <Button
+          size="sm"
+          disabled={!canSend}
+          onClick={() => setParam("compose", "new")}
+          aria-label="New email"
+          title="New email"
+          className={cn(blackStyle.button, "h-8 gap-1.5 px-2.5! py-0! text-xs! font-medium!")}
+        >
+          <SquarePen className="size-3.5" />
+          <span className="hidden @min-[480px]/inbox:inline">New</span>
+        </Button>
         <div className="relative min-w-0 flex-1">
           <Search
             className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -211,7 +241,7 @@ function MailList({
           <Input
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
-            placeholder="Search"
+            placeholder="Search (Gmail search works too)"
             aria-label="Search messages"
             className="pl-9"
           />
@@ -265,7 +295,7 @@ function MailList({
               ? `No messages match "${query.q}".`
               : unreadOnly
                 ? "Nothing unread."
-                : "No messages."}
+                : EMPTY[folderId]}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -275,10 +305,21 @@ function MailList({
                 mail={mail}
                 selected={mail.id === selectedId}
                 canStar={canStar}
+                showRecipient={folderId === "sent" || folderId === "drafts"}
                 now={now}
                 onOpen={() => setParam("mail", mail.id)}
               />
             ))}
+            {mails.length >= limit && limit < 200 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setParam("limit", String(limit + 50))}
+                className={cn(whiteStyle.button, "mx-auto mt-2 px-3! py-0! text-xs! font-medium!")}
+              >
+                Load more
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -288,6 +329,13 @@ function MailList({
 
 /** Decorative: the brand's name always sits beside it. */
 function BrandLogo({ brand }: { brand: MailBrand }) {
+  if (!brand.logo) {
+    return (
+      <span aria-hidden className="flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-muted text-[0.55rem] font-semibold">
+        {brand.name.charAt(0).toUpperCase()}
+      </span>
+    )
+  }
   return (
     <Image
       src={brand.logo}
@@ -304,12 +352,15 @@ function MailRow({
   mail,
   selected,
   canStar,
+  showRecipient,
   now,
   onOpen,
 }: {
   mail: Mail
   selected: boolean
   canStar: boolean
+  /** Sent and Drafts show who it goes to, not our own name. */
+  showRecipient: boolean
   now: Date
   onOpen: () => void
 }) {
@@ -319,21 +370,23 @@ function MailRow({
   )
 
   /**
-   * The star moves; nothing is stored.
-   *
-   * <p>Local state, like the mute switch on the reading pane. A star that does
-   * not fill when clicked reads as broken rather than unbuilt, and there is no
-   * mailbox behind this to remember it in.
+   * The star moves at once and is saved in Gmail; it springs back if Gmail refuses.
    */
   const [starred, setStarred] = useState(mail.starred)
+  const [, startSaving] = useTransition()
 
   // How many times this star was switched on, so the animation can replay.
   const [pops, setPops] = useState(0)
 
   function toggleStar() {
     if (!canStar) return
-    if (!starred) setPops((count) => count + 1)
-    setStarred(!starred)
+    const next = !starred
+    if (next) setPops((count) => count + 1)
+    setStarred(next)
+    startSaving(async () => {
+      const result = await mailAction(mail.folder, mail.id, next ? "star" : "unstar")
+      if (!result.ok) setStarred(!next)
+    })
   }
 
   return (
@@ -361,7 +414,9 @@ function MailRow({
       />
 
       <div className="pointer-events-none relative flex w-full items-center gap-2">
-        <span className="truncate text-sm font-semibold">{mail.name}</span>
+        <span className={cn("truncate text-sm", mail.read ? "font-medium" : "font-semibold")}>
+          {showRecipient ? `To: ${mail.toLabel || "—"}` : mail.name}
+        </span>
 
         {/* Blue, and now a real token rather than a hex. Near-black was tried
             and is the wrong call here: every other mark on this row is already
@@ -376,6 +431,10 @@ function MailRow({
 
         {/* Pushed to the end rather than floated, so a long sender name truncates
             instead of shoving the age off the row. */}
+        {mail.attachmentCount > 0 && (
+          <Paperclip className="size-3 shrink-0 text-muted-foreground" aria-label={`${mail.attachmentCount} attached`} />
+        )}
+
         <span className="ml-auto shrink-0 text-xs text-muted-foreground">
           {duration(age)} ago
         </span>
@@ -464,7 +523,7 @@ function MailRow({
       {mail.labels.length > 0 && (
         <span className="pointer-events-none relative flex flex-wrap gap-2 pt-1">
           {mail.labels.map((label) => (
-            <Badge key={label} variant={badgeVariant(label)}>
+            <Badge key={label} variant={badgeVariant(label, mail.brand)}>
               {label}
             </Badge>
           ))}
