@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useState, useTransition } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronsUpDown, Command, LogOut, Settings } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, LogOut, Settings } from "lucide-react";
 import { Collapsible } from "@base-ui/react/collapsible";
 import { cn } from "cn";
 
@@ -117,7 +117,12 @@ export function AppSidebar() {
               "flex size-8 shrink-0 items-center justify-center p-0!",
             )}
           >
-            <Command className="size-4" aria-hidden />
+            {/* The One Base logo in the tile's own ink (a mask), like the receipt's. */}
+            <span
+              aria-hidden
+              className="block size-[1.125rem] bg-current"
+              style={{ mask: "url(/Logo.svg) center / contain no-repeat", WebkitMask: "url(/Logo.svg) center / contain no-repeat" }}
+            />
           </div>
           <div className="min-w-0 whitespace-nowrap leading-tight group-data-[collapsible=icon]:hidden">
             <p className="truncate text-xs font-semibold">One Base</p>

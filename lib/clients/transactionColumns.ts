@@ -40,7 +40,7 @@ export const transactionColumns: readonly {
 ]
 
 /** Select (w-8) + Date (w-28) + Description's floor — the three that always show. */
-export const TRANSACTION_FIXED_COLUMNS_WIDTH = 32 + 112 + 176
+export const TRANSACTION_FIXED_COLUMNS_WIDTH = 32 + 112 + 176 + 72 // + Actions (download, delete)
 
 export const TRANSACTION_COLUMNS_COOKIE = "client_transactions_columns_hidden"
 

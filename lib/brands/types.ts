@@ -18,7 +18,7 @@ export type BrandRow = {
   /** Our own address for the logo (it changes when the logo does), or null. */
   logoUrl: string | null
   active: boolean
-  /** 0 until the Clients module exists. */
+  /** Clients on this brand, deleted ones left out. */
   clients: number
   /** The Google Analytics 4 property number, for the SEO page; null = none. */
   ga4PropertyId: string | null

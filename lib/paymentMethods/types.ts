@@ -16,7 +16,7 @@ export type PaymentMethodRow = {
   cardNetwork: BackendCardNetwork
   instructions: string | null
   active: boolean
-  /** Total received, in USD: 0 until Payments is built. */
+  /** Total received from payments, in USD. */
   balance: number
   createdAt: string
 }

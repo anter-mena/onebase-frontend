@@ -13,7 +13,7 @@ export type PerkRow = {
 /** The Panel credit card. */
 export type CreditSummary = {
   totalCredits: number
-  /** Credits spent by payments: 0 until Payments is built. */
+  /** Credits spent by payments (deleted payments give theirs back). */
   usedCredits: number
   remainingCredits: number
   totalPaid: number

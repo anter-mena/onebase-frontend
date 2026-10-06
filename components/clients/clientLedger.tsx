@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-
-import { ClientProfile } from "@/components/clients/clientProfile";
+import { ClientProfile, type ClientEdit } from "@/components/clients/clientProfile";
 import { EarningsReceipt } from "@/components/clients/earningsReceipt";
 import { TransactionsTable } from "@/components/clients/transactionsTable";
 import type { ClientCountry } from "@/lib/clients/country";
 import type { Client, ClientTransaction } from "@/lib/clients/sample";
 import type { TransactionColumnId } from "@/lib/clients/transactionColumns";
+import type { PaymentOptions } from "@/lib/clients/types";
 
 /**
  * The three columns of a client's page, holding one list of payments between
@@ -24,40 +23,41 @@ import type { TransactionColumnId } from "@/lib/clients/transactionColumns";
  * <p>Returns three grid items, not a wrapper, so they take the page grid's
  * three columns exactly as they did as separate cards.
  *
- * <p>Interface phase: an added payment lives in this state until the page is
- * reloaded, the same as a deleted client on the Clients table. The API call
- * goes in `addPayments` and nothing else changes.
+ * <p>The list is the server's: a payment added in the window is saved, and the
+ * page refreshes, so all three read the new list in the same render.
  */
 export function ClientLedger({
   client,
   country,
-  initialTransactions,
+  transactions,
   defaultHiddenColumns,
+  paymentOptions,
+  canDeletePayments,
+  edit = null,
 }: {
+  /** Admins: the Delete payment button. */
+  canDeletePayments: boolean;
+  /** Configuration's plans, perks and brands, for Add payment. */
+  paymentOptions: PaymentOptions;
   client: Client;
+  /** The left card being edited (Save is in the page header). */
+  edit?: ClientEdit | null;
   /** From the phone number, detected on the server by the page. */
   country: ClientCountry | null;
-  initialTransactions: readonly ClientTransaction[];
+  /** Newest first. */
+  transactions: readonly ClientTransaction[];
   /** Read from the cookie by the page, so the first HTML is already correct. */
   defaultHiddenColumns: readonly TransactionColumnId[];
 }) {
-  const [transactions, setTransactions] = useState(initialTransactions);
-
-  function addPayments(payments: readonly ClientTransaction[]) {
-    // Kept newest first: the receipt reads its "latest payment" and the plan
-    // card its current plan from the head of the list. The sort is stable on
-    // equal dates, so today’s payment goes on top.
-    setTransactions((current) => [...payments, ...current].toSorted((a, b) => b.at.localeCompare(a.at)));
-  }
-
   return (
     <>
-      <ClientProfile client={client} country={country} transactions={transactions} />
+      <ClientProfile client={client} country={country} transactions={transactions} edit={edit} />
       <TransactionsTable
         client={client}
         transactions={transactions}
-        onAddPayments={addPayments}
         defaultHiddenColumns={defaultHiddenColumns}
+        paymentOptions={paymentOptions}
+        canDelete={canDeletePayments}
       />
       <EarningsReceipt client={client} transactions={transactions} />
     </>

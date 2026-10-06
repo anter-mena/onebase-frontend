@@ -29,6 +29,7 @@
 export type ClientColumnId =
   | "brand"
   | "contact"
+  | "createdAt"
   | "subscriptionEnd"
   | "status"
   | "subscription"
@@ -45,6 +46,8 @@ export const clientColumns: readonly {
   // plus a sort arrow, and a column has to fit the wider of the two.
   { id: "brand", label: "Brand", width: 64 },
   { id: "contact", label: "Contact", width: 272 },
+  // When their first WhatsApp message made them a client. The date filter reads it.
+  { id: "createdAt", label: "Created", width: 112 },
   { id: "subscriptionEnd", label: "End date", width: 112 },
   { id: "status", label: "Status", width: 80 },
   { id: "subscription", label: "Subscription", width: 192 },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode, type ComponentProps } from "react";
+import { useMemo, useState, useTransition, type ReactNode, type ComponentProps } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,15 +8,16 @@ import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
   ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Check, ChevronDown, ChevronLeft,
-  ChevronRight, ChevronsLeft, ChevronsRight, Clock3, Copy, CreditCard, Eye, FileDown, Landmark, Mail,
+  ChevronRight, ChevronsLeft, ChevronsRight, Clock3, Copy, CreditCard, Eye, FileDown, Mail,
   MessageCircle, MonitorSmartphone, MoreVertical, Pencil, Phone, Search, SlidersHorizontal, Trash2,
 } from "lucide-react";
 import { cn } from "cn";
 
+import { deleteClient as deleteClientAction } from "@/app/(private)/clients/actions";
 import { QuarterSparkline } from "@/components/charts/quarterSparkline";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialog, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
@@ -35,7 +36,6 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  clients,
   preSubscriptionStatuses,
   type Client,
   type ClientStatus,
@@ -63,11 +63,16 @@ import {
  * dormant relationship, not a lost one.
  */
 
-const paymentMethodIcons = {
-  Card: CreditCard,
-  "Bank transfer": Landmark,
+/**
+ * Each method type's mark, drawn in the text's ink (a mask), so it reads on every
+ * palette: PayPal's logo, Interac's hand, Binance's mark. Cards get the card icon.
+ */
+const paymentMethodMarks: Partial<Record<PaymentMethod, string>> = {
+  PayPal: "/brands/paypal.svg",
+  Interac: "/brands/interac-hand.png",
+  Binance: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/binance.svg",
 };
-type SortField = "name" | "brand" | "subscriptionEnd" | "status" | "devices" | "orders" | "paymentMethod" | "revenue";
+type SortField = "name" | "brand" | "createdAt" | "subscriptionEnd" | "status" | "devices" | "orders" | "paymentMethod" | "revenue";
 
 // The column list, their widths and the cookie all live in lib/clients/columns
 // — a plain module, so the page can read the same cookie on the server.
@@ -213,7 +218,6 @@ function StatusFilter({
 // so the detail page applies exactly the same rule.
 
 const pageSizes = [5, 10, 15, 20];
-const today = new Date("2026-09-09T00:00:00");
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -221,12 +225,19 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 });
 
 export function ClientsTable({
+  clients,
+  canDelete,
   /** Read from the cookie by the page, so the first HTML is already correct. */
   defaultHiddenColumns = [],
 }: {
+  clients: readonly Client[];
+  /** Admins only: the backend refuses anyone else, so the menu doesn't offer it. */
+  canDelete: boolean;
   defaultHiddenColumns?: readonly ClientColumnId[];
 }) {
   const router = useRouter();
+  const [deleting, startDelete] = useTransition();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"All" | ClientStatus>("All");
 
@@ -289,7 +300,7 @@ export function ClientsTable({
       0,
     );
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [sort, setSort] = useState<{ field: SortField; direction: "asc" | "desc" }>({ field: "subscriptionEnd", direction: "asc" });
+  const [sort, setSort] = useState<{ field: SortField; direction: "asc" | "desc" }>({ field: "createdAt", direction: "desc" });
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -304,17 +315,20 @@ export function ClientsTable({
         if (deletedIds.has(client.id)) return false;
         const matchesQuery = !normalizedQuery || [client.name, client.brand, client.email ?? "", client.phone].some((value) => value.toLowerCase().includes(normalizedQuery));
         const matchesStatus = status === "All" || client.status === status;
-        const subscriptionEndAt = new Date(`${client.subscriptionEndAt}T00:00:00`);
-        const matchesTime = (!dateRange?.from || subscriptionEndAt >= dateRange.from) && (!dateRange?.to || subscriptionEndAt <= dateRange.to);
+        // The range is on the day the client was made, in the reader's own
+        // time zone; "to" takes the whole of its day.
+        const createdAt = client.createdAt ? new Date(client.createdAt) : null;
+        const rangeEnd = dateRange?.to ? new Date(dateRange.to.getFullYear(), dateRange.to.getMonth(), dateRange.to.getDate() + 1) : null;
+        const matchesTime = !dateRange?.from || (createdAt !== null && createdAt >= dateRange.from && (!rangeEnd || createdAt < rangeEnd));
         return matchesQuery && matchesStatus && matchesTime;
       })
       .sort((a, b) => {
-        const left = sort.field === "subscriptionEnd" ? a.subscriptionEndAt : a[sort.field];
-        const right = sort.field === "subscriptionEnd" ? b.subscriptionEndAt : b[sort.field];
+        const left = sort.field === "subscriptionEnd" ? a.subscriptionEndAt : sort.field === "createdAt" ? (a.createdAt ?? "") : a[sort.field];
+        const right = sort.field === "subscriptionEnd" ? b.subscriptionEndAt : sort.field === "createdAt" ? (b.createdAt ?? "") : b[sort.field];
         const comparison = typeof left === "number" && typeof right === "number" ? left - right : String(left).localeCompare(String(right));
         return sort.direction === "asc" ? comparison : -comparison;
       });
-  }, [dateRange, deletedIds, query, sort, status]);
+  }, [clients, dateRange, deletedIds, query, sort, status]);
 
   const pageCount = Math.max(1, Math.ceil(filteredClients.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -353,8 +367,8 @@ export function ClientsTable({
   }
 
   function exportCsv() {
-    const headings = ["Client", "Brand", "Phone", "Email", "End of subscription", "Status", "Devices", "Duration", "Orders", "Payment method", "Revenue"];
-    const rows = filteredClients.map((client) => [client.name, client.brand, client.phone, client.email ?? "", getSubscriptionEndLabel(client), client.status, client.devices, client.duration, client.orders, client.paymentMethod, client.revenue]);
+    const headings = ["Client", "Brand", "Phone", "Email", "Created", "End of subscription", "Status", "Devices", "Duration", "Orders", "Payment method", "Revenue"];
+    const rows = filteredClients.map((client) => [client.name, client.brand, client.phone, client.email ?? "", client.createdAt ? format(new Date(client.createdAt), "yyyy-MM-dd HH:mm") : "", getSubscriptionEndLabel(client), client.status, client.devices, client.duration, client.orders, client.paymentMethod, client.revenue]);
     const csv = [headings, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
@@ -365,14 +379,25 @@ export function ClientsTable({
   }
 
   function deleteClient() {
-    if (!clientToDelete) return;
-    setDeletedIds((current) => new Set(current).add(clientToDelete.id));
-    setSelected((current) => {
-      const next = new Set(current);
-      next.delete(clientToDelete.id);
-      return next;
+    const target = clientToDelete;
+    if (!target) return;
+    setDeleteError(null);
+    startDelete(async () => {
+      const result = await deleteClientAction(target.id);
+      if (!result.ok) {
+        setDeleteError(result.error);
+        return;
+      }
+      // Hidden at once; the refresh brings the list the server now has.
+      setDeletedIds((current) => new Set(current).add(target.id));
+      setSelected((current) => {
+        const next = new Set(current);
+        next.delete(target.id);
+        return next;
+      });
+      setClientToDelete(null);
+      router.refresh();
     });
-    setClientToDelete(null);
   }
 
   const dateRangeLabel = dateRange?.from
@@ -398,7 +423,7 @@ export function ClientsTable({
           <Popover>
             <PopoverTrigger render={<Button variant="outline" size="sm" className={cn(whiteStyle.button, "max-w-64 min-w-36 justify-between px-3! py-0! text-[0.65rem]! font-normal!")} />}><CalendarDays className="size-3" /><span className="truncate">{dateRangeLabel}</span><ChevronDown className="size-3" /></PopoverTrigger>
             <PopoverContent align="end" className="w-max max-w-[calc(100vw-2rem)] p-0">
-              <Calendar mode="range" selected={dateRange} onSelect={(range) => { setDateRange(range); setPage(1); }} defaultMonth={today} numberOfMonths={2} fixedWeeks />
+              <Calendar mode="range" selected={dateRange} onSelect={(range) => { setDateRange(range); setPage(1); }} defaultMonth={dateRange?.from ?? new Date()} numberOfMonths={2} fixedWeeks />
               {dateRange ? <button type="button" onClick={() => { setDateRange(undefined); setPage(1); }} className="mx-3 mb-3 self-end text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Clear dates</button> : null}
             </PopoverContent>
           </Popover>
@@ -487,6 +512,9 @@ export function ClientsTable({
               {shows("contact") ? (
               <TableHead className="w-[17rem]">Contact</TableHead>
               ) : null}
+              {shows("createdAt") ? (
+              <TableHead className="w-28"><SortHeader field="createdAt" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Created</SortHeader></TableHead>
+              ) : null}
               {shows("subscriptionEnd") ? (
               <TableHead className="w-28"><SortHeader field="subscriptionEnd" activeField={sort.field} direction={sort.direction} onSort={updateSort}>End date</SortHeader></TableHead>
               ) : null}
@@ -532,9 +560,9 @@ export function ClientsTable({
                 className="group cursor-pointer border-b border-border/80 last:border-0"
               >
                 <TableCell><Checkbox checked={selected.has(client.id)} onCheckedChange={(checked) => toggleClient(client.id, checked === true)} aria-label={`Select ${client.name}`} className="size-3.5" /></TableCell>
-                <TableCell><div className="flex items-center gap-2.5"><span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", client.color)}>{client.initials}</span><div className="min-w-0"><Link href={clientHref(client.id)} className="block truncate font-medium text-foreground underline-offset-4 hover:underline">{client.name}</Link><p className="mt-0.5 text-[0.6rem] text-muted-foreground">#{String(client.id).padStart(4, "0")}</p></div></div></TableCell>
+                <TableCell><div className="flex items-center gap-2.5"><span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", client.color)}>{client.initials}</span><div className="min-w-0"><Link href={clientHref(client.id)} className="block truncate font-medium text-foreground underline-offset-4 hover:underline">{client.name}</Link><p className="mt-0.5 truncate text-[0.6rem] text-muted-foreground">{client.username && client.fullName ? <>@{client.username} · </> : null}#{String(client.id).padStart(4, "0")}</p></div></div></TableCell>
                 {shows("brand") ? (
-                <TableCell><Tooltip><TooltipTrigger render={<span className="inline-flex size-7 items-center justify-center" />}><Image src={client.brandLogo} alt={client.brand} width={18} height={18} unoptimized className="max-h-[18px] max-w-[18px] object-contain" /></TooltipTrigger><TooltipContent>{client.brand}</TooltipContent></Tooltip></TableCell>
+                <TableCell><Tooltip><TooltipTrigger render={<span className="inline-flex size-7 items-center justify-center" />}>{client.brandLogo ? <Image src={client.brandLogo} alt={client.brand} width={18} height={18} unoptimized className="max-h-[18px] max-w-[18px] object-contain" /> : client.brandId ? <span className="text-[0.6rem] font-semibold">{client.brand.slice(0, 2).toUpperCase()}</span> : <span className="text-muted-foreground">-</span>}</TooltipTrigger><TooltipContent>{client.brand}</TooltipContent></Tooltip></TableCell>
                 ) : null}
                 {shows("contact") ? (
                 <TableCell>
@@ -545,8 +573,8 @@ export function ClientsTable({
                   <div className="grid grid-cols-[9.25rem_1px_minmax(0,1fr)] items-center gap-1.5">
                     <div className="flex min-w-0 items-center gap-1.5">
                       <Phone className="size-3 shrink-0 text-muted-foreground" aria-hidden />
-                      <span className="truncate tabular-nums">{client.phone}</span>
-                      <CopyButton value={client.phone} copied={copied === client.phone} onCopy={copyContact} />
+                      <span className="truncate tabular-nums">{client.phone || "-"}</span>
+                      {client.phone ? <CopyButton value={client.phone} copied={copied === client.phone} onCopy={copyContact} /> : null}
                     </div>
                     <span className="h-4 w-px bg-border" aria-hidden />
                     <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
@@ -557,6 +585,11 @@ export function ClientsTable({
                   </div>
                 </TableCell>
                 ) : null}
+                {shows("createdAt") ? (
+                // ⚠️ The reader's own time zone, so it can differ from the server's
+                // first render by a day near midnight — hence the warning is hushed.
+                <TableCell suppressHydrationWarning>{client.createdAt ? format(new Date(client.createdAt), "MMM d, yyyy") : "-"}</TableCell>
+                ) : null}
                 {shows("subscriptionEnd") ? (
                 <TableCell>{getSubscriptionEndLabel(client)}</TableCell>
                 ) : null}
@@ -564,7 +597,7 @@ export function ClientsTable({
                 <TableCell><span className={cn(statusPillClassName, statusTone[client.status])}><span className={cn("size-1.5 shrink-0 rounded-full", statusDots[client.status])} />{client.status}</span></TableCell>
                 ) : null}
                 {shows("subscription") ? (
-                <TableCell><div className="grid grid-cols-[4.5rem_1px_minmax(0,1fr)] items-center gap-2"><div className="flex items-center gap-1.5"><MonitorSmartphone className="size-3 shrink-0 text-muted-foreground" aria-hidden /><span className="tabular-nums">{client.devices} {client.devices === 1 ? "device" : "devices"}</span></div><span className="h-4 w-px bg-border" aria-hidden /><div className="flex min-w-0 items-center gap-1.5 text-muted-foreground"><Clock3 className="size-3 shrink-0" aria-hidden /><span className="truncate">{client.duration}</span></div></div></TableCell>
+                <TableCell>{client.devices === 0 && !client.duration ? <span className="text-muted-foreground">-</span> : <div className="grid grid-cols-[4.5rem_1px_minmax(0,1fr)] items-center gap-2"><div className="flex items-center gap-1.5"><MonitorSmartphone className="size-3 shrink-0 text-muted-foreground" aria-hidden /><span className="tabular-nums">{client.devices} {client.devices === 1 ? "device" : "devices"}</span></div><span className="h-4 w-px bg-border" aria-hidden /><div className="flex min-w-0 items-center gap-1.5 text-muted-foreground"><Clock3 className="size-3 shrink-0" aria-hidden /><span className="truncate">{client.duration}</span></div></div>}</TableCell>
                 ) : null}
                 {shows("orders") ? (
                 <TableCell><QuarterSparkline values={client.orderTrend} total={client.orders} unit={{ one: "order", many: "orders" }} /></TableCell>
@@ -575,12 +608,12 @@ export function ClientsTable({
                 {shows("revenue") ? (
                 <TableCell className="font-medium text-emerald-700">+{currencyFormatter.format(client.revenue)}</TableCell>
                 ) : null}
-                <TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${client.name}`} />}><MoreVertical className="size-3.5" /></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-auto min-w-36 whitespace-nowrap"><DropdownMenuItem className="text-xs" render={<Link href={clientHref(client.id)} />}><Eye className="size-3.5" /> View details</DropdownMenuItem><DropdownMenuItem className="text-xs"><Pencil className="size-3.5" /> Edit client</DropdownMenuItem><DropdownMenuItem className="text-xs"><MessageCircle className="size-3.5" /> Open conversation</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" className="text-xs" onClick={() => setClientToDelete(client)}><Trash2 className="size-3.5" /> Delete client</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
+                <TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${client.name}`} />}><MoreVertical className="size-3.5" /></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-auto min-w-36 whitespace-nowrap"><DropdownMenuItem className="text-xs" render={<Link href={clientHref(client.id)} />}><Eye className="size-3.5" /> View details</DropdownMenuItem><DropdownMenuItem className="text-xs" render={<Link href={`${clientHref(client.id)}?edit=1`} />}><Pencil className="size-3.5" /> Edit client</DropdownMenuItem>{client.conversationId ? <DropdownMenuItem className="text-xs" render={<Link href={`/whatsapp-inbox?c=${client.conversationId}`} />}><MessageCircle className="size-3.5" /> Open conversation</DropdownMenuItem> : <DropdownMenuItem className="text-xs" disabled><MessageCircle className="size-3.5" /> No conversation yet</DropdownMenuItem>}{canDelete ? <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" className="text-xs" onClick={() => { setDeleteError(null); setClientToDelete(client); }}><Trash2 className="size-3.5" /> Delete client</DropdownMenuItem></> : null}</DropdownMenuContent></DropdownMenu></TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        {visibleClients.length === 0 ? <div className="flex min-h-48 items-center justify-center text-xs text-muted-foreground">No clients match your filters.</div> : null}
+        {visibleClients.length === 0 ? <div className="flex min-h-48 items-center justify-center text-xs text-muted-foreground">{clients.length === 0 ? "No clients yet. They appear here when someone writes on WhatsApp." : "No clients match your filters."}</div> : null}
       </div>
 
       <footer className="flex min-h-12 shrink-0 flex-col gap-2 border-t px-4 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center">
@@ -597,15 +630,20 @@ export function ClientsTable({
         </div>
       </footer>
 
-      <AlertDialog open={Boolean(clientToDelete)} onOpenChange={(open) => { if (!open) setClientToDelete(null); }}>
+      <AlertDialog open={Boolean(clientToDelete)} onOpenChange={(open) => { if (!open && !deleting) setClientToDelete(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {clientToDelete?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>This client and their saved details will be removed. This action cannot be undone.</AlertDialogDescription>
+            {/* ⚠️ Soft delete, and the text says so: the payments stay in the
+                totals, and a number that writes again brings the client back. */}
+            <AlertDialogDescription>They leave the Clients list. Their past payments still count in the totals, and if they write on WhatsApp again they come back.</AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError ? <p role="alert" className="text-xs text-destructive">{deleteError}</p> : null}
           <AlertDialogFooter>
-            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" size="sm" onClick={deleteClient}>Delete client</AlertDialogAction>
+            <AlertDialogCancel size="sm" disabled={deleting}>Cancel</AlertDialogCancel>
+            {/* ⚠️ Kept open while it runs: the action's own click would close the
+                dialog before the answer is known, and an error would have nowhere to show. */}
+            <Button variant="destructive" size="sm" disabled={deleting} onClick={deleteClient}>{deleting ? "Deleting…" : "Delete client"}</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -614,16 +652,26 @@ export function ClientsTable({
 }
 
 function getSubscriptionEndLabel(client: Client) {
-  return preSubscriptionStatuses.has(client.status) ? "-" : client.subscriptionEnd;
+  return preSubscriptionStatuses.has(client.status) ? "-" : client.subscriptionEnd || "-";
 }
 
 // Exported for the transactions table on the client page, so a payment method
 // is drawn one way wherever it appears.
-export function PaymentMethodLabel({ method }: { method: PaymentMethod }) {
+export function PaymentMethodLabel({ method, account }: { method: PaymentMethod; account?: string }) {
   if (method === "Not set") return <span>-</span>;
-  if (method === "PayPal") return <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-3 shrink-0 bg-current" style={{ mask: "url(/brands/paypal.svg) center / contain no-repeat", WebkitMask: "url(/brands/paypal.svg) center / contain no-repeat" }} /><span>{method}</span></span>;
-  const Icon = paymentMethodIcons[method];
-  return <span className="inline-flex items-center gap-1.5"><Icon className="size-3 shrink-0" aria-hidden /><span>{method}</span></span>;
+  // The account only when it says more than the type ("PayPal 2", not "PayPal").
+  const label = account && account !== method ? account : method;
+  const mark = paymentMethodMarks[method];
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      {mark ? (
+        <span aria-hidden className="size-3 shrink-0 bg-current" style={{ mask: `url(${mark}) center / contain no-repeat`, WebkitMask: `url(${mark}) center / contain no-repeat` }} />
+      ) : (
+        <CreditCard className="size-3 shrink-0" aria-hidden />
+      )}
+      <span className="truncate">{label}</span>
+    </span>
+  );
 }
 
 // Generic over the field names so the transactions table can sort with it too.

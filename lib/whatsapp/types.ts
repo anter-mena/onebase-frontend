@@ -17,6 +17,8 @@ export type WaConversation = {
   /** Free text and files are allowed until 24h after the client's last message. */
   windowOpen: boolean
   windowEndsAt: string | null
+  /** The client this number belongs to (every number that writes is one). */
+  clientId: number | null
 }
 
 export type WaMessage = {

@@ -1,4 +1,6 @@
-import { Command } from "lucide-react";
+"use client";
+
+import { useEffect, useRef } from "react";
 import { cn } from "cn";
 
 import receipt from "@/components/clients/receipt.module.css";
@@ -26,8 +28,25 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 
 const formatDate = (iso: string) => dateFormatter.format(new Date(`${iso}T00:00:00Z`));
 
+/**
+ * The One Base logo on the black skin, so a slip reads as issued by One Base. A
+ * mask of /Logo.svg in the tile's own ink, so it follows every palette and both
+ * modes. Shared with the Add payment preview, which is the same slip.
+ */
+export function ReceiptMark() {
+  return (
+    <span aria-label="One Base" role="img" className={cn(blackStyle.button, "flex size-11 items-center justify-center p-0!")}>
+      <span
+        aria-hidden
+        className="block size-6 bg-current"
+        style={{ mask: "url(/Logo.svg) center / contain no-repeat", WebkitMask: "url(/Logo.svg) center / contain no-repeat" }}
+      />
+    </span>
+  );
+}
+
 /** One line of the receipt's details: label on the left, value on the right. */
-function ReceiptRow({ label, children }: { label: string; children: React.ReactNode }) {
+export function ReceiptRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className={receipt.muted}>{label}</dt>
@@ -52,6 +71,12 @@ export function EarningsReceipt({
   // ⚠️ Interface phase: composed from the client and how many payments there
   // are, so it is stable and moves on when a payment is added. The API will
   // issue the real one; nothing reads this back.
+  const listRef = useRef<HTMLUListElement>(null);
+  // Opens on the newest line, at the bottom — and again when a payment is added.
+  useEffect(() => {
+    const list = listRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [transactions.length]);
   const reference = `OB-${clientNumber}-${String(transactions.length).padStart(3, "0")}`;
 
   return (
@@ -69,16 +94,7 @@ export function EarningsReceipt({
           {/* Exactly `--notch-y` tall, so the tear line under it lands on the
               notches whatever the header says. */}
           <div className="flex h-(--notch-y) shrink-0 flex-col items-center justify-center px-6 text-center">
-            {/* The workspace's mark, drawn exactly as the sidebar and the login
-                page draw it — the black skin with the Command glyph — so the
-                slip reads as issued by One Base. */}
-            <span
-              aria-label="One Base"
-              role="img"
-              className={cn(blackStyle.button, "flex size-11 items-center justify-center p-0!")}
-            >
-              <Command className="size-5" aria-hidden />
-            </span>
+            <ReceiptMark />
             <h2 className="mt-3 text-sm font-medium">
               {transactions.length ? "Earnings receipt" : "No payments yet"}
             </h2>
@@ -114,8 +130,11 @@ export function EarningsReceipt({
             // The only part of the slip that scrolls. The header above and the
             // totals below stay put, so however long the history, the answer
             // is always on screen — you scroll the lines, not the total.
-            <ul className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto overscroll-contain px-6 py-5 [scrollbar-gutter:stable]">
-              {transactions.map((entry) => (
+            //
+            // ⚠️ Oldest at the top, newest at the bottom, like a till roll — the
+            // reverse of the table beside it, which stays newest first.
+            <ul ref={listRef} className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto overscroll-contain px-6 py-5 [scrollbar-gutter:stable]">
+              {transactions.toReversed().map((entry) => (
                 <li key={entry.id} className="flex items-start justify-between gap-3 text-[0.7rem]">
                   <span className="min-w-0">
                     <span className="block truncate">{entry.description}</span>

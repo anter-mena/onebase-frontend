@@ -51,7 +51,7 @@ export const preSubscriptionStatuses: ReadonlySet<ClientStatus> = new Set<Client
   "Pending",
 ])
 
-export type PaymentMethod = "Card" | "Bank transfer" | "PayPal" | "Not set"
+export type PaymentMethod = "Card" | "Bank transfer" | "PayPal" | "Interac" | "Binance" | "Debit card" | "Not set"
 
 export type Client = {
   id: number
@@ -73,6 +73,21 @@ export type Client = {
   color: string
   /** What the team should know before the next call. Free text, optional. */
   note?: string
+  // ── From the Clients API (absent on the sample rows) ──
+  /** Typed by the team; null while only the WhatsApp name is known. */
+  fullName?: string | null
+  /** The WhatsApp profile name. */
+  username?: string | null
+  /** The phone as stored, "+212612345678" — `phone` is the same number grouped for reading. */
+  phoneE164?: string | null
+  /** ISO code read from the phone by the backend. */
+  countryCode?: string | null
+  brandId?: number | null
+  source?: "MANUAL" | "WHATSAPP"
+  /** Their WhatsApp conversation, or null when they never wrote. */
+  conversationId?: number | null
+  /** ISO time the client was made (their first WhatsApp message). */
+  createdAt?: string
 }
 
 export const clients: Client[] = [
@@ -123,6 +138,11 @@ export type ClientTransaction = {
   /** How many devices the plan covers. */
   devices: number
   method: PaymentMethod
+  /** Which account of that method it was paid to ("PayPal 2"), when known. */
+  account?: string
+  /** The term it bought, ISO dates — a renewal starts where the running term ended. */
+  startsOn?: string
+  endsOn?: string
   /** The brand the plan was sold under. Per payment, not per client — a client can move brands. */
   brand: string
   brandLogo: string

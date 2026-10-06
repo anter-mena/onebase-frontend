@@ -46,3 +46,9 @@ export function countryFromPhone(phone: string): ClientCountry | null {
 
   return { code, name: regionNames.of(code) ?? code }
 }
+
+/** The backend's stored code ("MA"), with its English name. */
+export function countryFromCode(code: string | null | undefined): ClientCountry | null {
+  if (!code) return null
+  return { code, name: regionNames.of(code) ?? code }
+}

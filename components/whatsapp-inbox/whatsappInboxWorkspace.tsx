@@ -3,6 +3,7 @@
 import type { DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
   Categories,
@@ -13,6 +14,7 @@ import type {
 import {
   AlertCircle,
   Apple,
+  ArrowUpRight,
   BusFront,
   Check,
   CheckCheck,
@@ -893,9 +895,17 @@ export function WhatsAppInboxWorkspace({
               </div>
               <div>
                 <p className="text-[0.6rem] font-medium tracking-wider text-muted-foreground uppercase">Client</p>
-                <p className="mt-1.5 text-[0.7rem] text-muted-foreground">
-                  Linking a conversation to a client comes with the Clients module.
-                </p>
+                {activeConversation.clientId ? (
+                  <Link
+                    href={`/clients/${activeConversation.clientId}`}
+                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium underline-offset-4 hover:underline"
+                  >
+                    Open client page
+                    <ArrowUpRight className="size-3" aria-hidden />
+                  </Link>
+                ) : (
+                  <p className="mt-1.5 text-[0.7rem] text-muted-foreground">Not linked to a client yet.</p>
+                )}
               </div>
             </div>
             <a

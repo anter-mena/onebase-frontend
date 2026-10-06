@@ -1,10 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileDown, Search, SlidersHorizontal } from "lucide-react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, FileDown, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 import { cn } from "cn";
 
+import { deletePayment } from "@/app/(private)/clients/actions";
 import { AddPaymentDialog } from "@/components/clients/addPaymentDialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { BrandGlyph } from "@/components/clients/brandGlyph";
 import {
   PaginationButton,
@@ -39,6 +50,7 @@ import {
   transactionColumns,
   type TransactionColumnId,
 } from "@/lib/clients/transactionColumns";
+import type { PaymentOptions } from "@/lib/clients/types";
 
 /**
  * One client's payments, drawn as the Clients table draws its rows.
@@ -98,13 +110,17 @@ const netOf = (entry: ClientTransaction) => entry.amount - (entry.expense ?? 0);
 export function TransactionsTable({
   client,
   transactions,
-  onAddPayments,
   defaultHiddenColumns = [],
+  paymentOptions,
+  canDelete,
   className,
 }: {
   client: Client;
+  /** Admins only: the backend refuses anyone else, so the button isn't offered. */
+  canDelete: boolean;
+  /** Configuration's plans, perks and brands, for Add payment. */
+  paymentOptions: PaymentOptions;
   transactions: readonly ClientTransaction[];
-  onAddPayments: (payments: readonly ClientTransaction[]) => void;
   /** Read from the cookie by the page, so the first HTML is already correct. */
   defaultHiddenColumns?: readonly TransactionColumnId[];
   className?: string;
@@ -112,6 +128,34 @@ export function TransactionsTable({
   // "0012" — names the CSV file, so two clients’ exports never overwrite each other.
   const clientNumber = String(client.id).padStart(4, "0");
   const [query, setQuery] = useState("");
+  /** Said once after a save, e.g. the panel credit went below zero. */
+  const [notice, setNotice] = useState<string | null>(null);
+  const router = useRouter();
+  const [toDelete, setToDelete] = useState<ClientTransaction | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, startDelete] = useTransition();
+  // Set the instant Delete is clicked, so a double click sends one request.
+  const deletingNow = useRef(false);
+
+  function confirmDelete() {
+    const target = toDelete;
+    if (!target || deletingNow.current) return;
+    deletingNow.current = true;
+    setDeleteError(null);
+    startDelete(async () => {
+      try {
+        const result = await deletePayment(target.id);
+        if (!result.ok) {
+          setDeleteError(result.error);
+          return;
+        }
+        setToDelete(null);
+        router.refresh();
+      } finally {
+        deletingNow.current = false;
+      }
+    });
+  }
   // Newest first, the order a statement is read in.
   const [sort, setSort] = useState<{ field: SortField; direction: "asc" | "desc" }>({ field: "at", direction: "desc" });
   const [pageSize, setPageSize] = useState(10);
@@ -226,19 +270,33 @@ export function TransactionsTable({
   }
 
   return (
-    <section aria-label="Transactions" className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card", className)}>
+    <section aria-label="Transactions" className={cn("@container flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card", className)}>
       {/* The Clients toolbar, with the title where the status filter sits:
           this is one card among three, and it has to say what it is. */}
-      <div className="flex shrink-0 flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
-        <div className="min-w-0">
-          <h2 className="text-sm font-medium">Transactions</h2>
-          <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
-            {transactions.length} {transactions.length === 1 ? "payment" : "payments"} · {money(paid)} in total
-          </p>
+      {/* Two rows whatever the width: the title with Export beside it, then the
+          tools. Beside the profile and the receipt this card is narrow even on a
+          wide screen, and one row squeezed everything into each other. */}
+      <div className="flex shrink-0 flex-col gap-2.5 px-4 py-3">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0">
+            <h2 className="text-sm font-medium">Transactions</h2>
+            <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
+              {transactions.length} {transactions.length === 1 ? "payment" : "payments"} · {money(paid)} in total
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={exportCsv}
+            disabled={filtered.length === 0}
+            className={cn(blackStyle.button, "ml-auto shrink-0 px-3! py-0! text-[0.65rem]! font-normal!")}
+          >
+            <FileDown className="size-3" />Export CSV
+          </Button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <div className="relative w-full sm:w-56">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               value={query}
@@ -273,23 +331,26 @@ export function TransactionsTable({
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <AddPaymentDialog client={client} onAdd={(payment) => { onAddPayments([payment]); setQuery(""); setPage(1); }} />
-          <Button
-            type="button"
-            size="sm"
-            onClick={exportCsv}
-            disabled={filtered.length === 0}
-            className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}
-          >
-            <FileDown className="size-3" />Export CSV
-          </Button>
+          <AddPaymentDialog client={client} options={paymentOptions} latest={transactions[0]} onSaved={(warning) => { setNotice(warning); setQuery(""); setPage(1); }} />
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-4 [scrollbar-gutter:stable] [&>[data-slot=table-container]]:overflow-visible">
+      {notice ? (
+        <div role="status" className="mx-4 mb-2 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[0.7rem]">
+          <span className="min-w-0 flex-1">{notice}</span>
+          <button type="button" onClick={() => setNotice(null)} className="shrink-0 text-muted-foreground hover:text-foreground">Dismiss</button>
+        </div>
+      ) : null}
+      {/* ⚠️ The right-hand space is a transparent border on the table itself
+          (`border-r-[1rem]`), not padding on the scroller: a scroller's right
+          padding is not part of what it scrolls, so once the table was wider
+          than the card its header row ran into the right edge. A border is part
+          of the table, so it scrolls with it. (A `w-max` wrapper did the same
+          but made a `table-fixed` table thousands of pixels wide.) */}
+      <div className="min-h-0 flex-1 overflow-auto pl-4 [scrollbar-gutter:stable] [&>[data-slot=table-container]]:overflow-visible">
         <Table
-          style={{ minWidth: `${tableMinWidth}px` }}
-          className="table-fixed border-separate border-spacing-0 text-xs [&_td]:px-1.5 [&_th]:px-1.5 [&_th]:whitespace-nowrap [&_td:last-child]:pr-3 [&_th:last-child]:pr-3"
+          style={{ minWidth: `${tableMinWidth + 16}px` }}
+          className="table-fixed border-separate border-spacing-0 border-r-[1rem] border-r-transparent text-xs [&_td]:px-1.5 [&_th]:px-1.5 [&_th]:whitespace-nowrap [&_td:last-child]:pr-3 [&_th:last-child]:pr-3"
         >
           <TableHeader className="[&_tr]:border-0 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-0 [&_th]:bg-muted/95 [&_th]:backdrop-blur-sm [&_th:first-child]:rounded-l-lg [&_th:last-child]:rounded-r-lg">
             <TableRow className="border-0 hover:bg-transparent">
@@ -318,6 +379,7 @@ export function TransactionsTable({
               {shows("net") ? (
               <TableHead className="w-28 text-right [&>button]:flex-row-reverse"><SortHeader field="net" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Net</SortHeader></TableHead>
               ) : null}
+              <TableHead className="w-[72px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -349,7 +411,7 @@ export function TransactionsTable({
                 ) : null}
                 <TableCell className="truncate font-medium">{entry.description}</TableCell>
                 {shows("method") ? (
-                <TableCell className="text-muted-foreground"><PaymentMethodLabel method={entry.method} /></TableCell>
+                <TableCell className="text-muted-foreground"><PaymentMethodLabel method={entry.method} account={entry.account} /></TableCell>
                 ) : null}
                 {shows("amount") ? (
                 <TableCell className="text-right tabular-nums">{exactMoney(entry.amount)}</TableCell>
@@ -371,6 +433,45 @@ export function TransactionsTable({
                   +{exactMoney(netOf(entry))}
                 </TableCell>
                 ) : null}
+                <TableCell className="text-right">
+                  <div className="inline-flex items-center gap-0.5">
+                    {/* The slip for a small receipt printer, in a new tab: it opens the
+                        print window, where "Save as PDF" downloads it. */}
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <a
+                            href={`/clients/${client.id}/receipts/${entry.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Download the receipt of ${formatDate(entry.at)}`}
+                            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          />
+                        }
+                      >
+                        <Download className="size-3.5" />
+                      </TooltipTrigger>
+                      <TooltipContent>Download receipt</TooltipContent>
+                    </Tooltip>
+                    {canDelete ? (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              type="button"
+                              onClick={() => { setDeleteError(null); setToDelete(entry); }}
+                              aria-label={`Delete the payment of ${formatDate(entry.at)}`}
+                              className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            />
+                          }
+                        >
+                          <Trash2 className="size-3.5" />
+                        </TooltipTrigger>
+                        <TooltipContent>Delete payment</TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -382,14 +483,16 @@ export function TransactionsTable({
         ) : null}
       </div>
 
-      <footer className="flex min-h-12 shrink-0 flex-col gap-2 border-t px-4 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <p>
+      {/* One row at every width: on a narrow card the page-size and Previous /
+          Next buttons drop their words (container queries) instead of wrapping. */}
+      <footer className="flex min-h-12 shrink-0 items-center gap-2 border-t px-4 py-2 text-xs text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2 @xl:gap-3">
+          <p className="whitespace-nowrap">
             Showing <span className="font-medium text-foreground">{filtered.length ? startIndex + 1 : 0}–{Math.min(startIndex + pageSize, filtered.length)}</span> of <span className="font-medium text-foreground">{filtered.length}</span>
           </p>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" size="sm" className={cn(whiteStyle.button, "min-w-28 justify-between px-3! py-0! text-[0.65rem]! font-normal!")} />}>
-              {pageSize} per page<ChevronDown className="size-3" />
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label={`${pageSize} per page`} className={cn(whiteStyle.button, "justify-between gap-1 px-2! py-0! text-[0.65rem]! font-normal! @xl:min-w-28 @xl:px-3!")} />}>
+              {pageSize}<span className="hidden @xl:inline">per page</span><ChevronDown className="size-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-32">
               <DropdownMenuRadioGroup value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); setPage(1); }}>
@@ -400,15 +503,31 @@ export function TransactionsTable({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex items-center gap-1 sm:ml-auto">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <PaginationButton label="First page" disabled={currentPage === 1} onClick={() => setPage(1)}><ChevronsLeft className="size-3" /></PaginationButton>
-          <PaginationButton label="Previous page" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft className="size-3" /><span>Previous</span></PaginationButton>
+          <PaginationButton label="Previous page" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft className="size-3" /><span className="hidden @2xl:inline">Previous</span></PaginationButton>
           <span className="flex h-7 min-w-7 items-center justify-center rounded-md border bg-background px-2 font-medium text-foreground">{currentPage}</span>
-          <span className="px-1">of {pageCount}</span>
-          <PaginationButton label="Next page" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}><span>Next</span><ChevronRight className="size-3" /></PaginationButton>
+          <span className="px-1 whitespace-nowrap">of {pageCount}</span>
+          <PaginationButton label="Next page" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}><span className="hidden @2xl:inline">Next</span><ChevronRight className="size-3" /></PaginationButton>
           <PaginationButton label="Last page" disabled={currentPage === pageCount} onClick={() => setPage(pageCount)}><ChevronsRight className="size-3" /></PaginationButton>
         </div>
       </footer>
+      <AlertDialog open={Boolean(toDelete)} onOpenChange={(open) => { if (!open && !deleting) setToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {toDelete ? `${exactMoney(toDelete.amount)} on ${formatDate(toDelete.at)} — ${toDelete.description}. ` : null}
+              It leaves every total and its panel credits come back. The Action log keeps a record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError ? <p role="alert" className="text-xs text-destructive">{deleteError}</p> : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel size="sm" disabled={deleting}>Cancel</AlertDialogCancel>
+            <Button variant="destructive" size="sm" disabled={deleting} onClick={confirmDelete}>{deleting ? "Deleting…" : "Delete payment"}</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
