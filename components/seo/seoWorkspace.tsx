@@ -3,9 +3,7 @@
 import { type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { format } from "date-fns";
-import type { DateRange } from "react-day-picker";
-import { CalendarDays, Monitor, Smartphone, Tablet, TrendingDown, TrendingUp } from "lucide-react";
+import { Monitor, Smartphone, Tablet, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "cn";
 
 // ⚠️ Borrowed from the dashboard rather than copied. `StatTile`, `SplitBar` and
@@ -15,12 +13,11 @@ import { cn } from "cn";
 import { SplitBar, StatTile } from "@/components/dashboard/figures";
 import { hatch } from "@/components/dashboard/hatch";
 import { Panel } from "@/components/dashboard/panels";
+import { RangeFilter } from "@/components/app-shell/rangeFilter";
 import { CountriesMap } from "@/components/seo/countriesMap";
 import { TrafficChart } from "@/components/seo/trafficChart";
 import { count, percent, signedPercent } from "@/lib/format";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { rangeNote, seoRanges, seoView, type SeoBrand, type SeoOverview, type SeoRangeId, type TrafficSeries } from "@/lib/seo/types";
+import { rangeNote, seoView, type SeoBrand, type SeoOverview, type TrafficSeries } from "@/lib/seo/types";
 
 /**
  * "1m 36s" — an average engagement time.
@@ -645,100 +642,3 @@ function SeriesTabs({ value, onChange }: { value: TrafficSeries; onChange: (next
  * The period: five presets and a custom range. The same segmented control the
  * dashboard uses; the last segment opens a two-month calendar.
  */
-function RangeFilter({
-  value,
-  start,
-  end,
-  onChange,
-  onCustom,
-}: {
-  value: SeoRangeId;
-  /** The dates on screen, to start the calendar from. */
-  start: string;
-  end: string;
-  onChange: (next: SeoRangeId) => void;
-  onCustom: (from: string, to: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [picked, setPicked] = useState<DateRange | undefined>(() => ({
-    from: new Date(`${start}T00:00:00`),
-    to: new Date(`${end}T00:00:00`),
-  }));
-  const today = new Date();
-
-  return (
-    <div
-      role="group"
-      aria-label="Period"
-      className="inline-flex shrink-0 flex-wrap rounded-lg border border-border/60 bg-muted p-0.5"
-    >
-      {seoRanges.map((entry) => (
-        <button
-          key={entry.id}
-          type="button"
-          onClick={() => onChange(entry.id)}
-          aria-pressed={value === entry.id}
-          className={cn(
-            "inline-flex h-6 items-center rounded-md border border-transparent px-2.5 text-[0.7rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
-            value === entry.id
-              ? "border-border bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {entry.label}
-        </button>
-      ))}
-
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          render={
-            <button
-              type="button"
-              aria-pressed={value === "custom"}
-              className={cn(
-                "inline-flex h-6 items-center gap-1 rounded-md border border-transparent px-2.5 text-[0.7rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
-                value === "custom"
-                  ? "border-border bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            />
-          }
-        >
-          <CalendarDays aria-hidden className="size-3" />
-          {value === "custom" ? rangeNote({ range: "custom", start, end }) : "Custom"}
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-max max-w-[calc(100vw-2rem)] p-0">
-          <Calendar
-            mode="range"
-            selected={picked}
-            onSelect={setPicked}
-            numberOfMonths={2}
-            defaultMonth={picked?.from}
-            disabled={{ after: today }}
-            fixedWeeks
-          />
-          <div className="flex items-center justify-end gap-2 px-3 pb-3">
-            <span className="mr-auto text-[0.65rem] text-muted-foreground">
-              {picked?.from ? format(picked.from, "d MMM yyyy") : "Pick a start"}
-              {" – "}
-              {picked?.to ? format(picked.to, "d MMM yyyy") : "and an end"}
-            </span>
-            <button
-              type="button"
-              disabled={!picked?.from}
-              onClick={() => {
-                if (!picked?.from) return;
-                const to = picked.to ?? picked.from;
-                setOpen(false);
-                onCustom(format(picked.from, "yyyy-MM-dd"), format(to, "yyyy-MM-dd"));
-              }}
-              className="h-7 rounded-md border bg-foreground px-3 text-[0.7rem] font-medium text-background disabled:opacity-50"
-            >
-              Apply
-            </button>
-          </div>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}

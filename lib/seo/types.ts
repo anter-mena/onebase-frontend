@@ -117,30 +117,31 @@ export function rangeNote(data: Pick<SeoOverview, "range" | "start" | "end">): s
 /** The order the device bar keeps, so each device keeps its colour. */
 const DEVICE_ORDER = ["desktop", "mobile", "tablet"]
 
+/**
+ * A chart column's words for its start ("2026-10-06" or "2026-10-06T14:00"): the
+ * tick and the tooltip. Shared with the Dashboard, so a period reads the same.
+ */
+export function pointLabels(step: SeoStep, start: string, fewDays: boolean): { label: string; fullLabel: string } {
+  const date = new Date(start.includes("T") ? `${start}:00Z` : `${start}T00:00:00Z`)
+  switch (step) {
+    case "HOUR": {
+      const label = start.slice(11, 16)
+      return { label, fullLabel: `${DAY_FULL.format(date)}, ${label}` }
+    }
+    case "WEEK":
+      return { label: SHORT.format(date), fullLabel: `Week of ${LONG.format(date)}` }
+    case "MONTH":
+      return { label: MONTH.format(date), fullLabel: MONTH_FULL.format(date) }
+    default:
+      return { label: fewDays ? WEEKDAY.format(date) : SHORT.format(date), fullLabel: DAY_FULL.format(date) }
+  }
+}
+
 /** Everything the page draws, worked out once from the backend's answer. */
 export function seoView(data: SeoOverview) {
   const fewDays = data.traffic.length <= 7
   const series = data.traffic.map((point) => {
-    const date = new Date(point.start.includes("T") ? `${point.start}:00Z` : `${point.start}T00:00:00Z`)
-    let label: string
-    let fullLabel: string
-    switch (data.step) {
-      case "HOUR":
-        label = point.start.slice(11, 16)
-        fullLabel = `${DAY_FULL.format(date)}, ${label}`
-        break
-      case "WEEK":
-        label = SHORT.format(date)
-        fullLabel = `Week of ${LONG.format(date)}`
-        break
-      case "MONTH":
-        label = MONTH.format(date)
-        fullLabel = MONTH_FULL.format(date)
-        break
-      default:
-        label = fewDays ? WEEKDAY.format(date) : SHORT.format(date)
-        fullLabel = DAY_FULL.format(date)
-    }
+    const { label, fullLabel } = pointLabels(data.step, point.start, fewDays)
     return {
       label,
       fullLabel,

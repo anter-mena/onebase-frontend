@@ -5,7 +5,7 @@ import { cn } from "cn";
 
 import { hatch } from "@/components/dashboard/hatch";
 import { compactMoney, money } from "@/lib/format";
-import type { RevenuePoint } from "@/lib/dashboard/sample";
+import type { RevenuePoint } from "@/lib/dashboard/types";
 
 /**
  * Money in and money out, around a zero line.
@@ -180,7 +180,8 @@ export function RevenueChart({
    * is real code rather than one nobody has seen. When the API arrives, delete
    * the timer and drive `loading` from the request.
    */
-  const [loading, setLoading] = useState(true);
+  // The data arrives with the page now, so there is nothing to wait for.
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => setLoading(false), 900);
     return () => window.clearTimeout(timer);

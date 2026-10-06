@@ -233,7 +233,8 @@ export function Gauge({
  * logo was never carrying it alone.
  */
 function BrandMark({ slug, className }: { slug: string; className?: string }) {
-  const src = `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+  // A brand's own logo from Configuration ("/api/brands/3/logo?v=…"), or a Simple Icons slug.
+  const src = slug.includes("/") ? slug : `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
 
   return (
     <span
@@ -271,7 +272,7 @@ export function SplitBar({
     value: number;
     color: string;
     note?: string;
-    /** Simple Icons slug. Optional — without one the row shows its swatch alone. */
+    /** Our logo address, or a Simple Icons slug. Optional — without one the row shows its swatch alone. */
     logo?: string;
   }[];
   total: number;

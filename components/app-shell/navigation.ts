@@ -1,4 +1,4 @@
-import { Globe, LayoutDashboard, Mail, MessageCircle, RefreshCcw, ScrollText, Server, Settings, Users, UsersRound } from "lucide-react";
+import { BookText, Globe, LayoutDashboard, Mail, MessageCircle, RefreshCcw, ScrollText, Server, Settings, Users, UsersRound } from "lucide-react";
 
 export const settingsNavigation = [
   { label: "Panel", value: "panel", href: "/configuration?tab=panel", description: "Manage the panels available in your workspace." },
@@ -14,6 +14,13 @@ export const appNavigation = [
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    available: true,
+  },
+  {
+    section: "Workspace",
+    label: "Ledger",
+    href: "/ledger",
+    icon: BookText,
     available: true,
   },
   {

@@ -1,25 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  CirclePlus,
-  History,
-  RefreshCcw,
-  Send,
-  TriangleAlert,
-  UserPlus,
-} from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ArrowRight, ChevronLeft, ChevronRight, History, TriangleAlert } from "lucide-react";
 import { cn } from "cn";
 
 import { PaymentMethodCard } from "@/components/settings/paymentMethodCard";
-import { paymentMethods } from "@/components/settings/paymentMethodsSample";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { money } from "@/lib/format";
-import { recentClients, renewalsDue } from "@/lib/dashboard/sample";
+import { exactMoney, money } from "@/lib/format";
+import type { DashboardOverview } from "@/lib/dashboard/types";
+import { amountFormatter, networkLogos, providerToCard } from "@/lib/paymentMethods/types";
 
 /** The card every panel on this page sits in. */
 export function Panel({
@@ -62,219 +52,207 @@ export function Panel({
   );
 }
 
+const headerLinkClassName =
+  "inline-flex shrink-0 items-center gap-1 text-[0.65rem] font-medium text-muted-foreground hover:text-foreground";
+
+const AVATAR_TINTS = [
+  "bg-emerald-100 text-emerald-800", "bg-violet-100 text-violet-800", "bg-amber-100 text-amber-800", "bg-sky-100 text-sky-800",
+  "bg-rose-100 text-rose-800", "bg-fuchsia-100 text-fuchsia-800", "bg-cyan-100 text-cyan-800", "bg-orange-100 text-orange-800",
+  "bg-indigo-100 text-indigo-800", "bg-pink-100 text-pink-800", "bg-lime-100 text-lime-800", "bg-teal-100 text-teal-800",
+];
+
+function initialsOf(name: string) {
+  const words = name.trim().split(/\s+/).filter((word) => /\p{L}/u.test(word));
+  if (words.length === 0) return name.replace(/\D/g, "").slice(-2) || "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+/** "in 3 days", "ends today", "ended 5 days ago", "trial over", "waiting". */
+function chaseLabel(row: DashboardOverview["chase"][number]) {
+  if (row.group === "CALLBACK") return "trial over — call back";
+  if (row.group === "PENDING") return "waiting for their payment";
+  const days = row.daysLeft ?? 0;
+  if (days === 0) return "ends today";
+  if (days > 0) return `ends in ${days} ${days === 1 ? "day" : "days"}`;
+  return `ended ${-days} ${days === -1 ? "day" : "days"} ago`;
+}
+
 /**
- * The renewals that are already late.
+ * The most urgent of Renewals: plans ending in 10 days or less, trials to call
+ * back, payments we are waiting for, and plans that ended in the last 30 days.
  *
- * <p>⚠️ Overdue is marked with an icon and the word, not with red alone — the
+ * <p>⚠️ Ended is marked with an icon and the words, not with red alone — the
  * same rule the status pills follow. Red is the reinforcement.
  */
-export function RenewalsPanel({ className }: { className?: string }) {
-  const overdue = renewalsDue.filter((row) => row.overdue);
-  const owed = overdue.reduce((total, row) => total + row.amount, 0);
-
+export function RenewalsPanel({ rows, className }: { rows: DashboardOverview["chase"]; className?: string }) {
+  const ended = rows.filter((row) => row.group === "INACTIVE").length;
   return (
     <Panel
       className={className}
       title="Needs chasing"
-      note={`${overdue.length} overdue · ${money(owed)} at risk`}
+      note={rows.length === 0 ? "Nobody right now" : `${rows.length} to follow up${ended ? ` · ${ended} ended` : ""}`}
       action={
-        <Link
-          href="/renewals"
-          className="inline-flex shrink-0 items-center gap-1 text-[0.65rem] font-medium text-muted-foreground hover:text-foreground"
-        >
+        <Link href="/renewals" className={headerLinkClassName}>
           All
           <ArrowRight className="size-3" aria-hidden />
         </Link>
       }
     >
-      {/* `pt-2` on top of the Panel's own 16px, so the first name is clearly
-          below the header rather than reading as the next line of it. The rows
-          carry avatars and two lines of text each — at 16px the block started
-          before the header had finished. */}
       <ul className="flex flex-col gap-3 pt-2">
-        {renewalsDue.map((row) => (
-          <li key={row.name} className="flex items-center gap-2.5">
-            <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", row.color)}>
-              {row.initials}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-medium">{row.name}</span>
-              <span className="mt-0.5 flex items-center gap-1 text-[0.6rem] text-muted-foreground">
-                {row.overdue ? (
-                  <TriangleAlert className="size-2.5 shrink-0" style={{ color: "var(--viz-critical)" }} aria-hidden />
+        {rows.map((row) => {
+          const late = row.group === "INACTIVE";
+          return (
+            <li key={row.client.id}>
+              <Link href={`/clients/${row.client.id}`} className="group flex items-center gap-2.5">
+                <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", AVATAR_TINTS[row.client.id % AVATAR_TINTS.length])}>
+                  {initialsOf(row.client.name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-medium group-hover:underline">{row.client.name}</span>
+                  <span className="mt-0.5 flex items-center gap-1 text-[0.6rem] text-muted-foreground">
+                    {late ? <TriangleAlert className="size-2.5 shrink-0" style={{ color: "var(--viz-critical)" }} aria-hidden /> : null}
+                    {chaseLabel(row)}
+                  </span>
+                </span>
+                {row.client.revenue > 0 ? (
+                  <span className="shrink-0 text-xs font-medium tabular-nums">{money(row.client.revenue)}</span>
                 ) : null}
-                {row.endsIn}
-              </span>
-            </span>
-            {row.amount > 0 ? (
-              <span className="shrink-0 text-xs font-medium tabular-nums">{money(row.amount)}</span>
-            ) : null}
-          </li>
-        ))}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </Panel>
   );
 }
 
-/*
- * ⚠️ `ActivityPanel` used to live here — "Recent activity", a log of the last
- * few payments and refunds. It shared the sidebar with the payment card and was
- * replaced by `RenewalsPanel`, which earns the slot: a log says what already
- * happened, and the sidebar is the one part of the page that is always on
- * screen. `recentActivity` is still in the sample data if it is wanted again.
- */
-
-const quickActions = [
-  { label: "New client", icon: UserPlus, href: "/clients" },
-  { label: "Renewals", icon: RefreshCcw, href: "/renewals" },
-  { label: "Send", icon: Send, href: "/inbox" },
-  { label: "History", icon: History, href: "/clients" },
-] as const;
+const dayFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 /**
- * The account's own money, and the things done with it most often.
- *
- * <p>The card is the component the Payment methods screen already uses, not a
- * second drawing of one — so a change to the artwork shows up in both places,
- * and it keeps the default look here for the same reason it does there.
+ * Where clients pay you: every account switched on, one card at a time
+ * (decided 2026-10-06), with the arrows to move between them. Under the card,
+ * that account's figures for the period, and History — the Ledger, filtered to
+ * it.
  *
  * <p>⚠️ <b>When this panel is told to grow, the panel grows — never the card
- * inside it.</b> The artwork is a fixed piece at a fixed height; stretching it
- * is what a bank card looks like when it is wrong. The three blocks share the
- * extra room instead, with the contacts row pinned to the bottom edge.
+ * inside it.</b> The artwork is a fixed piece at a fixed height; the blocks under
+ * it share the extra room.
  */
-export function PaymentPanel({ className }: { className?: string }) {
-  const method = paymentMethods[0];
+export function PaymentPanel({
+  methods,
+  periodNote,
+  periodQuery,
+  className,
+}: {
+  methods: DashboardOverview["methods"];
+  /** "this month" — what "Received" covers. */
+  periodNote: string;
+  /** The period in the address bar, carried to the Ledger. */
+  periodQuery: string;
+  className?: string;
+}) {
+  const [index, setIndex] = useState(0);
+  const count = methods.length;
+  const current = count ? methods[Math.min(index, count - 1)] : null;
+  const move = (step: number) => setIndex((value) => (value + step + count) % count);
 
   return (
     <Panel
       className={className}
       title="Payment methods"
-      note="Where clients pay you"
+      note={count ? `${Math.min(index, count - 1) + 1} of ${count} · where clients pay you` : "Where clients pay you"}
       action={
-        <Link
-          href="/configuration?tab=payment-methods"
-          className="inline-flex shrink-0 items-center gap-1 text-[0.65rem] font-medium text-muted-foreground hover:text-foreground"
-        >
+        <Link href="/configuration?tab=payment-methods" className={headerLinkClassName}>
           Manage
           <ArrowRight className="size-3" aria-hidden />
         </Link>
       }
     >
-      {/* The three blocks spread down the panel, with the slack shared four
-          ways rather than two.
-          `justify-between` put every spare pixel into the two gaps around the
-          quick actions and none above the card or below the contacts, which
-          left the actions marooned in the middle of the panel. `evenly` adds
-          the ends to the count: the same total is divided into space above the
-          card, either side of the actions and under the contacts, so each gap
-          is half what it was and the blocks sit in the panel rather than being
-          pushed to its corners.
+      {current ? (
+        <div className="flex h-full flex-col justify-evenly gap-3">
+          <div className="flex items-center gap-2">
+            <CarouselButton label="Previous card" disabled={count < 2} onClick={() => move(-1)}>
+              <ChevronLeft className="size-3.5" />
+            </CarouselButton>
+            <div className="flex min-w-0 flex-1" aria-live="polite">
+              <PaymentMethodCard
+                key={current.id}
+                className="max-sm:min-h-[10.5rem]"
+                provider={providerToCard[current.provider]}
+                active
+                methodName={current.name}
+                amount={amountFormatter.format(current.balance)}
+                currency="USD"
+                holder={current.holder}
+                networks={networkLogos[current.cardNetwork]}
+              />
+            </div>
+            <CarouselButton label="Next card" disabled={count < 2} onClick={() => move(1)}>
+              <ChevronRight className="size-3.5" />
+            </CarouselButton>
+          </div>
 
-          `gap-3` is the floor for when there is no slack at all — below `xl`
-          this panel is not stretched, and `evenly` has nothing to hand out. */}
-      <div className="flex h-full flex-col justify-evenly gap-3">
-      {/* Full width of the panel, at its own 12rem height.
-          The card is not what gets resized here — the column is. Three earlier
-          attempts fought the card itself: a 20rem cap left a strip of empty
-          panel beside it, a bank card ratio filled the strip but grew it to
-          ~19rem, and a shorter card fixed a height nobody had complained
-          about. Narrowing the column instead makes the card smaller and leaves
-          no gap, because the card simply fills it. */}
-      <div className="flex">
-        <PaymentMethodCard
-          // Shorter on a phone, and only on a phone. `min-h-48` (12rem) is the
-          // height the Payment methods grid uses, where the card is roughly as
-          // wide as a card should be; on a narrow column that same height stops
-          // looking like a card and starts looking like a block.
-          //
-          // 10.5rem is the midpoint: 12rem read as too tall here and 9rem as
-          // too short, so this splits them rather than stepping to the next
-          // scale value and landing near one end again.
-          //
-          // ⚠️ The artwork's height is fixed and stays that way. When this
-          // panel has to be taller the panel grows — see the wrapper below.
-          //
-          // `max-sm:` rather than a new base plus an `sm:` override, so the
-          // shared height stays the one thing stated — this only subtracts from
-          // it below 640px.
-          className="max-sm:min-h-[10.5rem]"
-          provider={method.id}
-          active={method.active}
-          methodName={method.name}
-          amount={method.amount}
-          currency={method.currency}
-          holder={method.holder}
-          networks={method.networks}
-        />
-      </div>
+          {count > 1 ? (
+            <div className="flex justify-center gap-1.5" role="tablist" aria-label="Cards">
+              {methods.map((method, at) => (
+                <button
+                  key={method.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={method.id === current.id}
+                  aria-label={method.name}
+                  onClick={() => setIndex(at)}
+                  className={cn("h-1.5 rounded-full transition-all", method.id === current.id ? "w-4 bg-foreground" : "w-1.5 bg-foreground/25 hover:bg-foreground/50")}
+                />
+              ))}
+            </div>
+          ) : null}
 
-      {/* No margins on the blocks any more — the column above spaces them. A
-          `mt-*` here would be added on top of the distributed gap and pull the
-          middle block off centre. */}
-      <div className="grid grid-cols-4 gap-2">
-        {quickActions.map(({ label, icon: Icon, href }) => (
+          {/* This card's figures for the period, where the quick actions were. */}
+          <dl className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/30 p-3 text-center">
+            <div className="min-w-0">
+              <dt className="truncate text-[0.6rem] text-muted-foreground">Received, {periodNote}</dt>
+              <dd className="mt-0.5 truncate text-sm font-semibold tabular-nums">{exactMoney(current.received)}</dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="truncate text-[0.6rem] text-muted-foreground">Payments</dt>
+              <dd className="mt-0.5 text-sm font-semibold tabular-nums">{current.payments}</dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="truncate text-[0.6rem] text-muted-foreground">Last payment</dt>
+              <dd className="mt-0.5 truncate text-sm font-semibold">{current.lastPaidOn ? dayFormatter.format(new Date(`${current.lastPaidOn}T00:00:00Z`)) : "—"}</dd>
+            </div>
+          </dl>
+
           <Link
-            key={label}
-            href={href}
-            className="flex flex-col items-center gap-1 text-[0.6rem] text-muted-foreground hover:text-foreground"
+            href={`/ledger?method=${current.id}${periodQuery ? `&${periodQuery}` : ""}`}
+            className={cn(whiteStyle.button, "flex h-8 w-full items-center justify-center gap-1.5 p-0! text-[0.7rem]! font-medium!")}
           >
-            <span className={cn(whiteStyle.button, "flex size-8 items-center justify-center p-0!")}>
-              <Icon className="size-3.5" aria-hidden />
-            </span>
-            {label}
-          </Link>
-        ))}
-      </div>
-
-      {/* No `pb` of its own — the column's `evenly` now leaves a gap under
-          this block, and a padding on top of that would double it. */}
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">In touch recently</p>
-          <Link
-            href="/clients"
-            aria-label="All clients"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <ArrowUpRight className="size-3.5" aria-hidden />
+            <History className="size-3.5" aria-hidden />
+            History — every payment to {current.name}
           </Link>
         </div>
-
-        <ul className="mt-2 flex items-center">
-          {recentClients.map((client, index) => (
-            <li key={client.name} className={index > 0 ? "-ml-2" : undefined}>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Link
-                      href="/clients"
-                      aria-label={client.name}
-                      className={cn(
-                        "flex size-7 items-center justify-center rounded-full text-[0.6rem] font-semibold ring-2 ring-card transition-transform hover:-translate-y-0.5",
-                        client.color,
-                      )}
-                    />
-                  }
-                >
-                  {client.initials}
-                </TooltipTrigger>
-                <TooltipContent>{client.name}</TooltipContent>
-              </Tooltip>
-            </li>
-          ))}
-          <li className="-ml-2">
-            <Link
-              href="/clients"
-              aria-label="Add a client"
-              className="flex size-7 items-center justify-center rounded-full border border-dashed bg-card text-muted-foreground ring-2 ring-card hover:text-foreground"
-            >
-              <CirclePlus className="size-3.5" aria-hidden />
-            </Link>
-          </li>
-        </ul>
-      </div>
-      </div>
+      ) : (
+        <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 text-center text-xs text-muted-foreground">
+          No payment method switched on.
+          <Link href="/configuration?tab=payment-methods" className="font-medium text-foreground underline-offset-4 hover:underline">Add one in Configuration</Link>
+        </div>
+      )}
     </Panel>
+  );
+}
+
+function CarouselButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(whiteStyle.button, "flex size-7 shrink-0 items-center justify-center p-0! disabled:pointer-events-none disabled:opacity-35")}
+    >
+      {children}
+    </button>
   );
 }
