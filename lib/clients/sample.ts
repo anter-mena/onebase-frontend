@@ -88,6 +88,8 @@ export type Client = {
   conversationId?: number | null
   /** ISO time the client was made (their first WhatsApp message). */
   createdAt?: string
+  /** ISO time the status last changed — a trial's start. */
+  statusChangedAt?: string
 }
 
 export const clients: Client[] = [

@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ClientCountry } from "@/lib/clients/country";
-import { statusFromBackend, type BackendClientStatus, type ClientDraft } from "@/lib/clients/types";
+import { MANUAL_STATUSES, statusFromBackend, statusToBackend, type BackendClientStatus, type ClientDraft } from "@/lib/clients/types";
 import {
   type Client,
   type ClientStatus,
@@ -160,10 +160,13 @@ export function ClientProfile({
                   value={edit.draft.status}
                   onValueChange={(value) => edit.onChange({ status: value as BackendClientStatus })}
                 >
-                  {STATUS_ORDER.map((status) => (
+                  {/* Only Trial, Pending and Drop are chosen by hand; the status the
+                      client has now stays in the list so it can be kept. */}
+                  {STATUS_ORDER.filter((status) => MANUAL_STATUSES.includes(status) || status === statusToBackend[client.status]).map((status) => (
                     <DropdownMenuRadioItem key={status} value={status} closeOnClick className="text-xs">
                       <span aria-hidden className={cn("size-1.5 rounded-full", statusDots[statusFromBackend[status]])} />
                       {statusFromBackend[status]}
+                      {MANUAL_STATUSES.includes(status) ? null : <span className="text-muted-foreground">· automatic</span>}
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>

@@ -4,7 +4,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js"
 
 import { apiFetch, type ApiResult } from "@/lib/api"
 import { planDescription, type Client, type ClientTransaction } from "@/lib/clients/sample"
-import { providerLabels, statusFromBackend, type ApiClient, type ApiPayment } from "@/lib/clients/types"
+import { providerLabels, statusFromBackend, type ApiClient, type ApiPayment, type ApiRenewal, type RenewalGroup } from "@/lib/clients/types"
 
 /**
  * The Clients screens' loaders: `GET /api/clients` and one client. Both roles.
@@ -16,6 +16,14 @@ import { providerLabels, statusFromBackend, type ApiClient, type ApiPayment } fr
 export async function getClients(): Promise<ApiResult<Client[]>> {
   const result = await apiFetch<ApiClient[]>("/api/clients", { authenticated: true })
   return result.ok ? { ok: true, data: result.data.map(toClient) } : result
+}
+
+/** Renewals: the clients to follow up, with their group and days left. */
+export async function getRenewals(): Promise<ApiResult<{ client: Client; group: RenewalGroup; daysLeft: number | null }[]>> {
+  const result = await apiFetch<ApiRenewal[]>("/api/renewals", { authenticated: true })
+  return result.ok
+    ? { ok: true, data: result.data.map((row) => ({ client: toClient(row.client), group: row.group, daysLeft: row.daysLeft })) }
+    : result
 }
 
 /** A client's payments, newest first, as the ledger draws them. */
@@ -116,6 +124,7 @@ function toClient(api: ApiClient): Client {
     source: api.source,
     conversationId: api.conversationId,
     createdAt: api.createdAt,
+    statusChangedAt: api.statusChangedAt,
   }
 }
 

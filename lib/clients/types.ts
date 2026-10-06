@@ -49,7 +49,26 @@ export type ApiClient = {
   paymentMethodName: string | null
   /** Payments in each of the last four quarters, oldest first. */
   orderTrend: number[]
+  /** When the status last changed — a trial's start. ISO time. */
+  statusChangedAt: string
 }
+
+/** Renewals' groups (decided 2026-10-06). */
+export type RenewalGroup = "ENDING_SOON" | "CALLBACK" | "PENDING" | "INACTIVE"
+
+/** One row of `GET /api/renewals`. */
+export type ApiRenewal = {
+  client: ApiClient
+  group: RenewalGroup
+  /** Days until the paid time ends; negative once it has; null without a plan. */
+  daysLeft: number | null
+}
+
+/**
+ * The statuses a person may choose; New, Callback, Active and Inactive follow
+ * from messages, trials and payments (decided 2026-10-06).
+ */
+export const MANUAL_STATUSES: readonly BackendClientStatus[] = ["TRIAL", "PENDING", "DROP"]
 
 export type BackendProvider = "PAYPAL" | "BINANCE" | "INTERAC" | "DEBIT_CARD"
 
