@@ -16,6 +16,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "One Base",
   description: "Manage your clients and services with One Base.",
+  // A private backoffice: never in search results. next.config.ts also sends
+  // X-Robots-Tag on every response, and app/robots.ts asks crawlers to stay out.
+  robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

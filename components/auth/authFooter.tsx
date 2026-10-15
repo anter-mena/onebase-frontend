@@ -12,7 +12,7 @@ export function AuthFooter() {
         </Link>
       </div>
       <nav aria-label="Legal" className="flex items-center gap-4">
-        <Link href="#" className="underline-offset-4 hover:text-foreground hover:underline">Privacy Policy</Link>
+        <Link href="/privacy-policy" className="underline-offset-4 hover:text-foreground hover:underline">Privacy Policy</Link>
         <Link href="#" className="underline-offset-4 hover:text-foreground hover:underline">Terms of Use</Link>
       </nav>
     </footer>

@@ -16,6 +16,19 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // A private backoffice: no response — page, image, file or /api — may be indexed.
+  headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }],
+      },
+    ];
+  },
+  // The privacy policy's old address, still saved in Meta's app settings.
+  redirects() {
+    return [{ source: "/privacy", destination: "/privacy-policy", permanent: true }];
+  },
   rewrites() {
     if (!BACKEND_URL) {
       console.warn(
