@@ -503,8 +503,9 @@ export function WhatsAppInboxWorkspace({
   /** A file, with what is in the box as its caption. */
   async function sendFile(file: File) {
     if (!activeConversation) return;
-    if (file.size > 16 * 1024 * 1024) {
-      setError("Files can be 16 MB at most.");
+    // The file goes through this app's host (Vercel), which refuses a request over 4.5 MB.
+    if (file.size > 4 * 1024 * 1024) {
+      setError("Files can be 4 MB at most.");
       return;
     }
     setError(null);
@@ -768,7 +769,7 @@ export function WhatsAppInboxWorkspace({
                 <FileUp className="size-5" />
               </span>
               <p className="mt-3 text-sm font-semibold">Drop a file to send</p>
-              <p className="mt-1 text-[0.65rem] text-muted-foreground">Photos, videos, audio and documents · 16 MB at most</p>
+              <p className="mt-1 text-[0.65rem] text-muted-foreground">Photos, videos, audio and documents · 4 MB at most</p>
             </div>
           </div>
           <div className="relative z-10 h-full overflow-y-auto px-4 py-5 [scrollbar-gutter:stable] lg:px-8">

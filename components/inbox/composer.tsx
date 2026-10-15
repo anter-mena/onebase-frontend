@@ -36,8 +36,11 @@ export type ComposeMode =
   | { kind: "reply" | "replyAll" | "forward"; source: MailDetail }
   | { kind: "draft"; draft: MailDetail }
 
-/** Gmail refuses emails over 25 MB once encoded; the backend allows 18 MB of files. */
-const MAX_FILES_BYTES = 18 * 1024 * 1024
+/**
+ * The files go through this app's host (Vercel), which refuses a request over 4.5 MB:
+ * 4 MB leaves room for the rest of the email. The backend itself would take 18 MB.
+ */
+const MAX_FILES_BYTES = 4 * 1024 * 1024
 
 const splitAddresses = (value: string) =>
   value
@@ -157,7 +160,7 @@ export function Composer({
       return
     }
     if (filesBytes > MAX_FILES_BYTES) {
-      setError("The files are too big together (18 MB at most).")
+      setError("The files are too big together (4 MB at most).")
       return
     }
 

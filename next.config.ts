@@ -5,6 +5,13 @@ import type { NextConfig } from "next";
 const BACKEND_URL = process.env.BACKEND_URL;
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // A brand logo (up to 1 MB) travels as base64 text, a third bigger: the 1 MB
+      // default refused logos from about 750 KB and broke the page.
+      bodySizeLimit: "2mb",
+    },
+  },
   images: {
     remotePatterns: [
       {

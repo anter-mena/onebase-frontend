@@ -7,7 +7,7 @@ import { backendRaw } from "@/lib/inbox/backendRaw"
  * backend as it came (multipart: "message" JSON + "files").
  *
  * <p>A route rather than a server action because server actions cap a request at
- * 1 MB, and attachments go up to 18 MB.
+ * 2 MB here, and attachments go up to 4 MB (the host's own limit, see composer.tsx).
  */
 export async function POST(request: Request) {
   const kind = new URL(request.url).searchParams.get("kind") === "draft" ? "drafts" : "send"
