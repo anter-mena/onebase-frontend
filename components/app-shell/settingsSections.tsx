@@ -700,14 +700,14 @@ const supportChannels = [
     title: "WhatsApp",
     description: "For anything urgent during working hours.",
     action: "Open chat",
-    href: "https://wa.me/212600000000",
+    href: "/coming-soon",
   },
   {
     icon: BookOpen,
     title: "Documentation",
     description: "Guides for every screen in One Base.",
     action: "Read the docs",
-    href: "https://docs.onebase.app",
+    href: "/coming-soon",
   },
 ];
 

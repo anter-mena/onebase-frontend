@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ShieldCheck, X } from "lucide-react";
 import { cn } from "cn";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import purpleStyle from "@/components/ui/button-styles/purple.module.css";
 
 export function SecurityCard() {
@@ -47,14 +48,12 @@ export function SecurityCard() {
         <Button type="button" size="sm" className="h-7 text-[0.65rem]" disabled>
           Coming soon
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 text-[0.65rem]"
+        <Link
+          href="/coming-soon"
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 text-[0.65rem]")}
         >
           Learn more
-        </Button>
+        </Link>
       </div>
     </section>
   );

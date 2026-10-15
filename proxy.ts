@@ -29,7 +29,8 @@ import { SESSION_COOKIE } from "@/lib/cookieNames"
 
 const GUEST_ONLY = ["/login", "/reset-password", "/accept-invite"]
 // /privacy-policy: public on purpose — Meta needs a privacy policy address to publish the WhatsApp app.
-const OPEN = ["/401", "/403", "/404", "/429", "/500", "/503", "/privacy-policy"]
+// /coming-soon: where links to unfinished pages lead, some of them on the login page.
+const OPEN = ["/401", "/403", "/404", "/429", "/500", "/503", "/privacy-policy", "/coming-soon"]
 const SITE_MAP = "/site-map"
 
 /**

@@ -42,7 +42,7 @@ export default async function LoginPage({
               <p className="text-xs text-muted-foreground">
                 Can&apos;t access your account?
                 <br />
-                <Link href="#" className="underline underline-offset-4 hover:text-foreground">
+                <Link href="/coming-soon" className="underline underline-offset-4 hover:text-foreground">
                   Contact IT support
                 </Link>
               </p>
