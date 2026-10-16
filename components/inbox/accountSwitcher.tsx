@@ -104,10 +104,12 @@ function AccountSwitcher({
           it scroll internally. With three mailboxes that produced a scrollbar
           over a list that fits twice over. Off, it opens as an ordinary dropdown
           and only scrolls if it genuinely cannot fit. */}
-      <SelectContent align="start" alignItemWithTrigger={false}>
+      {/* At least the trigger's width, wider when an address needs it, and roomy items:
+          the address ran into the check mark (2026-10-16). */}
+      <SelectContent align="start" alignItemWithTrigger={false} className="w-max! max-w-96 min-w-(--anchor-width) p-1">
         {accounts.map((account) => (
-          <SelectItem key={account.id} value={account.id}>
-            <span className="flex items-center gap-2">
+          <SelectItem key={account.id} value={account.id} className="py-2 pl-2 text-xs">
+            <span className="flex min-w-0 items-center gap-2">
               <ProviderIcon provider={account.provider} />
               {/* The address, not the label. Two mailboxes can share a label,
                   so the name alone cannot tell them apart, and the one thing

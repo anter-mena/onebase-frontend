@@ -156,6 +156,8 @@ export function PaymentPanel({
   const count = methods.length;
   const current = count ? methods[Math.min(index, count - 1)] : null;
   const move = (step: number) => setIndex((value) => (value + step + count) % count);
+  /** The half being hovered (or focused): the card leans away from it. */
+  const [leaning, setLeaning] = useState<"left" | "right" | null>(null);
 
   return (
     <Panel
@@ -171,11 +173,16 @@ export function PaymentPanel({
     >
       {current ? (
         <div className="flex h-full flex-col justify-evenly gap-3">
-          <div className="flex items-center gap-2">
-            <CarouselButton label="Previous card" disabled={count < 2} onClick={() => move(-1)}>
-              <ChevronLeft className="size-3.5" />
-            </CarouselButton>
-            <div className="flex min-w-0 flex-1" aria-live="polite">
+          {/* Each half of the card turns it (decided 2026-10-16). Hovering a half nudges
+              the card away from that side and a bare chevron shows in the gap it left. */}
+          <div className="relative flex min-w-0" aria-live="polite">
+            <div
+              className={cn(
+                "flex min-w-0 flex-1 transition-transform duration-200 ease-out",
+                leaning === "right" && "-translate-x-3",
+                leaning === "left" && "translate-x-3",
+              )}
+            >
               <PaymentMethodCard
                 key={current.id}
                 className="max-sm:min-h-[10.5rem]"
@@ -188,9 +195,12 @@ export function PaymentPanel({
                 networks={networkLogos[current.cardNetwork]}
               />
             </div>
-            <CarouselButton label="Next card" disabled={count < 2} onClick={() => move(1)}>
-              <ChevronRight className="size-3.5" />
-            </CarouselButton>
+            {count > 1 ? (
+              <>
+                <CarouselHalf side="left" label="Previous card" shown={leaning === "left"} onLean={setLeaning} onClick={() => move(-1)} />
+                <CarouselHalf side="right" label="Next card" shown={leaning === "right"} onLean={setLeaning} onClick={() => move(1)} />
+              </>
+            ) : null}
           </div>
 
           {count > 1 ? (
@@ -209,8 +219,9 @@ export function PaymentPanel({
             </div>
           ) : null}
 
-          {/* This card's figures for the period, where the quick actions were. */}
-          <dl className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/30 p-3 text-center">
+          {/* This card's figures for the period, and History — the only way into the Ledger. */}
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
+          <dl className="grid min-w-0 flex-1 grid-cols-3 gap-2 text-center">
             <div className="min-w-0">
               <dt className="truncate text-[0.6rem] text-muted-foreground">Received, {periodNote}</dt>
               <dd className="mt-0.5 truncate text-sm font-semibold tabular-nums">{exactMoney(current.received)}</dd>
@@ -224,14 +235,15 @@ export function PaymentPanel({
               <dd className="mt-0.5 truncate text-sm font-semibold">{current.lastPaidOn ? dayFormatter.format(new Date(`${current.lastPaidOn}T00:00:00Z`)) : "—"}</dd>
             </div>
           </dl>
-
           <Link
             href={`/ledger?method=${current.id}${periodQuery ? `&${periodQuery}` : ""}`}
-            className={cn(whiteStyle.button, "flex h-8 w-full items-center justify-center gap-1.5 p-0! text-[0.7rem]! font-medium!")}
+            aria-label={`History — every payment to ${current.name}`}
+            title={`History — every payment to ${current.name}`}
+            className={cn(whiteStyle.button, "flex size-8 shrink-0 items-center justify-center p-0!")}
           >
             <History className="size-3.5" aria-hidden />
-            History — every payment to {current.name}
           </Link>
+          </div>
         </div>
       ) : (
         <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 text-center text-xs text-muted-foreground">
@@ -243,16 +255,44 @@ export function PaymentPanel({
   );
 }
 
-function CarouselButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: ReactNode }) {
+/** Half of the card, as a button: invisible, then a soft shade and a chevron on its side while hovered. */
+/**
+ * Half of the card, as an invisible button. Hovered (or focused), it tells the panel to
+ * lean the card away, and a bare chevron shows just past the card's edge, in the gap.
+ */
+function CarouselHalf({
+  side,
+  label,
+  shown,
+  onLean,
+  onClick,
+}: {
+  side: "left" | "right";
+  label: string;
+  shown: boolean;
+  onLean: (side: "left" | "right" | null) => void;
+  onClick: () => void;
+}) {
+  const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
       aria-label={label}
-      disabled={disabled}
       onClick={onClick}
-      className={cn(whiteStyle.button, "flex size-7 shrink-0 items-center justify-center p-0! disabled:pointer-events-none disabled:opacity-35")}
+      onMouseEnter={() => onLean(side)}
+      onMouseLeave={() => onLean(null)}
+      onFocus={() => onLean(side)}
+      onBlur={() => onLean(null)}
+      className={cn("absolute inset-y-0 w-1/2 cursor-pointer outline-none", side === "left" ? "left-0" : "right-0")}
     >
-      {children}
+      <Icon
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-foreground transition-opacity duration-200",
+          side === "left" ? "-left-1.5" : "-right-1.5",
+          shown ? "opacity-100" : "opacity-0",
+        )}
+      />
     </button>
   );
 }

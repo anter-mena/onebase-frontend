@@ -22,6 +22,9 @@ export const appNavigation = [
     href: "/ledger",
     icon: BookText,
     available: true,
+    // Not in the sidebar (decided 2026-10-16): reached only from the Dashboard's
+    // payment card (History). Kept here for the navbar's breadcrumb.
+    hiddenInSidebar: true,
   },
   {
     section: "Workspace",

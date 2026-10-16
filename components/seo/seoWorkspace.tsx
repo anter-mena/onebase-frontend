@@ -162,21 +162,26 @@ export function SeoWorkspace({
           {/* 17rem rather than the overview's 15rem — these rows carry a
               label, a count, a bar and a percentage, where that column carries
               a figure and a delta. Same treatment, the width each needs. */}
-          <div className="flex min-w-0 flex-col px-3.5 py-4">
-            <h2 className="text-sm font-medium">Top countries</h2>
-            <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
-              Every visitor, and how many came from search
-            </p>
+          {/* ⚠️ Never taller than the map (2026-10-16): from md up the column is taken
+              out of the row's height (absolute inside a relative cell), so the map alone
+              sets it, and the list scrolls under its fixed heading. */}
+          <div className="relative min-w-0">
+            <div className="flex min-w-0 flex-col px-3.5 py-4 md:absolute md:inset-0">
+              <h2 className="text-sm font-medium">Top countries</h2>
+              <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
+                Every visitor, and how many came from search
+              </p>
 
-            <div className="mt-4 min-w-0">
-              <ShareList
-                rows={countries.map((row) => ({
-                  label: row.country,
-                  value: row.sessions,
-                  note: `${count(row.organicSessions)} from search`,
-                }))}
-                total={allSessions}
-              />
+              <div className="mt-4 min-h-0 min-w-0 flex-1 md:overflow-y-auto md:pr-1 md:[scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent">
+                <ShareList
+                  rows={countries.map((row) => ({
+                    label: row.country,
+                    value: row.sessions,
+                    note: `${count(row.organicSessions)} from search`,
+                  }))}
+                  total={allSessions}
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -83,7 +83,9 @@ function SettingsLinks({ items, activeValue }: { items: readonly SettingsItem[];
 export function AppSidebar() {
   const user = useSessionUser();
   // Only what this role can open; a section left with nothing in it disappears.
-  const visibleNavigation = appNavigation.filter((item) => canOpen(user.role, item.href));
+  const visibleNavigation = appNavigation.filter(
+    (item) => canOpen(user.role, item.href) && !("hiddenInSidebar" in item && item.hiddenInSidebar),
+  );
   const visibleSections = navigationSections.filter((section) => visibleNavigation.some((item) => item.section === section));
   const pathname = usePathname();
   const { setOpen, isMobile } = useSidebar();

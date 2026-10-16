@@ -125,7 +125,9 @@ function FolderNav({
           // axis makes the other clip too, so the row was shaving the top off
           // every dot it was drawing. The same CSS rule that cropped the
           // hovered squares on the backups calendar.
-          <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto py-1">
+          // Fixed height: the 3px scrollbar takes its room inside the row, so it
+          // appearing never changes the toolbar's height (asked for 2026-10-16).
+          <div className="flex h-10 min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent">
             {system.map((folder) => (
               <FolderButton
                 key={folder.id}
