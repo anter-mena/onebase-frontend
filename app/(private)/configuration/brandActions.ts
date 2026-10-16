@@ -18,7 +18,7 @@ function failed(error: ApiError): { ok: false; error: string } {
   return { ok: false, error: field ?? error.message }
 }
 
-/** Reads a website: name, social links and logo. Saves nothing. */
+/** Reads a website: name, social links and the logo's address. Saves nothing. */
 export async function lookUpBrand(url: string): Promise<Result<BrandLookup>> {
   const result = await apiFetch<BrandLookup>("/api/brands/lookup", {
     method: "POST",
@@ -32,9 +32,8 @@ export type BrandDraft = {
   websiteUrl: string
   name: string
   socials: Socials
-  /** A new logo as a data: address; null keeps the current one (Edit) or means none (Add). */
-  logo: string | null
-  removeLogo?: boolean
+  /** The logo's address on the brand's website (http or https); null or "" = none. Only the address is kept. */
+  logoUrl: string | null
   /** "Fetch again" was used before saving — the Action log says so. */
   fetchedFromSite?: boolean
   /** The GA4 property number for the SEO page; "" = none. */

@@ -13,6 +13,7 @@ import { cn } from "cn";
 import { SplitBar, StatTile } from "@/components/dashboard/figures";
 import { hatch } from "@/components/dashboard/hatch";
 import { Panel } from "@/components/dashboard/panels";
+import { BrandGlyph } from "@/components/clients/brandGlyph";
 import { RangeFilter } from "@/components/app-shell/rangeFilter";
 import { CountriesMap } from "@/components/seo/countriesMap";
 import { TrafficChart } from "@/components/seo/trafficChart";
@@ -600,10 +601,8 @@ function BrandFilter({
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {entry.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- the brand's own small PNG, drawn in one colour
-            <img src={entry.logoUrl} alt="" width={12} height={12} className="size-3 shrink-0 object-contain brightness-0 dark:invert" />
-          ) : null}
+          {/* The logo on the brand's own website; nothing if it won't load (the name is beside it). */}
+          <BrandGlyph src={entry.logoUrl} className="size-3" />
           {entry.name}
         </button>
       ))}

@@ -28,11 +28,17 @@ export type DashboardOverview = {
     revenue: number
     newRevenue: number
     renewals: number
+    /**
+     * Money out, cash view (decided 2026-10-16): the panel-credit top-ups paid in
+     * the period plus the perks, `topups + perks`. A top-up is a cost on the day it
+     * is paid, not spread over the payments that use its credits.
+     */
     expenses: number
+    topups: number
+    perks: number
+    /** revenue − expenses. */
     net: number
     payments: number
-    /** Payments whose plan had no cost on file (counted as $0 cost). */
-    uncosted: number
     previousRevenue: number
     previousExpenses: number
   }
@@ -74,6 +80,23 @@ export type LedgerData = {
   end: string
   methodId: number | null
   rows: { payment: ApiPayment; clientId: number; clientName: string }[]
+  /** Panel-credit top-ups paid in the period: money out. Empty when filtered to one account (they belong to none). */
+  topups: LedgerTopup[]
+  /** The period's cash: payments received, top-ups and perks paid, and what is left. */
+  moneyIn: number
+  moneyOut: number
+  net: number
+}
+
+export type LedgerTopup = {
+  id: number
+  credits: number
+  /** USD paid for them. */
+  amount: number
+  note: string | null
+  /** ISO time. */
+  createdAt: string
+  createdByName: string | null
 }
 
 /** "+12.5": the change from the period before, or null when there was nothing before. */

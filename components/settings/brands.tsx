@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, type ChangeEvent } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChartNoAxesColumn, ExternalLink, FileDown, Globe, ImageUp, Link2, MoreVertical, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChartNoAxesColumn, ExternalLink, FileDown, Globe, ImageIcon, Link2, MoreVertical, Pencil, Plus, RefreshCw } from "lucide-react";
 import { cn } from "cn";
 
 import { lookUpBrand, saveBrand, setBrandActive, type BrandDraft } from "@/app/(private)/configuration/brandActions";
 import { QuarterSparkline } from "@/components/charts/quarterSparkline";
+import { BrandGlyph, brandInitials } from "@/components/clients/brandGlyph";
 import { AutoRefresh } from "@/components/app-shell/autoRefresh";
 import { LoadError } from "@/components/errors/loadError";
 import { SocialIcon } from "@/components/settings/socialIcons";
@@ -43,7 +44,10 @@ import type { BrandLookup, BrandRow, SocialNetwork, Socials } from "@/lib/brands
  *
  * Add: paste a link; the backend reads the site (safely — see the backend's
  * UrlGuard) and suggests the name, social links and logo. Add it as found, or
- * review it first. Edit: change any of it, upload a logo, or fetch again.
+ * review it first. Edit: change any of it, paste a logo address, or fetch again.
+ *
+ * Logos are not stored (decided 2026-10-16): only the logo's address on the
+ * brand's website is kept, and every screen loads it from there.
  * Switch a brand off and it can't be used for new clients; there is no delete.
  */
 
@@ -60,9 +64,6 @@ const socialPlaceholders: Record<SocialNetwork, string> = {
   x: "x.com/brand",
   tiktok: "tiktok.com/@brand",
 };
-
-/** The biggest file accepted for an uploaded logo. The backend shrinks it to 128 px anyway. */
-const MAX_LOGO_BYTES = 1024 * 1024;
 
 // "puma.com", "www.puma.com/en", "https://www.puma.com" → "puma.com". Anything that is not a web address → null.
 // A quick check while typing; the backend applies the real rules.
@@ -81,26 +82,25 @@ function toDomain(input: string) {
 // "Jan 12, 2026". UTC and a fixed locale, so the server and the browser show the same date.
 const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
-/** "New Balance" → "NB": shown in the tile when a brand has no logo. */
-function initials(name: string) {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  return (words.length === 1 ? words[0].slice(0, 2) : words[0][0] + words[words.length - 1][0]).toUpperCase();
+/** A logo address worth showing: a full http(s) address. A half-typed one shows the initials. */
+function logoAddress(value: string | null) {
+  const text = value?.trim() ?? "";
+  return /^https?:\/\/[^\s/]+\.[^\s]+$/i.test(text) ? text : null;
 }
 
 /**
- * The brand's logo in a small tile, like the client avatars — from our own
- * server (the logo is stored in our database), or the initials when it has none.
+ * The brand's logo in a small tile, like the client avatars — loaded from the
+ * brand's own website, or the initials when it has none or it won't load.
  */
-function BrandLogo({ name, src }: { name: string; src: string | null }) {
+function BrandLogo({ name, src, size = "small" }: { name: string; src: string | null; size?: "small" | "large" }) {
+  const large = size === "large";
   return (
-    <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-background">
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- our own small PNG (or a data: preview); nothing for next/image to optimise
-        <img src={src} alt="" width={18} height={18} className="size-[18px] object-contain" />
-      ) : (
-        <span className="text-[0.6rem] font-semibold text-muted-foreground">{initials(name)}</span>
-      )}
+    <span className={cn("flex shrink-0 items-center justify-center overflow-hidden border bg-background", large ? "size-12 rounded-xl" : "size-8 rounded-lg")}>
+      <BrandGlyph
+        src={logoAddress(src)}
+        className={large ? "size-7" : "size-[18px]"}
+        fallback={<span className={cn("font-semibold text-muted-foreground", large ? "text-xs" : "text-[0.6rem]")}>{brandInitials(name)}</span>}
+      />
     </span>
   );
 }
@@ -145,8 +145,6 @@ type DialogState = {
   /** null: adding a brand. */
   id: number | null;
   draft: BrandDraft;
-  /** The logo shown in the window: the current one, a found one, or an upload. */
-  logoPreview: string | null;
 };
 
 export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadError: string | null }) {
@@ -186,7 +184,7 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   function draftFrom(found: BrandLookup): BrandDraft {
-    return { websiteUrl: found.websiteUrl, name: found.name, socials: found.socials, logo: found.logo };
+    return { websiteUrl: found.websiteUrl, name: found.name, socials: found.socials, logoUrl: found.logoUrl };
   }
 
   function addAsFound() {
@@ -315,7 +313,7 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
           ) : preview ? (
             <div className="rounded-xl bg-muted/40 px-2.5 py-1.5">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                <BrandLogo name={preview.name} src={preview.logo} />
+                <BrandLogo name={preview.name} src={preview.logoUrl} />
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-medium">{preview.name}</span>
                   <span className="block truncate text-[0.65rem] text-muted-foreground">{preview.websiteUrl}</span>
@@ -325,7 +323,7 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => setDialog({ id: null, draft: draftFrom(preview), logoPreview: preview.logo })}
+                    onClick={() => setDialog({ id: null, draft: draftFrom(preview) })}
                     className={cn(whiteStyle.button, "h-7 gap-1.5 px-2.5! py-0! text-[0.65rem]! font-normal!")}
                   >
                     <Pencil className="size-3" aria-hidden />
@@ -429,8 +427,7 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
                           onClick={() =>
                             setDialog({
                               id: brand.id,
-                              draft: { websiteUrl: brand.websiteUrl, name: brand.name, socials: brand.socials, logo: null, ga4PropertyId: brand.ga4PropertyId ?? "" },
-                              logoPreview: brand.logoUrl,
+                              draft: { websiteUrl: brand.websiteUrl, name: brand.name, socials: brand.socials, logoUrl: brand.logoUrl, ga4PropertyId: brand.ga4PropertyId ?? "" },
                             })
                           }
                         >
@@ -474,23 +471,20 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
 }
 
 /**
- * Add (after "Review first") and Edit: every field a brand has, the logo with
- * Upload / Remove, and "Fetch again" to refill it all from the website.
+ * Add (after "Review first") and Edit: every field a brand has, the logo's
+ * address (pasted, or found by "Fetch again", which refills it all from the website).
  */
 function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose: () => void; onSaved: () => void }) {
   const editing = state.id !== null;
   const [name, setName] = useState(state.draft.name);
   const [website, setWebsite] = useState(state.draft.websiteUrl);
   const [socials, setSocials] = useState<Socials>(state.draft.socials);
-  const [logo, setLogo] = useState<string | null>(state.draft.logo);
-  const [logoPreview, setLogoPreview] = useState<string | null>(state.logoPreview);
-  const [removeLogo, setRemoveLogo] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(state.draft.logoUrl ?? "");
   const [ga4, setGa4] = useState(state.draft.ga4PropertyId ?? "");
   const [fetched, setFetched] = useState(false);
   const [message, setMessage] = useState<{ tone: "error" | "note"; text: string } | null>(null);
   const [fetching, startFetching] = useTransition();
   const [saving, startSaving] = useTransition();
-  const fileInput = useRef<HTMLInputElement>(null);
 
   // Edit: Save stays grey until something differs from what is saved. Adding is always a change.
   const sameSocials = (a: Socials, b: Socials) => socialOrder.every((network) => (a[network] ?? "").trim() === (b[network] ?? "").trim());
@@ -499,9 +493,8 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
     name.trim() !== state.draft.name ||
     website.trim() !== state.draft.websiteUrl ||
     !sameSocials(socials, state.draft.socials) ||
-    logo !== state.draft.logo ||
-    ga4.trim() !== (state.draft.ga4PropertyId ?? "") ||
-    removeLogo;
+    logoUrl.trim() !== (state.draft.logoUrl ?? "") ||
+    ga4.trim() !== (state.draft.ga4PropertyId ?? "");
 
   function fetchAgain() {
     setMessage(null);
@@ -515,33 +508,10 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
       setName(found.name);
       setWebsite(found.websiteUrl);
       setSocials(found.socials);
-      if (found.logo) {
-        setLogo(found.logo);
-        setLogoPreview(found.logo);
-        setRemoveLogo(false);
-      }
+      if (found.logoUrl) setLogoUrl(found.logoUrl);
       setFetched(true);
       setMessage(found.warning ? { tone: "note", text: found.warning } : { tone: "note", text: "Filled in again from the website. Check it, then save." });
     });
-  }
-
-  function upload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (file.size > MAX_LOGO_BYTES) {
-      setMessage({ tone: "error", text: "This picture is too large. Use one under 1 MB." });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result);
-      setLogo(dataUrl);
-      setLogoPreview(dataUrl);
-      setRemoveLogo(false);
-      setMessage(null);
-    };
-    reader.readAsDataURL(file);
   }
 
   function save() {
@@ -551,8 +521,7 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
         websiteUrl: website,
         name,
         socials,
-        logo,
-        removeLogo,
+        logoUrl: logoUrl.trim() || null,
         fetchedFromSite: fetched,
         ga4PropertyId: ga4.trim(),
       });
@@ -575,34 +544,25 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
         </DialogHeader>
 
         <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); save(); }}>
-          {/* The logo: what we store is a small copy made on our server. */}
+          {/* The logo: only its address is kept, and it loads from the brand's website. */}
           <div className="flex items-center gap-3">
-            <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background">
-              {logoPreview && !removeLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element -- our own small PNG, or the picture just chosen
-                <img src={logoPreview} alt="" width={28} height={28} className="size-7 object-contain" />
-              ) : (
-                <span className="text-xs font-semibold text-muted-foreground">{initials(name)}</span>
-              )}
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico" className="hidden" onChange={upload} />
-              <Button type="button" size="sm" onClick={() => fileInput.current?.click()} className={cn(whiteStyle.button, "h-7 gap-1.5 px-2.5! py-0! text-[0.65rem]! font-normal!")}>
-                <ImageUp className="size-3" aria-hidden /> Upload logo
-              </Button>
-              {logoPreview && !removeLogo ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => { setRemoveLogo(true); setLogo(null); }}
-                  className="h-7 gap-1.5 border-destructive/40 px-2.5 text-[0.65rem] font-normal"
-                >
-                  <Trash2 className="size-3" aria-hidden /> Remove
-                </Button>
-              ) : null}
-            </div>
-            <span className="ml-auto text-[0.6rem] text-muted-foreground">PNG, JPEG, GIF or ICO · under 1 MB</span>
+            <BrandLogo name={name} src={logoUrl} size="large" />
+            <Field className="min-w-0 flex-1">
+              <FieldLabel htmlFor="brand-logo" className="flex items-center gap-1.5">
+                <ImageIcon className="size-3 text-muted-foreground" aria-hidden />
+                Logo address
+              </FieldLabel>
+              <Input
+                id="brand-logo"
+                value={logoUrl}
+                inputMode="url"
+                maxLength={2000}
+                placeholder="https://www.brand.com/logo.png"
+                onChange={(event) => setLogoUrl(event.target.value)}
+                className={dialogInputClass}
+              />
+              <p className="text-[0.6rem] text-muted-foreground">Optional. A PNG or JPEG also shows in emails. Empty = the initials.</p>
+            </Field>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

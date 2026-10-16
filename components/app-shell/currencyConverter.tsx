@@ -39,7 +39,8 @@ export function CurrencyConverter() {
 }
 
 // Shown first in the list, in this order.
-const POPULAR = ["USD", "EUR", "GBP", "CAD", "MAD", "AUD"];
+// The team's own four first, in this order (asked for 2026-10-16); then the other usual ones.
+const POPULAR = ["EUR", "CAD", "USD", "MAD", "GBP", "AUD"];
 
 /**
  * Round flags (circle-flags, MIT) and coin logos (cryptocurrency-icons, CC0), both from jsDelivr.

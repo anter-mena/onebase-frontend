@@ -1,4 +1,4 @@
-import { BookText, Globe, LayoutDashboard, Mail, MessageCircle, RefreshCcw, ScrollText, Server, Settings, Users, UsersRound } from "lucide-react";
+import { BookText, Globe, LayoutDashboard, LayoutTemplate, Mail, MessageCircle, RefreshCcw, ScrollText, Server, Settings, Users, UsersRound } from "lucide-react";
 
 export const settingsNavigation = [
   { label: "Panel", value: "panel", href: "/configuration?tab=panel", description: "Manage the panels available in your workspace." },
@@ -51,6 +51,7 @@ export const appNavigation = [
     href: "/inbox",
     icon: Mail,
     available: true,
+    indicator: "Unread emails",
   },
   {
     section: "Communication",
@@ -58,7 +59,8 @@ export const appNavigation = [
     href: "/whatsapp-inbox",
     icon: MessageCircle,
     available: true,
-    // The pulsing red dot in the sidebar; the text is what screen readers announce for it.
+    // The pulsing red dot in the sidebar, shown only while getSidebarAlerts says so;
+    // the text is what screen readers announce for it.
     indicator: "New WhatsApp messages",
   },
   {
@@ -66,6 +68,14 @@ export const appNavigation = [
     label: "Users",
     href: "/users",
     icon: UsersRound,
+    available: true,
+  },
+  {
+    // Admins only (lib/access): Commercials send templates from the inbox, they don't write them.
+    section: "Administration",
+    label: "Templates",
+    href: "/templates",
+    icon: LayoutTemplate,
     available: true,
   },
   {

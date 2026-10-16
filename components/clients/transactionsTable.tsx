@@ -398,7 +398,7 @@ export function TransactionsTable({
                   {/* The Clients table’s brand cell — a logo, named in its tooltip. */}
                   <Tooltip>
                     <TooltipTrigger render={<span className="inline-flex size-7 items-center justify-center" aria-label={entry.brand} />}>
-                      <BrandGlyph src={entry.brandLogo} className="size-4.5" />
+                      <BrandGlyph src={entry.brandLogo} name={entry.brand} className="size-4.5" />
                     </TooltipTrigger>
                     <TooltipContent>{entry.brand}</TooltipContent>
                   </Tooltip>

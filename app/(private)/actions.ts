@@ -78,3 +78,25 @@ export async function changePassword(input: {
   })
   return result.ok ? { ok: true } : { ok: false, error: firstError(result.error) }
 }
+
+/**
+ * Which sidebar items get the red dot, by their address. Asked by the sidebar on
+ * every page change and every minute: real news only — unread WhatsApp messages,
+ * unread email in the Inbox, and Renewals clients to act on now (ending soon or a
+ * callback; Pending and Inactive are standing lists, not news).
+ *
+ * <p>A part that cannot be read shows no dot rather than an error: the pages
+ * themselves say what went wrong.
+ */
+export async function getSidebarAlerts(): Promise<Record<string, boolean>> {
+  const [whatsapp, inbox, renewals] = await Promise.all([
+    apiFetch<{ unread: number }>("/api/whatsapp/status", { authenticated: true }),
+    apiFetch<{ folders: { id: string; unread: number }[] }>("/api/inbox/overview", { authenticated: true }),
+    apiFetch<{ group: string }[]>("/api/renewals", { authenticated: true }),
+  ])
+  return {
+    "/whatsapp-inbox": whatsapp.ok && whatsapp.data.unread > 0,
+    "/inbox": inbox.ok && inbox.data.folders.some((folder) => folder.id === "inbox" && folder.unread > 0),
+    "/renewals": renewals.ok && renewals.data.some((row) => row.group === "ENDING_SOON" || row.group === "CALLBACK"),
+  }
+}

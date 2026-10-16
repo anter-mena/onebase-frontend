@@ -100,23 +100,19 @@ export function AppNavbar() {
             <Inbox className="size-3" aria-hidden />
           </Link>
         )}
+        {/* Not built yet: off, and without the red dot it used to show whatever happened.
+            The sidebar's dots carry the real news (WhatsApp, email, Renewals). */}
         <button
           type="button"
+          disabled
           className={cn(
             whiteStyle.button,
-            "relative flex size-7 items-center justify-center p-0! text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "relative flex size-7 items-center justify-center p-0! text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
           )}
-          aria-label="Notifications, new notifications"
-          title="Notifications"
+          aria-label="Notifications (coming soon)"
+          title="Notifications: coming soon"
         >
           <BellRing className="size-3" aria-hidden />
-          <span
-            className="absolute -top-0.5 -right-0.5 flex size-2"
-            aria-hidden
-          >
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-red-400 opacity-70" />
-            <span className="relative inline-flex size-full rounded-full bg-red-500 ring-1 ring-background" />
-          </span>
         </button>
         {/* Light/dark. Choosing a *palette* is not here — that lives in the
             account settings window, under Theme. This only flips the palette

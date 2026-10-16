@@ -82,8 +82,7 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
       {/* ── The one filter ──────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          Everything below covers {note}
-          {totals.uncosted > 0 ? ` · ${totals.uncosted} payment${totals.uncosted === 1 ? " has" : "s have"} no plan cost on file` : ""}.
+          Everything below covers {note}.
         </p>
         <RangeFilter
           value={data.range}
@@ -137,13 +136,17 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
                 <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-4">
                   <h2 className="text-sm font-medium">Expenses</h2>
                   <div className="mt-2.5">
+                    {/* Cash view (2026-10-16): a top-up is money out on the day it is paid. */}
                     <StatTile
-                      label="Plan costs and perks"
+                      label="Panel credit top-ups and perks"
                       value={money(totals.expenses)}
                       change={expensesChange ?? undefined}
                       changeNote={changeNote}
                       upIsGood={false}
                     />
+                    <p className="mt-1 truncate text-[0.6rem] text-muted-foreground">
+                      Top-ups {money(totals.topups)} · Perks {money(totals.perks)}
+                    </p>
                   </div>
                 </div>
               </div>

@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react"
-import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Paperclip, Search, SquarePen, Star } from "lucide-react"
 
 import { mailAction } from "@/app/(private)/inbox/actions"
+import { BrandGlyph } from "@/components/clients/brandGlyph"
 import { AccountSwitcher } from "@/components/inbox/accountSwitcher"
 import { FolderNav } from "@/components/inbox/folderNav"
 import { Badge } from "@/components/ui/badge"
@@ -328,23 +328,17 @@ function MailList({
   )
 }
 
-/** Decorative: the brand's name always sits beside it. */
+/** Decorative: the brand's name always sits beside it. The logo loads from the brand's own website; its first letter when there is none or it won't load. */
 function BrandLogo({ brand }: { brand: MailBrand }) {
-  if (!brand.logo) {
-    return (
-      <span aria-hidden className="flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-muted text-[0.55rem] font-semibold">
-        {brand.name.charAt(0).toUpperCase()}
-      </span>
-    )
-  }
   return (
-    <Image
+    <BrandGlyph
       src={brand.logo}
-      alt=""
-      width={14}
-      height={14}
-      unoptimized
-      className="size-3.5 shrink-0 object-contain brightness-0 dark:invert"
+      className="size-3.5"
+      fallback={
+        <span aria-hidden className="flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-muted text-[0.55rem] font-semibold">
+          {brand.name.charAt(0).toUpperCase()}
+        </span>
+      }
     />
   )
 }
@@ -535,18 +529,9 @@ function MailRow({
         <span className="pointer-events-none relative flex flex-wrap gap-2 pt-1">
           {mail.labels.map((label) => (
             label === mail.brand ? (
-              // The brand badge: always light, with the logo in black, in both themes.
+              // The brand badge: always light, with the brand's logo (from its website), in both themes.
               <Badge key={label} variant="outline" className="gap-1 border-black/10 bg-white text-black">
-                {brandLogo ? (
-                  <Image
-                    src={brandLogo}
-                    alt=""
-                    width={12}
-                    height={12}
-                    unoptimized
-                    className="size-3 shrink-0 object-contain brightness-0"
-                  />
-                ) : null}
+                <BrandGlyph src={brandLogo} className="size-3" />
                 {label}
               </Badge>
             ) : (

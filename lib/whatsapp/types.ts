@@ -33,6 +33,17 @@ export type WaMessage = {
   status: "RECEIVED" | "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED"
   error: string | null
   createdAt: string
+  /** A sent template piece's grey last line; null otherwise (older backends leave it out). */
+  footer?: string | null
+  /** A sent template piece's buttons, drawn under its bubble; empty or missing when none. */
+  buttons?: WaButton[]
+}
+
+export type WaButton = {
+  type: "QUICK_REPLY" | "URL" | "PHONE"
+  label: string
+  /** The link or the number; null for a quick reply. */
+  value: string | null
 }
 
 export type WaStatus = { connected: boolean; unread: number }

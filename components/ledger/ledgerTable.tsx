@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { exactMoney } from "@/lib/format";
 import { planDescription } from "@/lib/clients/sample";
 import { providerLabels, type BackendProvider } from "@/lib/clients/types";
-import type { LedgerData } from "@/lib/dashboard/types";
+import type { LedgerData, LedgerTopup } from "@/lib/dashboard/types";
 import { rangeNote } from "@/lib/seo/types";
 
 /**
@@ -27,11 +27,23 @@ import { rangeNote } from "@/lib/seo/types";
  * paid, for what, to which account, and what it left. Filtered by period (the
  * SEO and Dashboard filter) and by account; the Dashboard's card History opens it
  * on one account. Admins only.
+ *
+ * <p>A cash view (decided 2026-10-16): the panel-credit top-ups are money out on
+ * the day they are paid, so they sit among the payments as outgoing lines, and
+ * the strip adds up what came in and went out. A top-up belongs to no account:
+ * filtered to one, there are none.
  */
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const formatDate = (iso: string) => dateFormatter.format(new Date(`${iso}T00:00:00Z`));
 const pageSizes = [10, 20, 50, 100];
+
+/** One line of the ledger: a payment received, or a top-up paid. */
+type Entry =
+  | { kind: "payment"; date: string; row: LedgerData["rows"][number] }
+  | { kind: "topup"; date: string; topup: LedgerTopup };
+
+const topupPlan = (topup: LedgerTopup) => `+${topup.credits.toLocaleString("en-US")} credits`;
 
 export function LedgerTable({
   data,
@@ -67,30 +79,51 @@ export function LedgerTable({
   }
   const account = methods.find((method) => method.id === data.methodId) ?? null;
 
+  // Payments and top-ups by date, newest first (a top-up's day is the one it was paid on).
+  const entries = useMemo<Entry[]>(
+    () =>
+      [
+        ...data.rows.map((row): Entry => ({ kind: "payment", date: row.payment.paidOn, row })),
+        ...data.topups.map((topup): Entry => ({ kind: "topup", date: topup.createdAt.slice(0, 10), topup })),
+      ].sort((a, b) => b.date.localeCompare(a.date)),
+    [data.rows, data.topups],
+  );
+
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return data.rows;
-    return data.rows.filter((row) =>
-      [row.clientName, row.payment.brandName ?? "", row.payment.paymentMethodName ?? "", planDescription(row.payment.months, row.payment.devices)]
-        .some((value) => value.toLowerCase().includes(needle)),
+    if (!needle) return entries;
+    return entries.filter((entry) =>
+      (entry.kind === "payment"
+        ? [entry.row.clientName, entry.row.payment.brandName ?? "", entry.row.payment.paymentMethodName ?? "", planDescription(entry.row.payment.months, entry.row.payment.devices)]
+        : ["Panel credit top-up", topupPlan(entry.topup), entry.topup.note ?? "", entry.topup.createdByName ?? ""]
+      ).some((value) => value.toLowerCase().includes(needle)),
     );
-  }, [data.rows, query]);
+  }, [entries, query]);
 
-  const received = rows.reduce((sum, row) => sum + row.payment.amount, 0);
-  const costs = rows.reduce((sum, row) => sum + (row.payment.expense ?? row.payment.perksCost), 0);
+  const paymentCount = rows.filter((entry) => entry.kind === "payment").length;
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const startIndex = (currentPage - 1) * pageSize;
   const visible = rows.slice(startIndex, startIndex + pageSize);
 
   function exportCsv() {
-    const headings = ["Date", "Client", "Plan", "Type", "Method", "Account", "Brand", "Amount (USD)", "Cost (USD)", "Net (USD)"];
-    const lines = rows.map(({ payment, clientName }) => [
-      payment.paidOn, clientName, planDescription(payment.months, payment.devices), payment.kind === "NEW_PLAN" ? "New plan" : "Renewal",
-      payment.paymentProvider ? providerLabels[payment.paymentProvider] : "", payment.paymentMethodName ?? "", payment.brandName ?? "",
-      payment.amount.toFixed(2), payment.expense === null ? "" : payment.expense.toFixed(2),
-      payment.expense === null ? "" : (payment.amount - payment.expense).toFixed(2),
-    ]);
+    const headings = ["Date", "Client", "Plan", "Type", "Method", "Account", "Brand", "Amount (USD)", "Perks (USD)", "Net (USD)", "Note"];
+    const lines = rows.map((entry) => {
+      if (entry.kind === "topup") {
+        // Money out: negative, so the sum of a column is the period's cash.
+        const { topup } = entry;
+        return [
+          entry.date, "Panel credit top-up", topupPlan(topup), "Top-up", "", "", "", (-topup.amount).toFixed(2), "", (-topup.amount).toFixed(2),
+          [topup.note ?? "", topup.createdByName ? `by ${topup.createdByName}` : ""].filter(Boolean).join(" · "),
+        ];
+      }
+      const { payment, clientName } = entry.row;
+      return [
+        payment.paidOn, clientName, planDescription(payment.months, payment.devices), payment.kind === "NEW_PLAN" ? "New plan" : "Renewal",
+        payment.paymentProvider ? providerLabels[payment.paymentProvider] : "", payment.paymentMethodName ?? "", payment.brandName ?? "",
+        payment.amount.toFixed(2), (-payment.perksCost).toFixed(2), (payment.amount - payment.perksCost).toFixed(2), "",
+      ];
+    });
     const csv = [headings, ...lines].map((line) => line.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
@@ -133,20 +166,21 @@ export function LedgerTable({
           </DropdownMenu>
           <div className="relative w-full sm:w-56">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search client, plan, brand" aria-label="Search the ledger" className="bg-muted/30 pl-8 text-xs" />
+            <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search client, plan, brand, note" aria-label="Search the ledger" className="bg-muted/30 pl-8 text-xs" />
           </div>
           <Button type="button" size="sm" onClick={exportCsv} disabled={rows.length === 0} className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}><FileDown className="size-3" />Export CSV</Button>
         </div>
       </div>
 
-      {/* What the filtered list comes to. */}
+      {/* The period's cash, from the backend: the search narrows the list, not these. */}
       <dl className="mx-4 mb-3 grid shrink-0 grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-4">
-        <Total label="Received" value={exactMoney(received)} />
-        <Total label="Costs" value={`− ${exactMoney(costs)}`} />
-        <Total label="Net" value={exactMoney(received - costs)} strong />
-        <Total label="Payments" value={String(rows.length)} />
+        <Total label="Money in" value={exactMoney(data.moneyIn)} />
+        <Total label="Money out" value={`− ${exactMoney(data.moneyOut)}`} />
+        <Total label="Net" value={exactMoney(data.net)} strong />
+        <Total label="Payments" value={String(paymentCount)} />
         <p className="col-span-full text-[0.6rem] text-muted-foreground">
-          {account ? `Paid to ${account.name}` : "All accounts"}, {rangeNote(data)}.
+          {account ? `Paid to ${account.name}` : "All accounts"}, {rangeNote(data)}. Money out is the panel credit top-ups and the perks paid.
+          {account ? " Top-ups belong to no account, so none are listed here." : ""}
         </p>
       </dl>
 
@@ -161,13 +195,37 @@ export function LedgerTable({
               <TableHead className="w-36">Paid to</TableHead>
               <TableHead className="w-28">Brand</TableHead>
               <TableHead className="w-24 text-right">Amount</TableHead>
-              <TableHead className="w-24 text-right">Cost</TableHead>
+              <TableHead className="w-24 text-right">Perks</TableHead>
               <TableHead className="w-24 text-right">Net</TableHead>
               <TableHead className="w-12 text-right" aria-label="Receipt" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visible.map(({ payment, clientId, clientName }) => {
+            {visible.map((entry) => {
+              if (entry.kind === "topup") {
+                const { topup } = entry;
+                return (
+                  <TableRow key={`topup-${topup.id}`} className="border-b border-border/80 bg-muted/20 last:border-0">
+                    <TableCell className="py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">{formatDate(entry.date)}</TableCell>
+                    <TableCell className="truncate">
+                      <span className="font-medium">Panel credit top-up</span>
+                      {topup.createdByName ? <span className="block truncate text-[0.6rem] text-muted-foreground">by {topup.createdByName}</span> : null}
+                    </TableCell>
+                    <TableCell className="truncate" title={topup.note ?? undefined}>
+                      {topupPlan(topup)}
+                      {topup.note ? <span className="text-muted-foreground"> · {topup.note}</span> : null}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">Top-up</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums text-destructive">−{exactMoney(topup.amount)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">—</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums text-destructive">−{exactMoney(topup.amount)}</TableCell>
+                    <TableCell />
+                  </TableRow>
+                );
+              }
+              const { payment, clientId, clientName } = entry.row;
               const extras = payment.perks.map((perk) => `${perk.name} ×${perk.quantity}`).join(", ");
               return (
                 <TableRow key={payment.id} className="border-b border-border/80 last:border-0">
@@ -185,9 +243,16 @@ export function LedgerTable({
                     </span>
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{exactMoney(payment.amount)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{payment.expense === null ? "—" : `−${exactMoney(payment.expense)}`}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums text-emerald-700 dark:text-emerald-400">
-                    {payment.expense === null ? "—" : `+${exactMoney(payment.amount - payment.expense)}`}
+                  {/* Cash view: only the perks are paid with the payment; the plan's credits were paid with their top-up. */}
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{payment.perksCost > 0 ? `−${exactMoney(payment.perksCost)}` : "—"}</TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-right font-medium tabular-nums",
+                      payment.amount - payment.perksCost >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-destructive",
+                    )}
+                  >
+                    {payment.amount - payment.perksCost >= 0 ? "+" : "−"}
+                    {exactMoney(Math.abs(payment.amount - payment.perksCost))}
                   </TableCell>
                   <TableCell className="text-right">
                     <Tooltip>
@@ -214,7 +279,7 @@ export function LedgerTable({
         </Table>
         {visible.length === 0 ? (
           <div className="flex min-h-48 items-center justify-center text-xs text-muted-foreground">
-            {data.rows.length === 0 ? `No payments ${account ? `to ${account.name} ` : ""}${rangeNote(data)}.` : "No payments match your search."}
+            {entries.length === 0 ? `No payments ${account ? `to ${account.name} ` : "or top-ups "}${rangeNote(data)}.` : "Nothing matches your search."}
           </div>
         ) : null}
       </div>

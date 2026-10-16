@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronsUpDown, LogOut, Settings } from "lucide-react";
 import { Collapsible } from "@base-ui/react/collapsible";
@@ -13,7 +13,7 @@ import {
   navigationSections,
   settingsNavigation,
 } from "@/components/app-shell/navigation";
-import { logout } from "@/app/(private)/actions";
+import { getSidebarAlerts, logout } from "@/app/(private)/actions";
 import { AccountSettingsDialog } from "@/components/app-shell/accountSettingsDialog";
 import { useSessionUser } from "@/components/app-shell/sessionUser";
 import { canOpen } from "@/lib/access";
@@ -107,6 +107,25 @@ export function AppSidebar() {
    */
   const [configChoice, setConfigChoice] = useState<boolean | null>(null);
 
+  // The red dots: real news only (unread WhatsApp, unread email, Renewals to act on),
+  // asked again on every page change and every minute while the tab is in view.
+  const [alerts, setAlerts] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      getSidebarAlerts()
+        .then((next) => { if (!cancelled) setAlerts(next); })
+        .catch(() => {});
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [pathname]);
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-12 shrink-0 justify-center border-b px-2 py-1.5">
@@ -190,7 +209,7 @@ export function AppSidebar() {
                         >
                           <Icon aria-hidden />
                           <span>{item.label}</span>
-                          {"indicator" in item && item.indicator ? (
+                          {"indicator" in item && item.indicator && alerts[item.href] ? (
                             <span
                               className="relative isolate z-10 ml-auto flex size-1.5 shrink-0 overflow-visible! whitespace-normal! group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:right-0.5"
                               aria-label={item.indicator}

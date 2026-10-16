@@ -4,8 +4,9 @@
  * <p>Two roles. <b>Admin</b> sees everything — there can be several, and there
  * must always be at least one. <b>Commercial</b> sees the screens their day is
  * made of: Clients (with each client's page), Renewals, the WhatsApp Inbox and
- * the email Inbox — none of Workspace or Administration. The privileges are
- * fixed, not configurable per person.
+ * the email Inbox — none of Workspace or Administration, nor the Templates page
+ * (they send templates from the WhatsApp Inbox, they don't write them). The
+ * privileges are fixed, not configurable per person.
  *
  * <p>Read by `proxy.ts` (to answer 403 before a forbidden page renders), the
  * sidebar and navbar (to show only what opens), and the sign-in action (to land

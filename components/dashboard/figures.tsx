@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "cn";
 
+import { BrandGlyph } from "@/components/clients/brandGlyph";
+
 // Aliased: this module exports a `Gauge` of its own, which wraps this one.
 import { Gauge as NotchGauge } from "@/components/charts/gauge";
 import { PatternLines } from "@/components/charts/visx-pattern";
@@ -221,20 +223,23 @@ export function Gauge({
 }
 
 /**
- * A monochrome Simple Icons mark, tinted with the current text colour.
+ * A monochrome Simple Icons mark, tinted with the current text colour — or a
+ * brand's own logo from Configuration, drawn by `BrandGlyph` in its own colours.
  *
- * <p>A CSS mask rather than an `<img>`, so the logo takes the ink around it and
- * needs no per-mode artwork — the same trick `Brands` and the Clients table
- * already use, and the reason the slug is stored rather than a URL.
+ * <p>For a slug, a CSS mask rather than an `<img>`, so the logo takes the ink
+ * around it and needs no per-mode artwork. A brand logo can't be a mask: it is
+ * on the brand's website, and masks from another site need CORS.
  *
  * <p>⚠️ No fallback chain here, unlike `Brands`. That one renders whatever
  * domain somebody pasted; these slugs are ours. If one is wrong the mark comes
  * out blank and the row still reads — the name beside it is the label, and the
  * logo was never carrying it alone.
  */
-function BrandMark({ slug, className }: { slug: string; className?: string }) {
-  // A brand's own logo from Configuration ("/api/brands/3/logo?v=…"), or a Simple Icons slug.
-  const src = slug.includes("/") ? slug : `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+function BrandMark({ slug, name, className }: { slug: string; name: string; className?: string }) {
+  // A brand's own logo from Configuration — its address on the brand's website,
+  // drawn as it is, initials if it won't load — or a Simple Icons slug.
+  if (slug.includes("/")) return <BrandGlyph src={slug} name={name} className={className} />;
+  const src = `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
 
   return (
     <span
@@ -272,7 +277,7 @@ export function SplitBar({
     value: number;
     color: string;
     note?: string;
-    /** Our logo address, or a Simple Icons slug. Optional — without one the row shows its swatch alone. */
+    /** The brand's logo address (on its own website), or a Simple Icons slug. Optional — without one the row shows its swatch alone. */
     logo?: string;
   }[];
   total: number;
@@ -308,7 +313,7 @@ export function SplitBar({
               className="size-2.5 shrink-0 rounded-[3px]"
               style={{ backgroundImage: hatch(row.color) }}
             />
-            {row.logo ? <BrandMark slug={row.logo} className="size-3.5 text-foreground/70" /> : null}
+            {row.logo ? <BrandMark slug={row.logo} name={row.label} className="size-3.5 text-foreground/70" /> : null}
             <span className="min-w-0 flex-1 truncate">{row.label}</span>
             {row.note ? (
               <span className="shrink-0 text-[0.65rem] text-muted-foreground">{row.note}</span>

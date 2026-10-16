@@ -30,6 +30,7 @@ import {
   ImageIcon,
   ListFilter,
   Info,
+  LayoutTemplate,
   Lightbulb,
   MessageCircle,
   Mic,
@@ -43,7 +44,7 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 
-import { sendWhatsAppTemplate, sendWhatsAppText } from "@/app/(private)/whatsapp-inbox/actions";
+import { sendWhatsAppText } from "@/app/(private)/whatsapp-inbox/actions";
 import { Button } from "@/components/ui/button";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
@@ -55,6 +56,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { MessageButtons, WhatsAppText } from "@/components/templates/templatePreview";
+import { TemplatePicker } from "@/components/whatsapp-inbox/templatePicker";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -411,6 +414,7 @@ export function WhatsAppInboxWorkspace({
   const [conversationFilter, setConversationFilter] = useState<ConversationFilter>("all");
   const [showDetails, setShowDetails] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [message, setMessage] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -449,6 +453,7 @@ export function WhatsAppInboxWorkspace({
     else next.set("c", String(id));
     setError(null);
     setShowDetails(false);
+    setShowTemplates(false);
     const search = next.toString();
     router.push(search ? `${pathname}?${search}` : pathname, { scroll: false });
   }
@@ -486,16 +491,6 @@ export function WhatsAppInboxWorkspace({
         return;
       }
       setMessage("");
-      router.refresh();
-    });
-  }
-
-  function sendTemplate() {
-    if (!activeConversation || pending) return;
-    setError(null);
-    startSending(async () => {
-      const result = await sendWhatsAppTemplate(activeConversation.id);
-      if (!result.ok) setError(result.error);
       router.refresh();
     });
   }
@@ -667,23 +662,37 @@ export function WhatsAppInboxWorkspace({
     }
     const mine = entry.direction === "OUT";
     const kind = mediaKind(entry);
-    const body = entry.type === "TEMPLATE" ? <span className="italic">{entry.body}</span> : entry.body;
+    // WhatsApp's own *bold*, _italic_, ~strike~ and ```mono```, on every message.
+    const text = entry.body ? <WhatsAppText text={entry.body} /> : null;
+    const body = entry.type === "TEMPLATE" ? <span className="italic">{text}</span> : text;
+    const footer = entry.footer?.trim();
+    const buttons = entry.buttons ?? [];
     const content =
       kind === "sticker" ? (
         <MediaLink message={entry} mine={mine} />
       ) : (
+        // A sent template piece looks like the Templates preview: its grey footer inside, its buttons attached under it.
         <div
           className={cn(
-            "text-xs leading-relaxed whitespace-pre-wrap break-words shadow-sm",
+            "overflow-hidden text-xs leading-relaxed break-words shadow-sm",
             mine ? "rounded-2xl rounded-br-md bg-foreground text-background" : "rounded-2xl rounded-bl-md border bg-background",
-            kind === "visual" ? "p-1" : kind === "audio" ? "px-2.5 py-2" : "px-3.5 py-2.5",
             mine && entry.status === "FAILED" && "opacity-60",
+            // Wide enough for the button labels, even under a one-word text.
+            buttons.length > 0 && "min-w-52",
           )}
         >
-          {kind ? <MediaLink message={entry} mine={mine} /> : null}
-          {entry.body ? (
-            <div className={cn(kind === "visual" ? "px-2.5 pt-1.5 pb-1" : kind === "file" && "mt-1.5")}>{body}</div>
-          ) : null}
+          <div className={cn("whitespace-pre-wrap", kind === "visual" ? "p-1" : kind === "audio" ? "px-2.5 py-2" : "px-3.5 py-2.5")}>
+            {kind ? <MediaLink message={entry} mine={mine} /> : null}
+            {entry.body ? (
+              <div className={cn(kind === "visual" ? "px-2.5 pt-1.5 pb-1" : kind === "file" && "mt-1.5")}>{body}</div>
+            ) : null}
+            {footer ? (
+              <p className={cn("mt-1 text-[0.65rem]", kind === "visual" && "px-2.5 pb-1", mine ? "text-background/60" : "text-muted-foreground")}>
+                {footer}
+              </p>
+            ) : null}
+          </div>
+          <MessageButtons buttons={buttons} mine={mine} links />
         </div>
       );
     const previous = messages[index - 1];
@@ -801,6 +810,17 @@ export function WhatsAppInboxWorkspace({
               <Button variant="ghost" size="icon-sm" aria-label="Attach file" disabled={busy} onClick={() => fileInput.current?.click()}>
                 <Paperclip className="size-3.5" />
               </Button>
+              {/* The saved messages of the Templates page. */}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Send a template"
+                title="Templates"
+                disabled={busy}
+                onClick={() => setShowTemplates(true)}
+              >
+                <LayoutTemplate className="size-3.5" />
+              </Button>
               <textarea
                 rows={1}
                 value={message}
@@ -848,17 +868,18 @@ export function WhatsAppInboxWorkspace({
               </Button>
             </div>
           ) : (
-            // Outside the 24-hour window WhatsApp accepts only an approved template.
+            // Outside the 24-hour window WhatsApp accepts only a Meta-approved template. The only
+            // one configured is Meta's sample (hello_world), not fit for clients, so nothing is
+            // offered here (decided 2026-10-16); the saved templates are ordinary messages and
+            // wait for the client too.
             <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-3 rounded-xl border bg-muted/20 px-3 py-2.5">
               <p className="min-w-0 flex-1 text-[0.7rem] text-muted-foreground">
-                More than 24 hours since {activeConversation.name}&apos;s last message. WhatsApp only allows an approved template until they answer.
+                More than 24 hours since {activeConversation.name}&apos;s last message. WhatsApp blocks messages and templates until they write again.
               </p>
-              <Button size="sm" disabled={busy} onClick={sendTemplate} className={cn(blackStyle.button, "h-7 px-3! py-0! text-[0.7rem]! font-medium!")}>
-                {pending ? "Sending…" : "Send template"}
-              </Button>
             </div>
           )}
         </footer>
+        <TemplatePicker conversation={activeConversation} open={showTemplates} onOpenChange={setShowTemplates} />
       </section>
 
       <aside

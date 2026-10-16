@@ -8,6 +8,7 @@ import { cn } from "cn";
 
 import { saveClient } from "@/app/(private)/clients/actions";
 import { ClientLedger } from "@/components/clients/clientLedger";
+import { ClientStatusPicker } from "@/components/clients/clientStatusPicker";
 import { Button } from "@/components/ui/button";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
@@ -181,6 +182,7 @@ export function ClientWorkspace({
               Edit client
             </Button>
           )}
+          <ClientStatusPicker client={client} saved={saved} disabled={editing} onError={setError} />
         </div>
       </header>
 

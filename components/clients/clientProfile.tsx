@@ -9,18 +9,10 @@ import { CardLink, InfoCard } from "@/components/clients/infoCard";
 import { ClientNote } from "@/components/clients/clientNote";
 import { PaymentMethodLabel } from "@/components/clients/clientsTable";
 import { CurrencyFlag } from "@/components/settings/currencyFlag";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import type { ClientCountry } from "@/lib/clients/country";
-import { MANUAL_STATUSES, statusFromBackend, statusToBackend, type BackendClientStatus, type ClientDraft } from "@/lib/clients/types";
+import type { ClientDraft } from "@/lib/clients/types";
 import {
   type Client,
-  type ClientStatus,
   type ClientTransaction,
 } from "@/lib/clients/sample";
 
@@ -38,17 +30,6 @@ import {
  * change the current plan in the same render, exactly as it changes the
  * receipt. No server-only APIs here for that reason: no cookies, no clock.
  */
-
-/** The status pill's dots — the same values the Clients table uses. */
-const statusDots: Record<ClientStatus, string> = {
-  New: "bg-cyan-500",
-  Callback: "bg-amber-500",
-  Trial: "bg-blue-500",
-  Pending: "bg-orange-500",
-  Active: "bg-emerald-500",
-  Inactive: "bg-muted-foreground/50",
-  Drop: "bg-destructive",
-};
 
 /** "12 Jan 2026". UTC and a fixed locale, like every date on this page. */
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -89,8 +70,6 @@ export type ClientEdit = {
   disabled: boolean;
 };
 
-const STATUS_ORDER: readonly BackendClientStatus[] = ["NEW", "CALLBACK", "TRIAL", "PENDING", "ACTIVE", "INACTIVE", "DROP"];
-
 /**
  * ⚠️ <b>One box for both modes.</b> Every editable line sits in the same box,
  * viewing or editing — only its border shows up. So switching to edit moves
@@ -102,8 +81,6 @@ const viewBox = "border-transparent";
 const editBox = "border-input bg-background focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20";
 const inputClassName =
   "w-full min-w-0 bg-transparent text-center text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-60";
-const pillClassName = "inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[0.6rem] font-medium";
-const pickerRing = "cursor-pointer ring-1 ring-input transition-colors hover:ring-ring disabled:cursor-default disabled:opacity-60";
 
 export function ClientProfile({
   client,
@@ -132,9 +109,6 @@ export function ClientProfile({
   const startsAt = current?.startsOn ?? current?.at;
   const endsAt = current?.endsOn ?? (current?.months ? addMonths(current.at, current.months) : null);
 
-  // What the pill shows: the draft while editing, the saved client otherwise.
-  const statusLabel = edit ? statusFromBackend[edit.draft.status] : client.status;
-
   return (
     // ⚠️ `xl:overflow-y-auto` is a safety net, not a feature: the three cards
     // fit a laptop screen, but on a short window the column scrolls rather
@@ -142,43 +116,6 @@ export function ClientProfile({
     <div className="flex min-w-0 flex-col gap-4 xl:min-h-0 xl:overflow-y-auto">
       {/* ── Who they are ─────────────────────────────────────────────── */}
       <section aria-label="Client" className="relative rounded-xl border bg-card px-5 py-6 text-center">
-        {/* The status in the corner: the first thing to read, and out of the
-            way of the name and contact lines below it. */}
-        <div className="absolute top-3 right-3">
-          {edit ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                disabled={edit.disabled}
-                aria-label={`Status: ${statusLabel}. Change it`}
-                className={cn(pillClassName, "bg-muted", pickerRing, statusLabel === "Drop" && "text-destructive")}
-              >
-                <span aria-hidden className={cn("size-1.5 rounded-full", statusDots[statusLabel])} />
-                {statusLabel}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="min-w-36">
-                <DropdownMenuRadioGroup
-                  value={edit.draft.status}
-                  onValueChange={(value) => edit.onChange({ status: value as BackendClientStatus })}
-                >
-                  {/* Only Trial, Pending and Drop are chosen by hand; the status the
-                      client has now stays in the list so it can be kept. */}
-                  {STATUS_ORDER.filter((status) => MANUAL_STATUSES.includes(status) || status === statusToBackend[client.status]).map((status) => (
-                    <DropdownMenuRadioItem key={status} value={status} closeOnClick className="text-xs">
-                      <span aria-hidden className={cn("size-1.5 rounded-full", statusDots[statusFromBackend[status]])} />
-                      {statusFromBackend[status]}
-                      {MANUAL_STATUSES.includes(status) ? null : <span className="text-muted-foreground">· automatic</span>}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <span className={cn(pillClassName, "bg-muted", client.status === "Drop" && "text-destructive")}>
-              <span aria-hidden className={cn("size-1.5 rounded-full", statusDots[client.status])} />
-              {client.status}
-            </span>
-          )}
-        </div>
         <span
           className={cn(
             "mx-auto flex size-16 items-center justify-center rounded-xl text-lg font-semibold",

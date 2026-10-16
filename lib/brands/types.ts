@@ -15,7 +15,10 @@ export type BrandRow = {
   /** "https://www.nike.com" */
   websiteUrl: string
   socials: Socials
-  /** Our own address for the logo (it changes when the logo does), or null. */
+  /**
+   * The logo's address on the brand's own website (absolute https), or null.
+   * Logos are not stored: every screen loads it from there.
+   */
   logoUrl: string | null
   active: boolean
   /** Clients on this brand, deleted ones left out. */
@@ -32,8 +35,8 @@ export type BrandLookup = {
   domain: string
   websiteUrl: string
   socials: Socials
-  /** The logo we made, as a data: address, or null when none was found. */
-  logo: string | null
+  /** The best logo on the site (a PNG/JPEG first), as its https address, or null when none was found. */
+  logoUrl: string | null
   /** The brand that already has this website, if any. */
   existingBrand: string | null
   /** What could not be found, in a sentence; null when everything was. */
