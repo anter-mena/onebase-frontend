@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Pencil, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "cn";
@@ -19,6 +19,7 @@ import { compactMoney, money, signedPercent } from "@/lib/format";
 import { CARD_FIGURE } from "@/lib/dashboard/figureStyle";
 import { changeFrom, type DashboardOverview, type RevenuePoint } from "@/lib/dashboard/types";
 import { pointLabels, rangeNote } from "@/lib/seo/types";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * The dashboard, on the real payments (built 2026-10-06).
@@ -232,7 +233,7 @@ function TargetEditor({ current }: { current: number | null }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(current ? String(current) : "");
   const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the target…");
   const valid = /^\d+(\.\d{1,2})?$/.test(value.trim()) && Number(value) > 0;
 
   function save() {

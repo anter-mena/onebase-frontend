@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
@@ -18,6 +18,7 @@ import { utcStamp } from "@/lib/format";
 import { languageLabel } from "@/lib/templates/rules";
 import type { MessageTemplate, TemplateBlockType } from "@/lib/templates/types";
 import { BLOCK_ICONS } from "@/components/templates/templateBlocks";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * The Templates list: the Users table's toolbar and look, without paging — there
@@ -38,7 +39,7 @@ export function firstText(template: MessageTemplate) {
 
 export function TemplatesTable({ templates }: { templates: readonly MessageTemplate[] }) {
   const router = useRouter();
-  const [busy, startBusy] = useTransition();
+  const [busy, startBusy] = useLockedTransition("Updating the template…");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<(typeof statusFilters)[number]>("All");
 

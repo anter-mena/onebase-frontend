@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ReactNode, type ComponentProps } from "react";
+import { useMemo, useState, type ReactNode, type ComponentProps } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -34,6 +34,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 import {
   preSubscriptionStatuses,
   type Client,
@@ -238,7 +239,7 @@ export function ClientsTable({
   defaultHiddenColumns?: readonly ClientColumnId[];
 }) {
   const router = useRouter();
-  const [deleting, startDelete] = useTransition();
+  const [deleting, startDelete] = useLockedTransition("Deleting the client…");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"All" | ClientStatus>("All");

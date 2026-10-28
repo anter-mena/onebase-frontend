@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Minus, Plus } from "lucide-react";
 import { cn } from "cn";
@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { exactMoney } from "@/lib/format";
 import { planDescription, type Client, type ClientTransaction, type PaymentKind, type PaymentMethod } from "@/lib/clients/sample";
 import type { NewPayment, PaymentOptions } from "@/lib/clients/types";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * "Add payment" — the button and the window it opens.
@@ -198,7 +199,7 @@ export function AddPaymentDialog({
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the payment…");
   const [error, setError] = useState<string | null>(null);
   // ⚠️ A lock set the instant Add payment is clicked. `saving` only turns the
   // button off on the next render, and clicks landing before it (a double or

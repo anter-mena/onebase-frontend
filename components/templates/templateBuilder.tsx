@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Reorder } from "motion/react";
@@ -29,6 +29,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 import {
   BLOCK_LABELS,
   BUTTON_TYPES,
@@ -136,7 +137,7 @@ export function TemplateBuilder({ template }: { template: MessageTemplate | null
   const [initial] = useState(() => draftOf(template));
   const [draft, setDraft] = useState<Draft>(initial);
   const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the template…");
 
   const input = inputOf(draft);
   const dirty = JSON.stringify(input) !== JSON.stringify(inputOf(initial));

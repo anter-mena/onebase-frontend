@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { preload } from "react-dom";
 import { Coins, DollarSign, NotebookPen, Plus } from "lucide-react";
 import { cn } from "cn";
@@ -24,6 +24,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { CreditSummary } from "@/lib/expenses/types";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * ⚠️ Loaded on demand, and never on the server.
@@ -222,7 +223,7 @@ function TopUpDialog({ onClose }: { onClose: () => void }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the top-up…");
   const valid = isValidCredits(credits) && isValidAmount(amount);
 
   function save() {

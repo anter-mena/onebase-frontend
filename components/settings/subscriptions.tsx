@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileDown, MonitorSmartphone, Save, TriangleAlert } from "lucide-react";
 import { cn } from "cn";
@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { PlanPrice } from "@/lib/plans/plans";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 // The subscription plans offered to clients: one plan per device count (1–4) and duration (1, 3, 6, 12 months),
 // priced in US dollars — the only currency in One Base (decided 2026-10-04).
@@ -125,7 +126,7 @@ export function Subscriptions({ plans, loadError }: { plans: PlanPrice[] | null;
   const changeCount = drafts.size;
 
   const [editing, setEditing] = useState<EditingCell | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the plans…");
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Leaving the page with unsaved changes: the browser asks first.

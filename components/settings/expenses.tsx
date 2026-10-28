@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type KeyboardEvent } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Check, FileDown, MoreVertical, Pencil, Plus, Save } from "lucide-react";
 import { cn } from "cn";
@@ -35,6 +35,7 @@ import { showTopBanner } from "@/components/ui/topBanner";
 import { downloadCsv } from "@/lib/csv";
 import type { CreditSummary, PerkRow } from "@/lib/expenses/types";
 import type { PlanPrice } from "@/lib/plans/plans";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * The Expenses tab of the Configuration page — part of the set-up: it stores
@@ -102,7 +103,7 @@ export function Expenses({
   const changeCount = drafts.size;
 
   const [editing, setEditing] = useState<EditingCell | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the expenses…");
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [perkDialog, setPerkDialog] = useState<PerkRow | "new" | null>(null);
 
@@ -467,7 +468,7 @@ function PerkDialog({ perk, onClose, onSaved }: { perk: PerkRow | null; onClose:
   const [description, setDescription] = useState(perk?.description ?? "");
   const [cost, setCost] = useState(perk ? perk.cost.toFixed(2) : "");
   const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the expenses…");
 
   const valid = name.trim() !== "" && isValidCost(cost);
   const changed =

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { cn } from "cn";
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { TEMPLATE_LANGUAGES, languageLabel } from "@/lib/templates/rules";
 import type { MessageTemplate, TemplateLanguage } from "@/lib/templates/types";
 import type { WaConversation } from "@/lib/whatsapp/types";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * The composer's Templates window: the active templates (from the Templates
@@ -50,7 +51,7 @@ export function TemplatePicker({
   const [language, setLanguage] = useState<TemplateLanguage | "ALL">("ALL");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sending, startSending] = useTransition();
+  const [sending, startSending] = useLockedTransition("Sending the template…");
 
   // Asked each time the window opens, so a template saved a minute ago is there.
   useEffect(() => {

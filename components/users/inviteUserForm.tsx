@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Send, X } from "lucide-react";
@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { inviteUsers } from "@/app/(private)/users/actions";
 import { showTopBanner } from "@/components/ui/topBanner";
 import type { UserRole } from "@/lib/users/types";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * Invite people into the workspace.
@@ -57,7 +58,7 @@ export function InviteUserForm() {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [sending, startSending] = useTransition();
+  const [sending, startSending] = useLockedTransition("Sending the invitation…");
   const router = useRouter();
 
   /**

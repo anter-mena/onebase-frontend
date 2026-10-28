@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { cn } from "cn";
 
@@ -9,6 +9,7 @@ import { InfoCard, cardActionClassName } from "@/components/clients/infoCard";
 import { Button } from "@/components/ui/button";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
 import { Textarea } from "@/components/ui/textarea";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * A free-text note about the client — what the team should know before the
@@ -38,7 +39,7 @@ export function ClientNote({
   const [note, setNote] = useState(initialNote?.trim() ?? "");
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the note…");
   const editing = draft !== null;
 
   const startEditing = () => {

@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { AppFooter } from "@/components/app-shell/appFooter";
 import { AppNavbar } from "@/components/app-shell/appNavbar";
+import { ActionLockProvider } from "@/components/app-shell/actionLock";
 import { AppSidebar } from "@/components/app-shell/appSidebar";
 import { NotificationCountsProvider } from "@/components/app-shell/notificationCounts";
 import { SessionUserProvider, type SessionUser } from "@/components/app-shell/sessionUser";
@@ -35,6 +36,7 @@ export function AppShell({
     <SessionUserProvider user={user}>
     <SessionWatch />
     <NotificationCountsProvider>
+    <ActionLockProvider>
     <SidebarProvider
       defaultOpen={defaultOpen}
       className="h-svh overflow-hidden"
@@ -54,6 +56,7 @@ export function AppShell({
         <AppFooter />
       </SidebarInset>
     </SidebarProvider>
+    </ActionLockProvider>
     </NotificationCountsProvider>
     </SessionUserProvider>
   );

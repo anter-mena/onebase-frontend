@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ComponentProps, type ReactNode } from "react";
+import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
@@ -45,6 +45,7 @@ import {
 import type { UserRole, WorkspaceUser } from "@/lib/users/types";
 import { cancelInvite, resendInvite, setUserActive } from "@/app/(private)/users/actions";
 import { showTopBanner } from "@/components/ui/topBanner";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * Who can sign in, and what they can reach.
@@ -95,7 +96,7 @@ export function UsersTable({
   users: readonly WorkspaceUser[];
   defaultHiddenColumns?: readonly UserColumnId[];
 }) {
-  const [busy, startBusy] = useTransition();
+  const [busy, startBusy] = useLockedTransition("Updating the user…");
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<(typeof roleFilters)[number]>("All");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();

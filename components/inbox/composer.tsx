@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { File as FileIcon, Paperclip, SendHorizontal, X } from "lucide-react"
 
+import { useActionLock } from "@/components/app-shell/actionLock"
 import { Button } from "@/components/ui/button"
 import blackStyle from "@/components/ui/button-styles/black.module.css"
 import whiteStyle from "@/components/ui/button-styles/white.module.css"
@@ -107,6 +108,8 @@ export function Composer({
   const router = useRouter()
   const initial = useMemo(() => prefill(mode, senders, brandSender ?? null), [mode, senders, brandSender])
 
+  // Sending or saving holds the app still until Gmail has it (actionLock.tsx).
+  const hold = useActionLock()
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
   const [cc, setCc] = useState(initial.cc)
@@ -182,6 +185,7 @@ export function Composer({
     for (const file of files) form.append("files", file, file.name)
 
     setBusy(kind)
+    const release = hold(kind === "draft" ? "Saving the draft…" : "Sending the email…")
     try {
       const response = await fetch(`/inbox/compose?kind=${kind}`, { method: "POST", body: form })
       const result = await response.json().catch(() => null)
@@ -207,6 +211,7 @@ export function Composer({
     } catch {
       setError("Could not reach the server. Please try again.")
     } finally {
+      release()
       setBusy(null)
     }
   }

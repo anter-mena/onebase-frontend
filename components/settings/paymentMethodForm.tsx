@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useState, useTransition, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import { PaymentIcon } from "react-svg-credit-card-payment-icons";
 import { cn } from "cn";
 
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 import {
   amountFormatter,
   networkLogos,
@@ -87,7 +88,7 @@ export function PaymentMethodForm({
   const [active, setActive] = useState(initialValues.active);
   const [instructions, setInstructions] = useState(initialValues.instructions);
   const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the payment method…");
 
   // Edit: Save stays grey until something differs from what is saved. Adding is always a change.
   const changed =

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   Archive,
@@ -44,6 +44,7 @@ import { utcStamp } from "@/lib/format"
 import { initialsOf } from "@/lib/initials"
 import { fileSize, type FolderId, type MailAbilities, type MailDetail, type MailSender } from "@/lib/inbox/mailTypes"
 import { cn } from "@/lib/utils"
+import { useLockedTransition } from "@/components/app-shell/actionLock"
 
 /**
  * One email, open — and where answers are written.
@@ -121,7 +122,7 @@ function MailDisplay({ mail, folderId, can, senders, brandSender, composingNew }
   const [answer, setAnswer] = useState<ComposeMode | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useLockedTransition("Updating the email…")
 
   /** Drops keys from the address bar: closing the email, or the new-email pane. */
   function navigateWithout(...keys: string[]) {

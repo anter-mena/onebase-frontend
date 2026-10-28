@@ -38,6 +38,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { showTopBanner } from "@/components/ui/topBanner";
 import { downloadCsv } from "@/lib/csv";
 import type { BrandLookup, BrandRow, SocialNetwork, Socials } from "@/lib/brands/types";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /*
  * The Brands tab of the Configuration page.
@@ -180,7 +181,7 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
   const takenBy = current?.status === "found" ? current.data.existingBrand : null;
   const showInvalid = link.trim().length > 0 && !domain;
 
-  const [adding, startAdding] = useTransition();
+  const [adding, startAdding] = useLockedTransition("Saving the brand…");
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   function draftFrom(found: BrandLookup): BrandDraft {
@@ -484,7 +485,7 @@ function BrandDialog({ state, onClose, onSaved }: { state: DialogState; onClose:
   const [fetched, setFetched] = useState(false);
   const [message, setMessage] = useState<{ tone: "error" | "note"; text: string } | null>(null);
   const [fetching, startFetching] = useTransition();
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the brand…");
 
   // Edit: Save stays grey until something differs from what is saved. Adding is always a change.
   const sameSocials = (a: Socials, b: Socials) => socialOrder.every((network) => (a[network] ?? "").trim() === (b[network] ?? "").trim());

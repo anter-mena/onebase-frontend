@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronsUpDown, LogOut, Settings } from "lucide-react";
 import { Collapsible } from "@base-ui/react/collapsible";
@@ -39,6 +39,7 @@ import {
 import blackStyle from "@/components/ui/button-styles/black.module.css";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { LiquidGlassLayers } from "@/components/ui/liquifyglasse";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 import {
   Sidebar,
   SidebarContent,
@@ -91,7 +92,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { setOpen, isMobile } = useSidebar();
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const [loggingOut, startLogout] = useTransition();
+  const [loggingOut, startLogout] = useLockedTransition("Logging out…");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   /**

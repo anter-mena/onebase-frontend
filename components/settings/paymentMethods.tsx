@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useState, type CSSProperties, type ReactNode } from "react";
 import { CircleCheck, CirclePlus, CircleSlash, LayoutGrid, MoreVertical, Pencil, Rows3, WalletCards } from "lucide-react";
 import { PaymentIcon } from "react-svg-credit-card-payment-icons";
 import { cn } from "cn";
@@ -44,6 +44,7 @@ import {
 } from "@/lib/settings/paymentMethodsView";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import styles from "./paymentMethods.module.css";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 type PaymentMethod = PaymentMethodRow;
 type View = PaymentMethodsView;
@@ -257,7 +258,7 @@ export function PaymentMethods({
   // Switching a method off stops it being chosen for new payments, which is
   // not something to do by brushing past a button on a card — so it is asked first.
   const [methodToToggle, setMethodToToggle] = useState<PaymentMethod | null>(null);
-  const [switching, startSwitching] = useTransition();
+  const [switching, startSwitching] = useLockedTransition("Saving the payment method…");
 
   function toggleActive() {
     if (!methodToToggle) return;

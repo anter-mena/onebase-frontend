@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
@@ -16,6 +16,7 @@ import type { ClientCountry } from "@/lib/clients/country";
 import type { Client, ClientTransaction } from "@/lib/clients/sample";
 import { statusToBackend, type ClientDraft, type PaymentOptions } from "@/lib/clients/types";
 import type { TransactionColumnId } from "@/lib/clients/transactionColumns";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * A client's page, with the left card editable in place.
@@ -80,7 +81,7 @@ export function ClientWorkspace({
   const [editing, setEditing] = useState(startEditing);
   const [draft, setDraft] = useState<ClientDraft>(saved);
   const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving the client…");
   const dirty = !sameDraft(draft, saved);
 
   // Leaving with unsaved changes asks first, like the Subscriptions grid.

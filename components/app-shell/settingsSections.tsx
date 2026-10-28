@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNowStrict } from "date-fns";
 import {
@@ -41,6 +41,7 @@ import { roleLabels } from "@/lib/access";
 import { readSystemHealth } from "@/app/(private)/system-status/actions";
 import { bytes, duration } from "@/lib/format";
 import type { SystemHealth } from "@/lib/system/healthTypes";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * The panels behind the settings window's rail.
@@ -162,7 +163,7 @@ export function GeneralSettings() {
   const [renewalEmails, setRenewalEmails] = useState(user.settings.notifyRenewals);
   const [failedPaymentEmails, setFailedPaymentEmails] = useState(user.settings.notifyFailedPayments);
   const [weeklyDigest, setWeeklyDigest] = useState(user.settings.notifyWeeklyDigest);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Saving your settings…");
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const changed =
@@ -346,7 +347,7 @@ function ChangePasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, startTransition] = useLockedTransition("Changing your password…");
   const currentCaps = useCapsLock();
   const nextCaps = useCapsLock();
   const confirmCaps = useCapsLock();

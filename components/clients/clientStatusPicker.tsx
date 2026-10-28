@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "cn";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MANUAL_STATUSES, statusFromBackend, statusToBackend, type BackendClientStatus, type ClientDraft } from "@/lib/clients/types";
 import type { Client, ClientStatus } from "@/lib/clients/sample";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /** The status dots — the same values the Clients table uses. */
 const statusDots: Record<ClientStatus, string> = {
@@ -68,7 +69,7 @@ export function ClientStatusPicker({
   onError: (message: string | null) => void;
 }) {
   const router = useRouter();
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Changing the status…");
   const [target, setTarget] = useState<BackendClientStatus | null>(null);
   const [confirming, setConfirming] = useState<BackendClientStatus | null>(null);
   const current = statusToBackend[client.status];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import type { NewClient } from "@/lib/clients/types";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 export type AddClientBrand = { id: number; name: string; logoUrl: string | null };
 
@@ -43,7 +44,7 @@ export function AddClientSheet({ brands }: { brands: readonly AddClientBrand[] }
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<NewClient>(EMPTY);
   const [error, setError] = useState<string | null>(null);
-  const [saving, startSaving] = useTransition();
+  const [saving, startSaving] = useLockedTransition("Adding the client…");
   const set = (patch: Partial<NewClient>) => {
     setDraft((current) => ({ ...current, ...patch }));
     setError(null);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 import { cn } from "cn";
@@ -50,6 +50,7 @@ import {
   type TransactionColumnId,
 } from "@/lib/clients/transactionColumns";
 import type { PaymentOptions } from "@/lib/clients/types";
+import { useLockedTransition } from "@/components/app-shell/actionLock";
 
 /**
  * One client's payments, drawn as the Clients table draws its rows.
@@ -130,7 +131,7 @@ export function TransactionsTable({
   const router = useRouter();
   const [toDelete, setToDelete] = useState<ClientTransaction | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleting, startDelete] = useTransition();
+  const [deleting, startDelete] = useLockedTransition("Deleting the payment…");
   // Set the instant Delete is clicked, so a double click sends one request.
   const deletingNow = useRef(false);
 
