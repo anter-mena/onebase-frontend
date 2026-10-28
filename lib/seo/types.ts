@@ -9,12 +9,13 @@ import { ATLAS_ID_BY_COUNTRY } from "@/lib/seo/countryCodes"
  */
 
 /** The period the page looks at (decided 2026-10-05). "custom" carries its own dates. */
-export type SeoRangeId = "today" | "yesterday" | "7d" | "month" | "year" | "custom"
+export type SeoRangeId = "today" | "yesterday" | "week" | "month" | "year" | "custom"
 
 export const seoRanges = [
   { id: "today", label: "Today", note: "today" },
   { id: "yesterday", label: "Yesterday", note: "yesterday" },
-  { id: "7d", label: "7 days", note: "last 7 days" },
+  // Monday to today (2026-10-28): replaced "7 days", which left today out.
+  { id: "week", label: "This week", note: "this week" },
   { id: "month", label: "This month", note: "this month" },
   { id: "year", label: "This year", note: "this year" },
 ] as const satisfies readonly { id: Exclude<SeoRangeId, "custom">; label: string; note: string }[]

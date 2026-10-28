@@ -171,7 +171,7 @@ export function RevenueChart({
   rangeNote,
 }: {
   points: RevenuePoint[];
-  /** "last 7 days" — names the period the figures refer to. */
+  /** "this week" — names the period the figures refer to. */
   rangeNote: string;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);

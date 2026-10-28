@@ -7,8 +7,9 @@ export function countLabel(count: number) {
 }
 
 /**
- * A sidebar area's red count (2026-10-28): small, flashing gently, at the end of the
- * row; on the icon's corner when the sidebar is folded to icons. Nothing at 0.
+ * A sidebar area's count (2026-10-28): small red text, no pill or border, flashing
+ * gently, at the end of the row; on the icon's corner when the sidebar is folded
+ * to icons. Nothing at 0.
  * `label` is what screen readers hear after the number ("unread emails"), read
  * with the link rather than announced on its own every minute.
  */
@@ -18,7 +19,7 @@ export function NotificationCount({ count, label }: { count: number; label: stri
     <span className="relative z-10 ml-auto flex shrink-0 overflow-visible! whitespace-nowrap! group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:top-0 group-data-[collapsible=icon]:right-0">
       <span
         aria-hidden
-        className="notif-flash inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[0.6rem] leading-none font-semibold text-white tabular-nums ring-1 ring-background group-data-[collapsible=icon]:h-3.5 group-data-[collapsible=icon]:min-w-3.5 group-data-[collapsible=icon]:px-0.5 group-data-[collapsible=icon]:text-[0.5rem]"
+        className="notif-flash inline-flex items-center text-[0.65rem] leading-none font-semibold text-red-600 tabular-nums dark:text-red-400 group-data-[collapsible=icon]:text-[0.5rem]"
       >
         {countLabel(count)}
       </span>

@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { rangeNote, seoRanges, type SeoRangeId } from "@/lib/seo/types";
 
 /**
- * The period switch: Today, Yesterday, 7 days, This month, This year, Custom
+ * The period switch: Today, Yesterday, This week, This month, This year, Custom
  * (decided 2026-10-05 for SEO; the Dashboard and the Ledger use the same one,
  * 2026-10-06, so a period means the same thing on every screen).
  */

@@ -45,7 +45,7 @@ export function StatTile({
   value: string;
   /** Signed percentage. Omit when there is nothing to compare against. */
   change?: number;
-  /** The period the change is measured against — "vs previous 7 days". */
+  /** The period the change is measured against — "vs the period before". */
   changeNote?: string;
   upIsGood?: boolean;
   /**

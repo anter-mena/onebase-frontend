@@ -212,21 +212,21 @@ export default function DashboardLoading() {
                   </div>
 
                   <div className="flex min-w-0 flex-col divide-y">
-                    <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-4">
+                    <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-2.5">
                       <h2 className="text-sm font-medium">Total</h2>
-                      <div className="mt-2.5">
+                      <div className="mt-1">
                         <StatTile change={false} />
                       </div>
                     </div>
-                    <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-4">
+                    <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-2.5">
                       <h2 className="text-sm font-medium">Revenue</h2>
-                      <div className="mt-2.5">
+                      <div className="mt-1">
                         <StatTile label="New and renewing" />
                       </div>
                     </div>
-                    <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-4">
+                    <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-2.5">
                       <h2 className="text-sm font-medium">Expenses</h2>
-                      <div className="mt-2.5">
+                      <div className="mt-1">
                         <StatTile label="Panel credit top-ups and perks" />
                         <Line className="mt-1 text-[0.6rem]" width="w-36" />
                       </div>

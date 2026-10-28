@@ -88,7 +88,7 @@ export function SeoWorkspace({
   const brand = data.brand.id;
   const range = data.range;
   const activeBrand = data.brand;
-  // The words for the period: "last 7 days", "this month", "1 Jun – 31 Aug 2026".
+  // The words for the period: "this week", "this month", "1 Jun – 31 Aug 2026".
   const activeRange = { note: rangeNote(data) };
   const changeNote = "vs the period before";
 

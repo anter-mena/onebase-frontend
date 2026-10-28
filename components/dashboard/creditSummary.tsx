@@ -5,7 +5,6 @@ import { ArrowRight } from "lucide-react";
 import { cn } from "cn";
 
 import { hatch } from "@/components/dashboard/hatch";
-import { CARD_FIGURE } from "@/lib/dashboard/figureStyle";
 import { count } from "@/lib/format";
 import type { DashboardOverview } from "@/lib/dashboard/types";
 
@@ -44,7 +43,8 @@ export function CreditSummary({ credit }: { credit: DashboardOverview["credit"] 
           then the last top-up. It used to stack a text-3xl figure over a 28px bar. */}
       <div className="mt-3 flex items-baseline justify-between gap-3">
         <p className="flex min-w-0 items-baseline gap-1.5">
-          <span className={cn("text-2xl", CARD_FIGURE, remaining < 0 && "text-destructive")}>
+          {/* Semibold, not the bold of the totals (2026-10-28): a count of credits, not money. */}
+          <span className={cn("text-2xl font-semibold tracking-tight tabular-nums", remaining < 0 && "text-destructive")}>
             {count(remaining)}
           </span>
           <span className="truncate text-[0.65rem] text-muted-foreground">

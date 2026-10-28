@@ -37,7 +37,7 @@ export function TrafficChart({
   rangeNote,
 }: {
   points: TrafficPoint[];
-  /** "last 7 days" — names the period the columns cover. */
+  /** "this week" — names the period the columns cover. */
   rangeNote: string;
 }) {
   // Scoped to this instance: two charts on one page would otherwise both fill
