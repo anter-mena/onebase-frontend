@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState, useTransition } from "react";
+import { Suspense, useState, useTransition } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronsUpDown, LogOut, Settings } from "lucide-react";
 import { Collapsible } from "@base-ui/react/collapsible";
@@ -13,7 +13,8 @@ import {
   navigationSections,
   settingsNavigation,
 } from "@/components/app-shell/navigation";
-import { getSidebarCounts, logout } from "@/app/(private)/actions";
+import { logout } from "@/app/(private)/actions";
+import { useNotificationCounts } from "@/components/app-shell/notificationCounts";
 import { NotificationCount } from "@/components/app-shell/notificationCount";
 import { AccountSettingsDialog } from "@/components/app-shell/accountSettingsDialog";
 import { useSessionUser } from "@/components/app-shell/sessionUser";
@@ -109,25 +110,9 @@ export function AppSidebar() {
    */
   const [configChoice, setConfigChoice] = useState<boolean | null>(null);
 
-  // The red counts: real news only (New clients, Renewals to act on, unread email,
-  // unread WhatsApp), asked again on every page change and every minute while the
-  // tab is in view.
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = () => {
-      if (document.visibilityState !== "visible") return;
-      getSidebarCounts()
-        .then((next) => { if (!cancelled) setCounts(next); })
-        .catch(() => {});
-    };
-    refresh();
-    const timer = window.setInterval(refresh, 60_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [pathname]);
+  // The red counts: real news only (New clients, Renewals to act on, new email,
+  // unread WhatsApp). Shared with the header's Inbox dot (notificationCounts.tsx).
+  const counts = useNotificationCounts();
 
   return (
     <Sidebar collapsible="icon">

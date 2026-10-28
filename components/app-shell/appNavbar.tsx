@@ -7,6 +7,7 @@ import { cn } from "cn";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { CurrencyConverter } from "@/components/app-shell/currencyConverter";
+import { useNotificationCounts } from "@/components/app-shell/notificationCounts";
 import { appNavigation, getConfigurationTab, navbarPages } from "@/components/app-shell/navigation";
 import { useSessionUser } from "@/components/app-shell/sessionUser";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
@@ -72,6 +73,10 @@ export function AppNavbar() {
   // hydration on a server-rendered component. See the button below.
   const { toggleMode } = useTheme();
   const user = useSessionUser();
+  // Not while the Inbox is open: opening it is what clears the count.
+  const onInbox = usePathname().startsWith("/inbox");
+  const counts = useNotificationCounts();
+  const newEmails = onInbox ? 0 : (counts["/inbox"] ?? 0);
 
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:px-6">
@@ -84,7 +89,7 @@ export function AppNavbar() {
 
       <div className="flex items-center gap-1.5">
         {/* A tool rather than a place, so it stands apart from the Inbox. The bell is gone
-            (2026-10-28): the sidebar's red counts carry the news. */}
+            (2026-10-28): the red counts carry the news, and the Inbox button its dot. */}
         <CurrencyConverter />
         <Separator orientation="vertical" className="mx-1 h-4 self-center!" />
         {/* Shown only to roles that may open the Inbox (lib/access) — today, both. */}
@@ -95,10 +100,14 @@ export function AppNavbar() {
               whiteStyle.button,
               "relative flex size-7 items-center justify-center p-0! text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
             )}
-            aria-label="Inbox"
-            title="Inbox"
+            aria-label={newEmails ? `Inbox, ${newEmails} new ${newEmails === 1 ? "email" : "emails"}` : "Inbox"}
+            title={newEmails ? `Inbox · ${newEmails} new` : "Inbox"}
           >
             <Inbox className="size-3" aria-hidden />
+            {/* New email since the last visit (2026-10-28), the same count as the sidebar's. */}
+            {newEmails ? (
+              <span aria-hidden className="notif-flash absolute -top-0.5 -right-0.5 size-2 rounded-full bg-red-500 ring-2 ring-background" />
+            ) : null}
           </Link>
         )}
         {/* Light/dark. Choosing a *palette* is not here — that lives in the
