@@ -2,11 +2,12 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, FileDown, Search, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 import { cn } from "cn";
 
 import { deletePayment } from "@/app/(private)/clients/actions";
 import { AddPaymentDialog } from "@/components/clients/addPaymentDialog";
+import { ProofAction } from "@/components/clients/proofAction";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -23,7 +24,6 @@ import {
   SortHeader,
 } from "@/components/clients/clientsTable";
 import { Button } from "@/components/ui/button";
-import blackStyle from "@/components/ui/button-styles/black.module.css";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -39,7 +39,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { downloadCsv } from "@/lib/csv";
 import { exactMoney, money } from "@/lib/format";
 import type { Client, ClientTransaction, PaymentKind } from "@/lib/clients/sample";
 import {
@@ -125,8 +124,6 @@ export function TransactionsTable({
   defaultHiddenColumns?: readonly TransactionColumnId[];
   className?: string;
 }) {
-  // "0012" — names the CSV file, so two clients’ exports never overwrite each other.
-  const clientNumber = String(client.id).padStart(4, "0");
   const [query, setQuery] = useState("");
   /** Said once after a save, e.g. the panel credit went below zero. */
   const [notice, setNotice] = useState<string | null>(null);
@@ -250,32 +247,14 @@ export function TransactionsTable({
     });
   }
 
-  function exportCsv() {
-    // Full names and plain numbers: a spreadsheet opened later needs to add
-    // these up, and "$3,100.00" is text to it.
-    downloadCsv(
-      `one-base-client-${clientNumber}-transactions.csv`,
-      ["Date", "Brand", "Type", "Description", "Payment method", "Amount", "Expense", "Net"],
-      filtered.map((entry) => [
-        entry.at,
-        entry.brand,
-        entry.kind,
-        entry.description,
-        entry.method,
-        entry.amount.toFixed(2),
-        entry.expense === null ? "" : entry.expense.toFixed(2),
-        netOf(entry).toFixed(2),
-      ]),
-    );
-  }
-
   return (
     <section aria-label="Transactions" className={cn("@container flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card", className)}>
       {/* The Clients toolbar, with the title where the status filter sits:
           this is one card among three, and it has to say what it is. */}
-      {/* Two rows whatever the width: the title with Export beside it, then the
-          tools. Beside the profile and the receipt this card is narrow even on a
-          wide screen, and one row squeezed everything into each other. */}
+      {/* Two rows whatever the width: the title, then the tools. Beside the
+          profile and the receipt this card is narrow even on a wide screen, and one
+          row squeezed everything into each other. No Export here (2026-10-28):
+          the Ledger exports every payment. */}
       <div className="flex shrink-0 flex-col gap-2.5 px-4 py-3">
         <div className="flex items-start gap-2">
           <div className="min-w-0">
@@ -284,15 +263,6 @@ export function TransactionsTable({
               {transactions.length} {transactions.length === 1 ? "payment" : "payments"} · {money(paid)} in total
             </p>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={exportCsv}
-            disabled={filtered.length === 0}
-            className={cn(blackStyle.button, "ml-auto shrink-0 px-3! py-0! text-[0.65rem]! font-normal!")}
-          >
-            <FileDown className="size-3" />Export CSV
-          </Button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -379,7 +349,7 @@ export function TransactionsTable({
               {shows("net") ? (
               <TableHead className="w-28 text-right [&>button]:flex-row-reverse"><SortHeader field="net" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Net</SortHeader></TableHead>
               ) : null}
-              <TableHead className="w-[72px] text-right">Actions</TableHead>
+              <TableHead className="w-24 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -435,6 +405,7 @@ export function TransactionsTable({
                 ) : null}
                 <TableCell className="text-right">
                   <div className="inline-flex items-center gap-0.5">
+                    <ProofAction clientId={client.id} payment={entry} dateLabel={formatDate(entry.at)} />
                     {/* The slip for a small receipt printer, in a new tab: it opens the
                         print window, where "Save as PDF" downloads it. */}
                     <Tooltip>

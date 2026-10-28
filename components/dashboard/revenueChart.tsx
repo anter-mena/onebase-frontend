@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "cn";
 
 import { hatch } from "@/components/dashboard/hatch";
+import { AXIS_GUTTER, showsLabel } from "@/lib/dashboard/chartLabels";
 import { compactMoney, money } from "@/lib/format";
 import type { RevenuePoint } from "@/lib/dashboard/types";
 
@@ -72,8 +73,14 @@ const BAR_MAX_WIDTH = 92;
  */
 const ZERO_GAP = 3;
 
-/** So a tiny value is still a visible sliver rather than nothing. */
+/**
+ * So a tiny value is still a visible sliver rather than nothing — and a $0 day
+ * shows its 2px stub too, on purpose: it marks "nothing here", not "no data".
+ */
 const MIN_BAR = 2;
+
+/** The scale of a period with no money in it: $25 steps, $0 to $100 above the line, one step below. */
+const EMPTY_STEP = 25;
 
 type Column = {
   label: string;
@@ -201,10 +208,17 @@ export function RevenueChart({
   // One step for both arms, each rounded up to a whole number of it. The two
   // arms then take the share of the height their own totals earn — a period
   // with small expenses gets a low zero line rather than half the plot.
+  //
+  // ⚠️ Two floors (2026-10-27). A period with no money at all used to get a $0.25
+  // step: its ticks, rounded to whole dollars, all read "$0" and sat on one line —
+  // the chart looked axis-less, and three ticks shared one key, so React could
+  // leave a stale "$0" behind after a period change. So an empty period gets
+  // the scale a small one would (-$25 to $100), and a step is never under $1.
   const peakUp = Math.max(...columns.map((column) => column.revenue));
   const peakDown = Math.max(...columns.map((column) => column.expenses));
-  const step = niceStep(peakUp + peakDown);
-  const topMax = armTo(peakUp, step);
+  const empty = peakUp + peakDown === 0;
+  const step = empty ? EMPTY_STEP : Math.max(niceStep(peakUp + peakDown), 1);
+  const topMax = empty ? EMPTY_STEP * 4 : armTo(peakUp, step);
   const bottomMax = armTo(peakDown, step);
   const span = topMax + bottomMax;
   const zeroAt = (topMax / span) * 100;
@@ -214,49 +228,51 @@ export function RevenueChart({
   const ticks = useMemo(() => {
     const values: number[] = [];
     for (let value = -bottomMax; value <= topMax + step / 2; value += step) {
-      values.push(Math.round(value));
+      // `|| 0`: Math.round can give -0, which would print and key like a second 0.
+      values.push(Math.round(value) || 0);
     }
     return values;
   }, [bottomMax, topMax, step]);
 
   /**
-   * The axis gutter, exactly as wide as its widest tick.
+   * The axis gutter: one width for every period (AXIS_GUTTER, 2026-10-27).
    *
-   * <p>It was a flat `w-11` — 44px for labels that need about 25. The surplus
-   * was empty card between the title and the plot, and it made the chart look
-   * inset from the heading above it. Sizing the gutter to its own content puts
-   * the widest label's left edge on the card's content edge, level with the
-   * title, and hands the ~20px back to the plot.
+   * <p>It used to be as wide as each period's widest tick, which moved the plot
+   * with every period change and kept the chart from matching its loading
+   * screen. Six characters fit the widest label, "-$1.5k".
    *
    * <p>⚠️ `ch` rather than a measurement. The labels are `tabular-nums`, so
    * every digit is the width of a `0` and a count of characters is an exact
    * width — no ref, no layout read during render. The 2px covers `$` and `-`,
    * which a font is not obliged to make tabular.
    *
-   * <p>Short labels still sit in from the edge, because they are right-aligned
-   * against the axis. That is the alignment a column of figures wants; it is
-   * the widest one that is supposed to meet the margin.
+   * <p>Labels are right-aligned against the axis — the alignment a column of
+   * figures wants — so short ones sit in from the edge.
    */
   const tickLabels = useMemo(() => ticks.map(compactMoney), [ticks]);
-  const axisGutter = `calc(${Math.max(...tickLabels.map((label) => label.length))}ch + 2px)`;
+  const axisGutter = AXIS_GUTTER;
 
   return (
-    <div className="flex min-w-0 flex-col">
+    // ⚠️ Fills its card (2026-10-27): the plot takes whatever height the card has
+    // — set by the totals beside it — rather than a fixed h-44 with the rest left
+    // empty above. min-h-44 keeps it whole where nothing sits beside it (a phone).
+    // Ticks, grid lines and bars are all placed in percentages, so any height works.
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
       {/* The legend is not here — see RevenueLegend, which the card renders in
           its header opposite the hero figure. */}
-      <figure className="min-w-0">
+      <figure className="flex min-h-0 min-w-0 flex-1 flex-col">
         <figcaption className="sr-only">
           Revenue above the zero line and expenses below it, over the {rangeNote},
           in US dollars.
         </figcaption>
 
-        <div className="flex min-w-0 gap-2">
+        <div className="flex min-h-0 min-w-0 flex-1 gap-2">
           {/* Ticks carry every value that is not directly labelled.
               The type styles sit on the container, not the spans, so the `ch`
               in its width resolves against the font the labels are actually
               set in. */}
           <div
-            className="relative h-44 shrink-0 text-[0.6rem] tabular-nums text-muted-foreground"
+            className="relative shrink-0 text-[0.6rem] tabular-nums text-muted-foreground"
             style={{ width: axisGutter }}
           >
             {ticks.map((tick, index) => (
@@ -270,7 +286,7 @@ export function RevenueChart({
             ))}
           </div>
 
-          <div className="relative min-w-0 flex-1">
+          <div className="relative flex min-w-0 flex-1 flex-col">
             {/* Hairline, solid, recessive. The zero line is the exception: it
                 is the one the bars are measured from, so it gets the axis
                 colour rather than the grid's. */}
@@ -287,7 +303,7 @@ export function RevenueChart({
               ))}
             </div>
 
-            <div className="relative flex h-44 items-stretch px-2">
+            <div className="relative flex min-h-44 flex-1 items-stretch px-2">
               {columns.map((column, index) => (
                 <div
                   key={column.label}
@@ -411,11 +427,18 @@ export function RevenueChart({
         <div className="mt-2 flex min-w-0 gap-2">
           {/* Matches the gutter above, so the day labels stay under their
               columns. One value drives both. */}
-          <span aria-hidden className="shrink-0" style={{ width: axisGutter }} />
+          {/* ⚠️ The axis font size here too: the gutter is measured in `ch`, and a `ch`
+              is the width of a "0" in the element's own font. Inheriting the card's
+              larger font made this spacer ~28px wider than the tick gutter above, and
+              every label sat to the right of its column (2026-10-27). */}
+          <span aria-hidden className="shrink-0 text-[0.6rem]" style={{ width: axisGutter }} />
+          {/* Every column keeps its slot, but past ten only every n-th is labelled
+              (lib/dashboard/chartLabels): 27 "1 Oct" labels wrapped and ran out of the card.
+              One line each, `min-w-0` so a label never widens its slot, centred over its column. */}
           <div className="flex min-w-0 flex-1 px-2">
-            {columns.map((column) => (
-              <span key={column.label} className="flex-1 text-center text-[0.6rem] text-muted-foreground">
-                {column.label}
+            {columns.map((column, index) => (
+              <span key={column.label} className="flex min-w-0 flex-1 justify-center text-[0.6rem] whitespace-nowrap text-muted-foreground">
+                {showsLabel(index, columns.length) ? column.label : null}
               </span>
             ))}
           </div>

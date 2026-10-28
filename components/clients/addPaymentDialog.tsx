@@ -2,22 +2,21 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Minus, Plus } from "lucide-react";
 import { cn } from "cn";
 
-import { addPayment } from "@/app/(private)/clients/actions";
 import { BrandGlyph } from "@/components/clients/brandGlyph";
 import { ReceiptMark, ReceiptRow } from "@/components/clients/earningsReceipt";
+import { ProofDropzone } from "@/components/clients/proofDropzone";
 import receipt from "@/components/clients/receipt.module.css";
 import { Button } from "@/components/ui/button";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
-import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { exactMoney } from "@/lib/format";
 import { planDescription, type Client, type ClientTransaction, type PaymentKind, type PaymentMethod } from "@/lib/clients/sample";
-import type { PaymentOptions } from "@/lib/clients/types";
+import type { NewPayment, PaymentOptions } from "@/lib/clients/types";
 
 /**
  * "Add payment" — the button and the window it opens.
@@ -35,9 +34,14 @@ import type { PaymentOptions } from "@/lib/clients/types";
  * <p>⚠️ <b>No date field.</b> A payment is recorded as it is taken, so it is
  * dated the moment it is added. A picker would only invite back-dating.
  *
- * <p>Saved for real (`POST /api/clients/{id}/payments`): the backend reads the
- * price, cost and panel credits from Configuration again, spends the credit,
- * puts the client on the brand and makes them Active; the page then refreshes.
+ * <p>⚠️ <b>Two steps</b> (2026-10-28): the payment, then its proof — an invoice,
+ * a screenshot, a receipt email — dropped on the second. Nothing is saved until
+ * the proof is there, and then both are saved together or neither is.
+ *
+ * <p>Saved for real (`POST /clients/{id}/payments`, a route passing the files on
+ * to the backend): the backend reads the price, cost and panel credits from
+ * Configuration again, spends the credit, puts the client on the brand and makes
+ * them Active; the page then refreshes.
  */
 
 const kinds: readonly PaymentKind[] = ["New plan", "Renewal"];
@@ -201,6 +205,8 @@ export function AddPaymentDialog({
   // triple click) each saved a payment — found by the payment tests, 2026-10-06.
   const submitting = useRef(false);
   const [draft, setDraft] = useState<Draft>(() => draftFor(client, options, latest));
+  const [step, setStep] = useState<1 | 2>(1);
+  const [proofs, setProofs] = useState<File[]>([]);
 
   const deviceOptions = sorted(options.plans.map((plan) => plan.devices));
   const monthOptions = sorted(options.plans.map((plan) => plan.months));
@@ -251,12 +257,12 @@ export function AddPaymentDialog({
   }
 
   function add() {
-    if (!valid || amount === null || !brand || !account || saving || submitting.current) return;
+    if (!valid || amount === null || !brand || !account || proofs.length === 0 || saving || submitting.current) return;
     submitting.current = true;
     setError(null);
     startSaving(async () => {
       try {
-        const result = await addPayment(client.id, {
+        const payment: NewPayment = {
           kind: draft.kind === "New plan" ? "NEW_PLAN" : "RENEWAL",
           devices: draft.devices,
           months: draft.months,
@@ -267,13 +273,29 @@ export function AddPaymentDialog({
             perkId: line.perk.id,
             quantity: line.count,
           })),
-        });
-        if (!result.ok) {
-          setError(result.error);
+        };
+        const form = new FormData();
+        form.append("payment", new Blob([JSON.stringify(payment)], { type: "application/json" }));
+        for (const file of proofs) form.append("proofs", file, file.name);
+
+        let response: Response;
+        try {
+          response = await fetch(`/clients/${client.id}/payments`, { method: "POST", body: form });
+        } catch {
+          setError("Could not reach the server. Please try again.");
+          return;
+        }
+        const body = (await response.json().catch(() => null)) as { warning?: string | null; message?: string } | null;
+        if (!response.ok) {
+          setError(
+            response.status === 401
+              ? "Your session ended. Sign in again, then add the payment."
+              : (body?.message ?? "The payment could not be saved. Please try again."),
+          );
           return;
         }
         setOpen(false);
-        onSaved(result.data.warning);
+        onSaved(body?.warning ?? null);
         router.refresh();
       } finally {
         submitting.current = false;
@@ -292,12 +314,14 @@ export function AddPaymentDialog({
         if (saving) return;
         if (next) {
           setDraft(draftFor(client, options, latest));
+          setStep(1);
+          setProofs([]);
           setError(null);
         }
       }}
     >
       <DialogTrigger
-        render={<Button type="button" size="sm" className={cn(whiteStyle.button, "gap-1.5 px-3! py-0! text-[0.65rem]! font-normal!")} />}
+        render={<Button type="button" size="sm" className={cn(blackStyle.button, "gap-1.5 px-3! py-0! text-[0.65rem]! font-normal!")} />}
       >
         <Plus className="size-3" aria-hidden />
         Add payment
@@ -308,12 +332,60 @@ export function AddPaymentDialog({
           className="grid md:grid-cols-3"
           onSubmit={(event) => {
             event.preventDefault();
-            add();
+            if (step === 1) {
+              if (valid) {
+                setError(null);
+                setStep(2);
+              }
+            } else add();
           }}
         >
-          {/* ── Two thirds: the form ─────────────────────────────────── */}
+          {/* ── Two thirds, step 2: only the place to drop the proof ──── */}
+          {step === 2 ? (
+            <div className="flex min-w-0 flex-col gap-4 p-5 md:col-span-2">
+              <DialogHeader>
+                <p className="text-[0.65rem] font-medium text-muted-foreground">Step 2 of 2</p>
+                <DialogTitle>Proof of payment</DialogTitle>
+                <DialogDescription>Required: the invoice, the transfer screenshot or the receipt email. A payment is not saved without it.</DialogDescription>
+              </DialogHeader>
+
+              <ProofDropzone files={proofs} onChange={setProofs} />
+
+              {error ? (
+                <p role="alert" className="text-xs text-destructive">
+                  {error}
+                </p>
+              ) : null}
+              <div className="mt-auto flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() => {
+                    setError(null);
+                    setStep(1);
+                  }}
+                  className="h-7 gap-1 px-3 text-[0.65rem] font-normal"
+                >
+                  <ArrowLeft className="size-3" aria-hidden />
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={proofs.length === 0 || saving}
+                  className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}
+                >
+                  {saving ? "Saving…" : "Add payment"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+          /* ── Two thirds, step 1: the form ───────────────────────────── */
           <div className="flex min-w-0 flex-col gap-4 p-5 md:col-span-2">
             <DialogHeader>
+              <p className="text-[0.65rem] font-medium text-muted-foreground">Step 1 of 2</p>
               <DialogTitle>New payment</DialogTitle>
               <DialogDescription>A payment from {client.name}, dated today. Price and cost come from Configuration.</DialogDescription>
             </DialogHeader>
@@ -481,23 +553,20 @@ export function AddPaymentDialog({
               </div>
             )}
 
-            {error ? (
-              <p role="alert" className="text-xs text-destructive">
-                {error}
-              </p>
-            ) : null}
             <div className="mt-auto flex justify-end gap-2 pt-2">
               <DialogClose render={<Button size="sm" variant="outline" className="h-7 px-3 text-[0.65rem] font-normal" />}>Cancel</DialogClose>
               <Button
                 type="submit"
                 size="sm"
-                disabled={!valid || saving}
-                className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}
+                disabled={!valid}
+                className={cn(blackStyle.button, "gap-1 px-3! py-0! text-[0.65rem]! font-normal!")}
               >
-                {saving ? "Saving…" : "Add payment"}
+                Next
+                <ArrowRight className="size-3" aria-hidden />
               </Button>
             </div>
           </div>
+          )}
 
           {/* ── One third: the receipt as it will read ───────────────────
               The client page's ticket — same paper, notches, tear lines and

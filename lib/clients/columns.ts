@@ -57,8 +57,8 @@ export const clientColumns: readonly {
   { id: "revenue", label: "Revenue", width: 96 },
 ]
 
-/** Select (w-8) + Client (w-36) + Actions (w-20), the three that always show. */
-export const CLIENT_FIXED_COLUMNS_WIDTH = 32 + 144 + 80
+/** Client (w-36) + Actions (w-20), the two that always show. (The select column went with Export CSV, 2026-10-28.) */
+export const CLIENT_FIXED_COLUMNS_WIDTH = 144 + 80
 
 export const CLIENT_COLUMNS_COOKIE = "clients_columns_hidden"
 

@@ -87,6 +87,7 @@ function toTransaction(payment: ApiPayment): ClientTransaction {
     account: payment.paymentMethodName ?? undefined,
     brand: payment.brandName ?? "",
     brandLogo: payment.brandLogoUrl ?? "",
+    proofs: (payment.proofs ?? []).map((proof) => ({ id: proof.id, name: proof.filename, mime: proof.mime, size: proof.sizeBytes })),
     amount: payment.amount,
     expense: payment.expense,
     startsOn: payment.startsOn,

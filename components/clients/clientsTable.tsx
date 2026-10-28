@@ -8,22 +8,21 @@ import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
   ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Check, ChevronDown, ChevronLeft,
-  ChevronRight, ChevronsLeft, ChevronsRight, Clock3, Copy, CreditCard, Eye, FileDown, Mail,
+  ChevronRight, ChevronsLeft, ChevronsRight, Clock3, Copy, CreditCard, Eye, Mail,
   MessageCircle, MonitorSmartphone, MoreVertical, Pencil, Phone, Search, SlidersHorizontal, Trash2,
 } from "lucide-react";
 import { cn } from "cn";
 
 import { deleteClient as deleteClientAction } from "@/app/(private)/clients/actions";
+import { AddClientSheet, type AddClientBrand } from "@/components/clients/addClientSheet";
 import { QuarterSparkline } from "@/components/charts/quarterSparkline";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import blackStyle from "@/components/ui/button-styles/black.module.css";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
 import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup,
@@ -227,12 +226,15 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 export function ClientsTable({
   clients,
   canDelete,
+  brands,
   /** Read from the cookie by the page, so the first HTML is already correct. */
   defaultHiddenColumns = [],
 }: {
   clients: readonly Client[];
   /** Admins only: the backend refuses anyone else, so the menu doesn't offer it. */
   canDelete: boolean;
+  /** The brands switched on, for Add client. */
+  brands: readonly AddClientBrand[];
   defaultHiddenColumns?: readonly ClientColumnId[];
 }) {
   const router = useRouter();
@@ -303,7 +305,6 @@ export function ClientsTable({
   const [sort, setSort] = useState<{ field: SortField; direction: "asc" | "desc" }>({ field: "createdAt", direction: "desc" });
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState<string | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set());
@@ -334,48 +335,15 @@ export function ClientsTable({
   const currentPage = Math.min(page, pageCount);
   const startIndex = (currentPage - 1) * pageSize;
   const visibleClients = filteredClients.slice(startIndex, startIndex + pageSize);
-  const allVisibleSelected = visibleClients.length > 0 && visibleClients.every((client) => selected.has(client.id));
 
   function updateSort(field: SortField) {
     setSort((current) => ({ field, direction: current.field === field && current.direction === "asc" ? "desc" : "asc" }));
-  }
-
-  function toggleAllVisible(checked: boolean) {
-    setSelected((current) => {
-      const next = new Set(current);
-      visibleClients.forEach((client) => {
-        if (checked) next.add(client.id);
-        else next.delete(client.id);
-      });
-      return next;
-    });
-  }
-
-  function toggleClient(id: number, checked: boolean) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
   }
 
   async function copyContact(value: string) {
     await navigator.clipboard.writeText(value);
     setCopied(value);
     window.setTimeout(() => setCopied((current) => current === value ? null : current), 1400);
-  }
-
-  function exportCsv() {
-    const headings = ["Client", "Brand", "Phone", "Email", "Created", "End of subscription", "Status", "Devices", "Duration", "Orders", "Payment method", "Revenue"];
-    const rows = filteredClients.map((client) => [client.name, client.brand, client.phone, client.email ?? "", client.createdAt ? format(new Date(client.createdAt), "yyyy-MM-dd HH:mm") : "", getSubscriptionEndLabel(client), client.status, client.devices, client.duration, client.orders, client.paymentMethod, client.revenue]);
-    const csv = [headings, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "one-base-clients.csv";
-    link.click();
-    URL.revokeObjectURL(url);
   }
 
   function deleteClient() {
@@ -390,11 +358,6 @@ export function ClientsTable({
       }
       // Hidden at once; the refresh brings the list the server now has.
       setDeletedIds((current) => new Set(current).add(target.id));
-      setSelected((current) => {
-        const next = new Set(current);
-        next.delete(target.id);
-        return next;
-      });
       setClientToDelete(null);
       router.refresh();
     });
@@ -460,7 +423,8 @@ export function ClientsTable({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button type="button" size="sm" onClick={exportCsv} className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}><FileDown className="size-3" />Export CSV</Button>
+          {/* Where Export CSV was (2026-10-28): adding a client by hand, in a sheet. */}
+          <AddClientSheet brands={brands} />
         </div>
       </div>
 
@@ -504,7 +468,6 @@ export function ClientsTable({
         <Table style={{ minWidth: `${tableMinWidth}px` }} className="table-fixed border-separate border-spacing-0 text-xs [&_td]:px-1.5 [&_th]:px-1.5 [&_th]:whitespace-nowrap [&_td:last-child]:pr-4 [&_th:last-child]:pr-4">
           <TableHeader className="[&_tr]:border-0 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-0 [&_th]:bg-muted/95 [&_th]:backdrop-blur-sm [&_th:first-child]:rounded-l-lg [&_th:last-child]:rounded-r-lg">
             <TableRow className="border-0 hover:bg-transparent">
-              <TableHead className="w-8"><Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => toggleAllVisible(checked === true)} aria-label="Select all visible clients" className="size-3.5" /></TableHead>
               <TableHead className="w-36"><SortHeader field="name" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Client</SortHeader></TableHead>
               {shows("brand") ? (
               <TableHead className="w-16"><SortHeader field="brand" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Brand</SortHeader></TableHead>
@@ -552,14 +515,12 @@ export function ClientsTable({
             {visibleClients.map((client) => (
               <TableRow
                 key={client.id}
-                data-state={selected.has(client.id) ? "selected" : undefined}
                 onClick={(event) => {
                   if (isInteractive(event.target)) return;
                   router.push(clientHref(client.id));
                 }}
                 className="group cursor-pointer border-b border-border/80 last:border-0"
               >
-                <TableCell><Checkbox checked={selected.has(client.id)} onCheckedChange={(checked) => toggleClient(client.id, checked === true)} aria-label={`Select ${client.name}`} className="size-3.5" /></TableCell>
                 <TableCell><div className="flex items-center gap-2.5"><span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-[0.6rem] font-semibold", client.color)}>{client.initials}</span><div className="min-w-0"><Link href={clientHref(client.id)} className="block truncate font-medium text-foreground underline-offset-4 hover:underline">{client.name}</Link><p className="mt-0.5 truncate text-[0.6rem] text-muted-foreground">{client.username && client.fullName ? <>@{client.username} · </> : null}#{String(client.id).padStart(4, "0")}</p></div></div></TableCell>
                 {shows("brand") ? (
                 <TableCell><Tooltip><TooltipTrigger render={<span className="inline-flex size-7 items-center justify-center" />}>{client.brandLogo ? <Image src={client.brandLogo} alt={client.brand} width={18} height={18} unoptimized className="max-h-[18px] max-w-[18px] object-contain" /> : client.brandId ? <span className="text-[0.6rem] font-semibold">{client.brand.slice(0, 2).toUpperCase()}</span> : <span className="text-muted-foreground">-</span>}</TooltipTrigger><TooltipContent>{client.brand}</TooltipContent></Tooltip></TableCell>

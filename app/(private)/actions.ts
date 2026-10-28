@@ -80,23 +80,25 @@ export async function changePassword(input: {
 }
 
 /**
- * Which sidebar items get the red dot, by their address. Asked by the sidebar on
- * every page change and every minute: real news only — unread WhatsApp messages,
- * unread email in the Inbox, and Renewals clients to act on now (ending soon or a
- * callback; Pending and Inactive are standing lists, not news).
+ * How much is waiting in each sidebar area, by its address (2026-10-28). Asked by
+ * the sidebar on every page change and every minute: real news only — Clients still
+ * New, Renewals to act on now (ending soon or a callback; Pending and Inactive are
+ * standing lists, not news), unread WhatsApp messages (those three in one backend
+ * call, `/api/notifications`), and unread email in the Inbox (from Gmail, on its
+ * own, so a slow Gmail never holds the others back).
  *
- * <p>A part that cannot be read shows no dot rather than an error: the pages
+ * <p>A part that cannot be read counts 0 rather than showing an error: the pages
  * themselves say what went wrong.
  */
-export async function getSidebarAlerts(): Promise<Record<string, boolean>> {
-  const [whatsapp, inbox, renewals] = await Promise.all([
-    apiFetch<{ unread: number }>("/api/whatsapp/status", { authenticated: true }),
+export async function getSidebarCounts(): Promise<Record<string, number>> {
+  const [areas, inbox] = await Promise.all([
+    apiFetch<{ clients: number; renewals: number; whatsapp: number }>("/api/notifications", { authenticated: true }),
     apiFetch<{ folders: { id: string; unread: number }[] }>("/api/inbox/overview", { authenticated: true }),
-    apiFetch<{ group: string }[]>("/api/renewals", { authenticated: true }),
   ])
   return {
-    "/whatsapp-inbox": whatsapp.ok && whatsapp.data.unread > 0,
-    "/inbox": inbox.ok && inbox.data.folders.some((folder) => folder.id === "inbox" && folder.unread > 0),
-    "/renewals": renewals.ok && renewals.data.some((row) => row.group === "ENDING_SOON" || row.group === "CALLBACK"),
+    "/clients": areas.ok ? areas.data.clients : 0,
+    "/renewals": areas.ok ? areas.data.renewals : 0,
+    "/whatsapp-inbox": areas.ok ? areas.data.whatsapp : 0,
+    "/inbox": inbox.ok ? (inbox.data.folders.find((folder) => folder.id === "inbox")?.unread ?? 0) : 0,
   }
 }

@@ -16,6 +16,7 @@ import blackStyle from "@/components/ui/button-styles/black.module.css";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { compactMoney, money, signedPercent } from "@/lib/format";
+import { CARD_FIGURE } from "@/lib/dashboard/figureStyle";
 import { changeFrom, type DashboardOverview, type RevenuePoint } from "@/lib/dashboard/types";
 import { pointLabels, rangeNote } from "@/lib/seo/types";
 
@@ -102,15 +103,18 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Net, {note}</p>
-                    <p className="mt-1 text-3xl font-semibold tracking-tight">{money(totals.net)}</p>
+                    <p className={`mt-1 text-3xl ${CARD_FIGURE}`}>{money(totals.net)}</p>
                     <p className="mt-1 text-[0.65rem] text-muted-foreground">
                       {money(totals.revenue)} in, {money(totals.expenses)} out · {totals.payments} {totals.payments === 1 ? "payment" : "payments"}
                     </p>
                   </div>
                   <RevenueLegend />
                 </div>
-                <div className="mt-auto min-w-0 pt-4">
-                  <RevenueChart points={points} rangeNote={note} />
+                {/* The chart takes the card's spare height rather than leaving it empty above. */}
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4">
+                  {/* Keyed by the period: a new period draws a new chart, so nothing of the
+                      last one's axis can linger (a stray "$0" line did, 2026-10-27). */}
+                  <RevenueChart key={`${data.range}|${data.start}|${data.end}`} points={points} rangeNote={note} />
                 </div>
               </div>
 
@@ -119,7 +123,7 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
                 <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-4">
                   <h2 className="text-sm font-medium">Total</h2>
                   <div className="mt-2.5">
-                    <StatTile label={`All time, ${data.clientCount} clients`} value={money(data.lifetimeRevenue)} />
+                    <StatTile label={`All time, ${data.clientCount} clients`} value={money(data.lifetimeRevenue)} cardFigure />
                   </div>
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-4">
@@ -130,6 +134,8 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
                       value={money(totals.revenue)}
                       change={revenueChange ?? undefined}
                       changeNote={changeNote}
+                      reserveChange
+                      cardFigure
                     />
                   </div>
                 </div>
@@ -143,6 +149,8 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
                       change={expensesChange ?? undefined}
                       changeNote={changeNote}
                       upIsGood={false}
+                      reserveChange
+                      cardFigure
                     />
                     <p className="mt-1 truncate text-[0.6rem] text-muted-foreground">
                       Top-ups {money(totals.topups)} · Perks {money(totals.perks)}
@@ -196,18 +204,21 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
               </div>
             </Panel>
 
-            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-              <Panel title="Revenue by brand" note={`${money(brandTotal)}, ${note}`}>
-                <SplitBar rows={brandRows} total={brandTotal} />
-              </Panel>
-              <CreditSummary credit={data.credit} />
-            </div>
+            {/* The whole slot, since Panel credit moved to the right column (2026-10-27):
+                beside it, the brand names had no room left and were cut to "T…". */}
+            <Panel title="Revenue by brand" note={`${money(brandTotal)}, ${note}`}>
+              <SplitBar rows={brandRows} total={brandTotal} />
+            </Panel>
           </div>
         </div>
 
         {/* ── Right ─────────────────────────────────────────────────────── */}
         <div className="flex min-w-0 flex-col gap-4">
-          <PaymentPanel className="xl:min-h-[30.5rem]" methods={data.methods} periodNote={note} periodQuery={periodQuery} />
+          {/* No minimum height any more (2026-10-28): with Panel credit under it, a 30.5rem
+              floor only left empty space above and below the card. */}
+          <PaymentPanel methods={data.methods} periodNote={note} periodQuery={periodQuery} />
+          {/* Money in, then what it costs to deliver, then who to chase. */}
+          <CreditSummary credit={data.credit} />
           <RenewalsPanel className="flex-1" rows={data.chase} />
         </div>
       </div>

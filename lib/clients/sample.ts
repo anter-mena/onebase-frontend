@@ -148,6 +148,8 @@ export type ClientTransaction = {
   /** The brand the plan was sold under. Per payment, not per client — a client can move brands. */
   brand: string
   brandLogo: string
+  /** The proof files it was added with: an invoice, a screenshot, a receipt email. */
+  proofs?: { id: number; name: string; mime: string; size: number }[]
   amount: number
   /**
    * What delivering this payment's plan cost — the plan's line on the

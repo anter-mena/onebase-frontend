@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { cn } from "cn";
 
 import { hatch } from "@/components/dashboard/hatch";
+import { CARD_FIGURE } from "@/lib/dashboard/figureStyle";
 import { count } from "@/lib/format";
 import type { DashboardOverview } from "@/lib/dashboard/types";
 
@@ -21,7 +23,7 @@ export function CreditSummary({ credit }: { credit: DashboardOverview["credit"] 
   const remaining = credit.remainingCredits;
   const used = credit.usedCredits;
   return (
-    <section aria-label="Panel credit" className="flex min-w-0 flex-col rounded-lg border bg-card p-4">
+    <section aria-label="Panel credit" className="flex min-w-0 flex-col rounded-xl border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-sm font-medium">Panel credit</h2>
         {/* Straight to the screen that can do something about it. */}
@@ -37,32 +39,41 @@ export function CreditSummary({ credit }: { credit: DashboardOverview["credit"] 
           Top up link it was cut short. */}
       <p className="mt-0.5 text-[0.65rem] text-muted-foreground">What new lines are made from</p>
 
-      <div className="mt-auto pt-4">
-        <p className={remaining < 0 ? "text-3xl font-semibold tracking-tight tabular-nums text-destructive" : "text-3xl font-semibold tracking-tight tabular-nums"}>
-          {count(remaining)}
+      {/* Compact since it moved to the right column, under Payment methods
+          (2026-10-27): the count and what has been spent on one line, a slim bar,
+          then the last top-up. It used to stack a text-3xl figure over a 28px bar. */}
+      <div className="mt-3 flex items-baseline justify-between gap-3">
+        <p className="flex min-w-0 items-baseline gap-1.5">
+          <span className={cn("text-2xl", CARD_FIGURE, remaining < 0 && "text-destructive")}>
+            {count(remaining)}
+          </span>
+          <span className="truncate text-[0.65rem] text-muted-foreground">
+            {remaining < 0 ? "credits below zero — top up" : "credits left"}
+          </span>
         </p>
-        <p className="mt-1 text-[0.65rem] text-muted-foreground">
-          {remaining < 0 ? "credits below zero — top up" : "credits left"}
-        </p>
-
-        {/* Hatched for what is there, flat grey for what has gone. */}
-        <div className="mt-3 flex h-7 w-full gap-1">
-          {remaining > 0 ? (
-            <span
-              className="h-full min-w-1.5 rounded-[6px]"
-              style={{ flex: "1 1 0", flexGrow: remaining, backgroundImage: hatch("var(--viz-ramp-2)", { line: 2.5, pitch: 9 }) }}
-            />
-          ) : null}
-          {used > 0 || remaining <= 0 ? (
-            <span className="h-full min-w-1.5 rounded-[6px]" style={{ flex: "1 1 0", flexGrow: Math.max(used, 1), background: "var(--viz-ramp-rest)" }} />
-          ) : null}
-        </div>
-
-        <p className="mt-2 text-[0.6rem] text-muted-foreground">
+        <p className="shrink-0 text-[0.6rem] text-muted-foreground tabular-nums">
           {count(used)} of {count(credit.totalCredits)} spent
-          {credit.lastTopup ? ` · last top-up ${dayFormatter.format(new Date(credit.lastTopup.at))}` : ""}
         </p>
       </div>
+
+      {/* Hatched for what is there, flat grey for what has gone. */}
+      <div className="mt-2 flex h-2.5 w-full gap-1">
+        {remaining > 0 ? (
+          <span
+            className="h-full min-w-1.5 rounded-[4px]"
+            style={{ flex: "1 1 0", flexGrow: remaining, backgroundImage: hatch("var(--viz-ramp-2)") }}
+          />
+        ) : null}
+        {used > 0 || remaining <= 0 ? (
+          <span className="h-full min-w-1.5 rounded-[4px]" style={{ flex: "1 1 0", flexGrow: Math.max(used, 1), background: "var(--viz-ramp-rest)" }} />
+        ) : null}
+      </div>
+
+      {credit.lastTopup ? (
+        <p className="mt-2 text-[0.6rem] text-muted-foreground">
+          Last top-up {dayFormatter.format(new Date(credit.lastTopup.at))}
+        </p>
+      ) : null}
     </section>
   );
 }

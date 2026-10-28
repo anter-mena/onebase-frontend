@@ -66,7 +66,9 @@ export function TrafficChart({
   }, []);
 
   return (
-    <figure className="min-w-0">
+    // Fills its card (2026-10-28): no fixed 16:7, the chart measures whatever height
+    // the card gives it, at least h-44 where nothing sits beside it (a phone).
+    <figure className="flex min-h-0 min-w-0 flex-1 flex-col">
       <figcaption className="sr-only">
         Organic search sessions per day over the {rangeNote}.
       </figcaption>
@@ -75,8 +77,8 @@ export function TrafficChart({
         data={points as unknown as Record<string, unknown>[]}
         xDataKey="label"
         status={loading ? "loading" : "ready"}
-        aspectRatio="16 / 7"
-        className="min-w-0"
+        aspectRatio="auto"
+        className="min-h-44 min-w-0 flex-1"
         // The registry defaults to 40px on every side, which is sized for a
         // chart carrying axis furniture on all four. This one has labels along
         // the bottom and nothing down the sides, so the sides come in and the

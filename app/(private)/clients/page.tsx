@@ -6,6 +6,7 @@ import { ClientsTable } from "@/components/clients/clientsTable";
 import { LoadError } from "@/components/errors/loadError";
 import { roleFrom } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
+import { getBrands } from "@/lib/brands/brands";
 import { getClients } from "@/lib/clients/clients";
 import { CLIENT_COLUMNS_COOKIE, parseHiddenColumns } from "@/lib/clients/columns";
 
@@ -26,7 +27,11 @@ export default async function ClientsPage() {
    */
   const cookieStore = await cookies();
   const hiddenColumns = parseHiddenColumns(cookieStore.get(CLIENT_COLUMNS_COOKIE)?.value);
-  const [clients, me] = await Promise.all([getClients(), getCurrentUser()]);
+  const [clients, me, brands] = await Promise.all([getClients(), getCurrentUser(), getBrands()]);
+  // Add client offers the brands that are switched on (the backend refuses the others).
+  const activeBrands = brands.ok
+    ? brands.data.filter((brand) => brand.active).map(({ id, name, logoUrl }) => ({ id, name, logoUrl }))
+    : [];
   const canDelete = me.ok && roleFrom(me.data.role) === "ADMIN";
 
   return (
@@ -47,7 +52,7 @@ export default async function ClientsPage() {
           <>
             {/* New WhatsApp numbers become clients by themselves: the list keeps up. */}
             <AutoRefresh everyMs={10_000} />
-            <ClientsTable clients={clients.data} canDelete={canDelete} defaultHiddenColumns={hiddenColumns} />
+            <ClientsTable clients={clients.data} canDelete={canDelete} brands={activeBrands} defaultHiddenColumns={hiddenColumns} />
           </>
         ) : (
           <div className="flex h-full items-center justify-center p-4">

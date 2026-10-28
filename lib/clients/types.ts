@@ -104,6 +104,8 @@ export type ApiPayment = {
   paymentProvider: BackendProvider | null
   paymentMethodName: string | null
   perks: { perkId: number; name: string; quantity: number; unitCost: number }[]
+  /** The proof files it was added with (none before 2026-10-28). Names only: the bytes are at …/proofs/{id}. */
+  proofs?: { id: number; filename: string; mime: string; sizeBytes: number }[]
   createdAt: string
 }
 
@@ -119,6 +121,19 @@ export type NewPayment = {
 }
 
 /** What Edit sends: the left card of the client page. */
+/**
+ * Add client (2026-10-28): who they are and how to reach them — no plan, no payment,
+ * which come with the first payment. A person may start them as New, Trial or Pending.
+ */
+export type NewClient = {
+  fullName: string
+  phone: string
+  email: string
+  brandId: number | null
+  status: "NEW" | "TRIAL" | "PENDING"
+  note: string
+}
+
 export type ClientDraft = {
   fullName: string
   phone: string

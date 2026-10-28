@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, History, TriangleAlert } from "lucide-react";
+import { ArrowRight, History, TriangleAlert } from "lucide-react";
 import { cn } from "cn";
 
 import { PaymentMethodCard } from "@/components/settings/paymentMethodCard";
@@ -154,10 +154,41 @@ export function PaymentPanel({
 }) {
   const [index, setIndex] = useState(0);
   const count = methods.length;
-  const current = count ? methods[Math.min(index, count - 1)] : null;
-  const move = (step: number) => setIndex((value) => (value + step + count) % count);
-  /** The half being hovered (or focused): the card leans away from it. */
+  const at = Math.min(index, count - 1);
+  const current = count ? methods[at] : null;
+  /**
+   * The card being shuffled away, and which way: kept on screen for the length of
+   * the shuffle (globals.css `card-shuffle-*`), then dropped when its animation ends.
+   */
+  const [leaving, setLeaving] = useState<{ method: DashboardOverview["methods"][number]; way: "next" | "prev" } | null>(null);
+  const turn = (to: number, way: "next" | "prev") => {
+    if (!current || to === at) return;
+    setLeaving({ method: current, way });
+    setIndex(to);
+  };
+  const move = (step: number) => turn((at + step + count) % count, step > 0 ? "next" : "prev");
+  /** The half being hovered (or focused): its neighbour comes out from behind on that side. */
   const [leaning, setLeaning] = useState<"left" | "right" | null>(null);
+  /** A dot: shuffles the shorter way round to it. */
+  const go = (to: number) => turn(to, (to - at + count) % count <= count / 2 ? "next" : "prev");
+  /** While a shuffle runs, no peek and no lean: the two cards crossing are the whole picture. */
+  const peeking = leaving ? null : leaning;
+  const neighbours = count > 1 ? { left: methods[(at - 1 + count) % count], right: methods[(at + 1) % count] } : null;
+
+  function card(method: DashboardOverview["methods"][number]) {
+    return (
+      <PaymentMethodCard
+        className="max-sm:min-h-[10.5rem]"
+        provider={providerToCard[method.provider]}
+        active
+        methodName={method.name}
+        amount={amountFormatter.format(method.balance)}
+        currency="USD"
+        holder={method.holder}
+        networks={networkLogos[method.cardNetwork]}
+      />
+    );
+  }
 
   return (
     <Panel
@@ -172,37 +203,75 @@ export function PaymentPanel({
       }
     >
       {current ? (
-        <div className="flex h-full flex-col justify-evenly gap-3">
-          {/* Each half of the card turns it (decided 2026-10-16). Hovering a half nudges
-              the card away from that side and a bare chevron shows in the gap it left. */}
+        // The dots and figures sit at the foot, on the panel's own padding; the card
+        // centres in the height above (2026-10-27). `justify-evenly` spread the spare
+        // height above, between and below, leaving a gap under the figures.
+        <div className="flex h-full flex-col gap-3">
+          {/* Each half of the card turns it (decided 2026-10-16). Hovering a half shows
+              where it leads (2026-10-27): the card shrinks to 80% and steps 8% away,
+              and the next (or previous) one comes out from behind it on the hovered
+              side — larger, at 88%, 4% out, so it reads as the one to go to. Those
+              numbers centre the pair: about 2% of the width is left free on each side
+              (an earlier 86% / 94% put the card against the far edge and the neighbour
+              past the near one). A turn shuffles the deck (globals.css `card-shuffle-*`).
+              The outer block clips sideways at the panel's border, so the swing of a
+              shuffle never runs over the next column. */}
+          <div className="-mx-4 flex flex-1 flex-col justify-center overflow-x-clip px-4">
           <div className="relative flex min-w-0" aria-live="polite">
+            {neighbours
+              ? (["left", "right"] as const).map((side) => {
+                  const shown = peeking === side;
+                  return (
+                    <div
+                      key={side}
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 flex transition-[transform,opacity] duration-300 ease-out"
+                      style={{
+                        opacity: shown ? 0.8 : 0,
+                        transform: shown ? `translateX(${side === "right" ? 4 : -4}%) scale(0.88)` : "scale(0.8)",
+                      }}
+                    >
+                      {card(neighbours[side])}
+                    </div>
+                  );
+                })
+              : null}
+            {/* Two layers on purpose: the outer one leans (inline transform), the inner
+                ones play the shuffle. An animation overrides an inline transform while it
+                runs, so on one element the lean would jump at the end of each shuffle. */}
             <div
-              className={cn(
-                "flex min-w-0 flex-1 transition-transform duration-200 ease-out",
-                leaning === "right" && "-translate-x-3",
-                leaning === "left" && "translate-x-3",
-              )}
+              className="relative z-10 flex min-w-0 flex-1 transition-transform duration-300 ease-out"
+              style={{ transform: peeking ? `translateX(${peeking === "right" ? -8 : 8}%) scale(0.8)` : undefined }}
             >
-              <PaymentMethodCard
+              {leaving ? (
+                <div
+                  key={`leaving-${leaving.method.id}`}
+                  aria-hidden
+                  className={cn("pointer-events-none absolute inset-0 flex", `card-shuffle-out-${leaving.way}`)}
+                  onAnimationEnd={() => setLeaving(null)}
+                >
+                  {card(leaving.method)}
+                </div>
+              ) : null}
+              <div
                 key={current.id}
-                className="max-sm:min-h-[10.5rem]"
-                provider={providerToCard[current.provider]}
-                active
-                methodName={current.name}
-                amount={amountFormatter.format(current.balance)}
-                currency="USD"
-                holder={current.holder}
-                networks={networkLogos[current.cardNetwork]}
-              />
+                className={cn("relative flex min-w-0 flex-1", leaving && `card-shuffle-in-${leaving.way}`)}
+              >
+                {card(current)}
+              </div>
             </div>
             {count > 1 ? (
               <>
-                <CarouselHalf side="left" label="Previous card" shown={leaning === "left"} onLean={setLeaning} onClick={() => move(-1)} />
-                <CarouselHalf side="right" label="Next card" shown={leaning === "right"} onLean={setLeaning} onClick={() => move(1)} />
+                <CarouselHalf side="left" label="Previous card" onLean={setLeaning} onClick={() => move(-1)} />
+                <CarouselHalf side="right" label="Next card" onLean={setLeaning} onClick={() => move(1)} />
               </>
             ) : null}
           </div>
+          </div>
 
+          {/* The dots and the figures as one block, 12px apart (2026-10-27): spread
+              evenly on their own, the dots floated halfway between card and figures. */}
+          <div className="flex flex-col gap-3">
           {count > 1 ? (
             <div className="flex justify-center gap-1.5" role="tablist" aria-label="Cards">
               {methods.map((method, at) => (
@@ -212,7 +281,7 @@ export function PaymentPanel({
                   role="tab"
                   aria-selected={method.id === current.id}
                   aria-label={method.name}
-                  onClick={() => setIndex(at)}
+                  onClick={() => go(at)}
                   className={cn("h-1.5 rounded-full transition-all", method.id === current.id ? "w-4 bg-foreground" : "w-1.5 bg-foreground/25 hover:bg-foreground/50")}
                 />
               ))}
@@ -244,6 +313,7 @@ export function PaymentPanel({
             <History className="size-3.5" aria-hidden />
           </Link>
           </div>
+          </div>
         </div>
       ) : (
         <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 text-center text-xs text-muted-foreground">
@@ -255,25 +325,21 @@ export function PaymentPanel({
   );
 }
 
-/** Half of the card, as a button: invisible, then a soft shade and a chevron on its side while hovered. */
 /**
- * Half of the card, as an invisible button. Hovered (or focused), it tells the panel to
- * lean the card away, and a bare chevron shows just past the card's edge, in the gap.
+ * Half of the card, as an invisible button. Hovered (or focused), it tells the panel
+ * which neighbour to bring out from behind the card; clicked, it turns to it.
  */
 function CarouselHalf({
   side,
   label,
-  shown,
   onLean,
   onClick,
 }: {
   side: "left" | "right";
   label: string;
-  shown: boolean;
   onLean: (side: "left" | "right" | null) => void;
   onClick: () => void;
 }) {
-  const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
@@ -283,16 +349,7 @@ function CarouselHalf({
       onMouseLeave={() => onLean(null)}
       onFocus={() => onLean(side)}
       onBlur={() => onLean(null)}
-      className={cn("absolute inset-y-0 w-1/2 cursor-pointer outline-none", side === "left" ? "left-0" : "right-0")}
-    >
-      <Icon
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-foreground transition-opacity duration-200",
-          side === "left" ? "-left-1.5" : "-right-1.5",
-          shown ? "opacity-100" : "opacity-0",
-        )}
-      />
-    </button>
+      className={cn("absolute inset-y-0 z-20 w-1/2 cursor-pointer outline-none", side === "left" ? "left-0" : "right-0")}
+    />
   );
 }

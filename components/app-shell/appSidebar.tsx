@@ -13,11 +13,11 @@ import {
   navigationSections,
   settingsNavigation,
 } from "@/components/app-shell/navigation";
-import { getSidebarAlerts, logout } from "@/app/(private)/actions";
+import { getSidebarCounts, logout } from "@/app/(private)/actions";
+import { NotificationCount } from "@/components/app-shell/notificationCount";
 import { AccountSettingsDialog } from "@/components/app-shell/accountSettingsDialog";
 import { useSessionUser } from "@/components/app-shell/sessionUser";
 import { canOpen } from "@/lib/access";
-import { SecurityCard } from "@/components/app-shell/securityCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -109,15 +109,16 @@ export function AppSidebar() {
    */
   const [configChoice, setConfigChoice] = useState<boolean | null>(null);
 
-  // The red dots: real news only (unread WhatsApp, unread email, Renewals to act on),
-  // asked again on every page change and every minute while the tab is in view.
-  const [alerts, setAlerts] = useState<Record<string, boolean>>({});
+  // The red counts: real news only (New clients, Renewals to act on, unread email,
+  // unread WhatsApp), asked again on every page change and every minute while the
+  // tab is in view.
+  const [counts, setCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
-      getSidebarAlerts()
-        .then((next) => { if (!cancelled) setAlerts(next); })
+      getSidebarCounts()
+        .then((next) => { if (!cancelled) setCounts(next); })
         .catch(() => {});
     };
     refresh();
@@ -211,14 +212,8 @@ export function AppSidebar() {
                         >
                           <Icon aria-hidden />
                           <span>{item.label}</span>
-                          {"indicator" in item && item.indicator && alerts[item.href] ? (
-                            <span
-                              className="relative isolate z-10 ml-auto flex size-1.5 shrink-0 overflow-visible! whitespace-normal! group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:right-0.5"
-                              aria-label={item.indicator}
-                            >
-                              <span className="absolute inset-0 z-0 inline-flex animate-ping rounded-full bg-red-400 opacity-70" />
-                              <span className="relative z-10 inline-flex size-full rounded-full bg-red-500 ring-1 ring-background" />
-                            </span>
+                          {"indicator" in item && item.indicator ? (
+                            <NotificationCount count={counts[item.href] ?? 0} label={item.indicator} />
                           ) : null}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -231,13 +226,6 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="gap-0 border-t p-2">
-        <div className="grid grid-rows-[1fr] transition-[grid-template-rows] duration-200 ease-linear group-data-[collapsible=icon]:grid-rows-[0fr]">
-          <div className="min-h-0 overflow-hidden">
-            <div className="pb-2 opacity-100 transition-opacity delay-200 duration-100 group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:delay-0">
-              <SecurityCard />
-            </div>
-          </div>
-        </div>
         <SidebarMenu>
           <SidebarMenuItem className="flex h-12 items-center">
             {/* The user box opens a menu: Profile, and Log out (which asks for confirmation first). */}

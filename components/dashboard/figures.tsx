@@ -10,6 +10,7 @@ import { BrandGlyph } from "@/components/clients/brandGlyph";
 import { Gauge as NotchGauge } from "@/components/charts/gauge";
 import { PatternLines } from "@/components/charts/visx-pattern";
 import { HATCH_INK, hatch } from "@/components/dashboard/hatch";
+import { CARD_FIGURE } from "@/lib/dashboard/figureStyle";
 import { signedPercent } from "@/lib/format";
 
 /**
@@ -37,6 +38,8 @@ export function StatTile({
   change,
   changeNote,
   upIsGood = true,
+  reserveChange = false,
+  cardFigure = false,
 }: {
   label: string;
   value: string;
@@ -45,6 +48,14 @@ export function StatTile({
   /** The period the change is measured against — "vs previous 7 days". */
   changeNote?: string;
   upIsGood?: boolean;
+  /**
+   * Keep the change line's height even when there is no change to show. The
+   * Dashboard's tiles set the height of the revenue card beside them, so a line
+   * that came and went with the period made the whole chart card change size.
+   */
+  reserveChange?: boolean;
+  /** Set the figure like a payment card's balance (lib/dashboard/figureStyle): the Dashboard's totals. */
+  cardFigure?: boolean;
 }) {
   const rising = change !== undefined && change > 0;
   const good = rising === upIsGood;
@@ -53,10 +64,17 @@ export function StatTile({
   return (
     <div className="flex min-w-0 flex-col">
       <p className="truncate text-xs text-muted-foreground">{label}</p>
-      {/* Proportional figures, not tabular: this is a standalone number and
-          equal-width digits make it look loose at this size. */}
-      <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
+      {/* Proportional figures by default: a standalone number, where equal-width
+          digits can look loose. The Dashboard's totals ask for the payment card's
+          style instead (cardFigure, 2026-10-28): bold and tabular, like its balance. */}
+      <p className={cn("mt-1 text-2xl", cardFigure ? CARD_FIGURE : "font-semibold tracking-tight")}>{value}</p>
 
+      {change === undefined && reserveChange ? (
+        <p aria-hidden className="mt-1.5 flex items-center gap-1 text-[0.65rem]">
+          <span className="size-3 shrink-0" />
+          &nbsp;
+        </p>
+      ) : null}
       {change !== undefined ? (
         <p className="mt-1.5 flex items-center gap-1 text-[0.65rem]">
           <Icon
@@ -283,6 +301,7 @@ export function SplitBar({
   total: number;
 }) {
   const visible = rows.filter((row) => row.value > 0);
+  const hasLogos = rows.some((row) => row.logo);
 
   return (
     <div className="min-w-0">
@@ -303,9 +322,22 @@ export function SplitBar({
           legend row carries a swatch of the same fill — at 16px the two read
           as one block and the eye runs straight from the bar into the list
           without registering that one is the key to the other. */}
-      <ul className="mt-6 flex flex-col gap-2.5">
+      {/* ⚠️ One grid for all the rows (2026-10-27), each row a subgrid of it, so
+          the columns line up whatever is in them. Laid out row by row, a narrow card
+          (sidebar open) ran out of room and each row overflowed by its own note's
+          width — "no clients" pushed its percentage further right than "3 clients".
+          The name is the column that gives way (`minmax(0,1fr)`, cut with "…"), then
+          the note; the logo column exists only when some row has a logo. */}
+      <ul
+        className={cn(
+          "mt-6 grid items-center gap-x-2 gap-y-2.5 text-xs",
+          hasLogos
+            ? "grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,max-content)_2.5rem]"
+            : "grid-cols-[auto_minmax(0,1fr)_minmax(0,max-content)_2.5rem]",
+        )}
+      >
         {rows.map((row) => (
-          <li key={row.label} className="flex items-center gap-2 text-xs">
+          <li key={row.label} className="col-span-full grid grid-cols-subgrid items-center">
             {/* The swatch is a miniature of the segment — same shape, same
                 hatch — because matching the two is the whole job of a legend. */}
             <span
@@ -313,12 +345,12 @@ export function SplitBar({
               className="size-2.5 shrink-0 rounded-[3px]"
               style={{ backgroundImage: hatch(row.color) }}
             />
-            {row.logo ? <BrandMark slug={row.logo} name={row.label} className="size-3.5 text-foreground/70" /> : null}
-            <span className="min-w-0 flex-1 truncate">{row.label}</span>
-            {row.note ? (
-              <span className="shrink-0 text-[0.65rem] text-muted-foreground">{row.note}</span>
+            {hasLogos ? (
+              row.logo ? <BrandMark slug={row.logo} name={row.label} className="size-3.5 text-foreground/70" /> : <span aria-hidden />
             ) : null}
-            <span className="w-10 shrink-0 text-right font-medium tabular-nums">
+            <span className="min-w-0 truncate">{row.label}</span>
+            <span className="min-w-0 truncate text-right text-[0.65rem] text-muted-foreground">{row.note ?? ""}</span>
+            <span className="text-right font-medium tabular-nums">
               {total === 0 ? "0%" : `${Math.round((row.value / total) * 100)}%`}
             </span>
           </li>

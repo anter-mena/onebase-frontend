@@ -18,6 +18,7 @@ import { RangeFilter } from "@/components/app-shell/rangeFilter";
 import { CountriesMap } from "@/components/seo/countriesMap";
 import { TrafficChart } from "@/components/seo/trafficChart";
 import { count, percent, signedPercent } from "@/lib/format";
+import { OTHER_CHANNEL, SEO_CHANNELS } from "@/lib/seo/channels";
 import { rangeNote, seoView, type SeoBrand, type SeoOverview, type TrafficSeries } from "@/lib/seo/types";
 
 /**
@@ -100,15 +101,22 @@ export function SeoWorkspace({
   const allSessions = channels.reduce((total, row) => total + row.sessions, 0);
   const shareOfAll = allSessions === 0 ? 0 : (shown.sessions / allSessions) * 100;
 
-  const channelRows = channels.map((row, index) => ({
-    label: row.channel,
-    value: row.sessions,
-    // Fixed slots in the order the mix is declared, so a channel keeps its
-    // colour whatever the period does to the ordering. Organic is slot 1 by
-    // construction — it is the channel this page is about.
-    color: index < 6 ? `var(--viz-ramp-${index + 1})` : "var(--viz-ramp-rest)",
-    note: `${count(row.sessions)} sessions`,
-  }));
+  // Always the same rows, in the same order (lib/seo/channels, 2026-10-28): the card
+  // keeps one size, and a channel keeps its place and colour whatever the period.
+  // A channel GA4 did not return shows 0; the ones outside the list add up in Other.
+  const sessionsOf = (name: string) => channels.find((row) => row.channel === name)?.sessions ?? 0;
+  const otherSessions = channels
+    .filter((row) => !(SEO_CHANNELS as readonly string[]).includes(row.channel))
+    .reduce((total, row) => total + row.sessions, 0);
+  const channelRows = [
+    ...SEO_CHANNELS.map((name, index) => ({
+      label: name,
+      value: sessionsOf(name),
+      // A fixed colour per channel; Organic is slot 1, the channel this page is about.
+      color: index < 6 ? `var(--viz-ramp-${index + 1})` : "var(--viz-ramp-rest)",
+    })),
+    { label: OTHER_CHANNEL, value: otherSessions, color: "var(--viz-ramp-rest)" },
+  ].map((row) => ({ ...row, note: `${count(row.value)} sessions` }));
 
   const engineTotal = engines.reduce((total, row) => total + row.sessions, 0);
 
@@ -273,7 +281,9 @@ export function SeoWorkspace({
 
             {/* Pinned to the bottom, so the x-axis sits on the card's padding
                 rather than the plot floating with dead space beneath it. */}
-            <div className="mt-auto min-w-0 pt-4">
+            {/* Fills the card's spare height (2026-10-28), at least h-44, rather than a
+                fixed 16:7 pinned to the bottom with empty space under the header. */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4">
               <TrafficChart points={points[series]} rangeNote={activeRange.note} />
             </div>
           </div>

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { apiFetch, type ApiError } from "@/lib/api"
-import type { ApiClient, ApiPayment, ClientDraft, NewPayment } from "@/lib/clients/types"
+import type { ApiClient, ClientDraft, NewClient } from "@/lib/clients/types"
 
 /**
  * Clients: edit, the note, delete. There is no add — a client is made by their
@@ -30,6 +30,22 @@ export async function saveClient(id: number, draft: ClientDraft): Promise<Result
   return { ok: true, data: { id: result.data.id } }
 }
 
+/**
+ * Add client (2026-10-28): who they are and how to reach them, nothing about a plan.
+ * The backend checks every rule — a phone (the one field required), one client per
+ * number, a brand that is on — and its sentence comes back as is; nothing is saved on a refusal.
+ */
+export async function createClient(input: NewClient): Promise<Result<{ id: number; name: string }>> {
+  const result = await apiFetch<ApiClient>("/api/clients", {
+    method: "POST",
+    authenticated: true,
+    body: JSON.stringify(input),
+  })
+  if (!result.ok) return failed(result.error)
+  revalidatePath("/clients", "layout")
+  return { ok: true, data: { id: result.data.id, name: result.data.name } }
+}
+
 /** Empty removes the note. */
 export async function saveClientNote(id: number, note: string): Promise<Result<{ note: string }>> {
   const result = await apiFetch<ApiClient>(`/api/clients/${id}/note`, {
@@ -40,21 +56,6 @@ export async function saveClientNote(id: number, note: string): Promise<Result<{
   if (!result.ok) return failed(result.error)
   revalidatePath("/clients", "layout")
   return { ok: true, data: { note: result.data.note ?? "" } }
-}
-
-/**
- * A payment. The backend prices it from Configuration, spends the panel credit
- * and makes the client Active; `warning` is set when the credit went below zero.
- */
-export async function addPayment(clientId: number, payment: NewPayment): Promise<Result<{ warning: string | null }>> {
-  const result = await apiFetch<{ payment: ApiPayment; warning: string | null }>(`/api/clients/${clientId}/payments`, {
-    method: "POST",
-    authenticated: true,
-    body: JSON.stringify(payment),
-  })
-  if (!result.ok) return failed(result.error)
-  revalidatePath("/clients", "layout")
-  return { ok: true, data: { warning: result.data.warning } }
 }
 
 /** Admins only. Soft and logged: it leaves every total, and its panel credits come back. */

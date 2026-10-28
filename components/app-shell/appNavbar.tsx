@@ -101,7 +101,7 @@ export function AppNavbar() {
           </Link>
         )}
         {/* Not built yet: off, and without the red dot it used to show whatever happened.
-            The sidebar's dots carry the real news (WhatsApp, email, Renewals). */}
+            The sidebar's red counts carry the real news (Clients, Renewals, email, WhatsApp). */}
         <button
           type="button"
           disabled

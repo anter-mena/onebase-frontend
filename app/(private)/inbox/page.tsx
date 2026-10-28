@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { cookies } from "next/headers"
 
 import { AutoRefresh } from "@/components/app-shell/autoRefresh"
-import { LoadError } from "@/components/errors/loadError"
+import { ServiceLoadError } from "@/components/errors/loadError"
 import { InboxShell } from "@/components/inbox/inboxShell"
 import { MailDisplay } from "@/components/inbox/mailDisplay"
 import { MailList } from "@/components/inbox/mailList"
@@ -56,7 +56,8 @@ export default async function InboxPage({
 
       {!result.ok ? (
         <div className="mt-4 flex min-h-0 flex-1 items-center justify-center rounded-xl border bg-background">
-          <LoadError title="The inbox could not be loaded." reason={result.error} />
+          {/* Gmail can be out of reach for a moment: a passing failure keeps trying by itself. */}
+          <ServiceLoadError title="The inbox could not be loaded." reason={result.error} status={result.status} />
         </div>
       ) : (
         <section

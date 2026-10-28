@@ -39,6 +39,7 @@ export const appNavigation = [
     href: "/clients",
     icon: Users,
     available: true,
+    indicator: "new clients",
   },
   {
     section: "Management",
@@ -46,7 +47,7 @@ export const appNavigation = [
     href: "/renewals",
     icon: RefreshCcw,
     available: true,
-    indicator: "Renewals need attention",
+    indicator: "renewals to act on",
   },
   {
     section: "Communication",
@@ -54,7 +55,7 @@ export const appNavigation = [
     href: "/inbox",
     icon: Mail,
     available: true,
-    indicator: "Unread emails",
+    indicator: "unread emails",
   },
   {
     section: "Communication",
@@ -62,9 +63,9 @@ export const appNavigation = [
     href: "/whatsapp-inbox",
     icon: MessageCircle,
     available: true,
-    // The pulsing red dot in the sidebar, shown only while getSidebarAlerts says so;
-    // the text is what screen readers announce for it.
-    indicator: "New WhatsApp messages",
+    // The red count in the sidebar, shown only while getSidebarCounts has one;
+    // the text is what screen readers announce after the number.
+    indicator: "unread WhatsApp messages",
   },
   {
     section: "Administration",
