@@ -56,9 +56,9 @@ export default async function ClientsLoading() {
             <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
               <SearchSkeleton />
               <ButtonSkeleton className="w-36" />
-              <ButtonSkeleton className="w-7" />
-              {/* Add client, where Export CSV was. */}
+              {/* Add client, then the columns button. */}
               <ButtonSkeleton className="w-[5.5rem]" />
+              <ButtonSkeleton className="w-7" />
             </div>
           </>
         }

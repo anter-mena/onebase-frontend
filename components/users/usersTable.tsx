@@ -318,6 +318,21 @@ export function UsersTable({
             </PopoverContent>
           </Popover>
 
+          {/* The page's one primary action, and the only black button on it. */}
+          <Button
+            size="sm"
+            render={<Link href="/users/invite" />}
+            className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}
+          >
+            <UserPlus className="size-3" />
+            Invite user
+          </Button>
+
+          <Button type="button" size="sm" variant="outline" onClick={exportCsv} className={cn(whiteStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}>
+            <FileDown className="size-3" />
+            Export CSV
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Choose columns" title="Choose columns" className={cn(whiteStyle.button, "size-7 shrink-0 justify-center px-0! py-0!")} />}>
               <SlidersHorizontal className="size-3.5" />
@@ -342,21 +357,6 @@ export function UsersTable({
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button type="button" size="sm" variant="outline" onClick={exportCsv} className={cn(whiteStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}>
-            <FileDown className="size-3" />
-            Export CSV
-          </Button>
-
-          {/* The page's one primary action, and the only black button on it. */}
-          <Button
-            size="sm"
-            render={<Link href="/users/invite" />}
-            className={cn(blackStyle.button, "px-3! py-0! text-[0.65rem]! font-normal!")}
-          >
-            <UserPlus className="size-3" />
-            Invite user
-          </Button>
         </div>
       </div>
 

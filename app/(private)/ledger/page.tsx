@@ -28,7 +28,7 @@ export default async function LedgerPage({
   return (
     <div className="flex h-full w-full min-h-0 flex-col">
       <header className="shrink-0">
-        <p className="text-xs font-medium text-muted-foreground">Workspace</p>
+        <p className="text-xs font-medium text-muted-foreground">Management</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Ledger</h1>
         <p className="mt-1 text-xs text-muted-foreground">Every payment received: who paid, for what, to which account, and what it left.</p>
       </header>

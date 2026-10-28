@@ -23,6 +23,8 @@ export type BrandRow = {
   active: boolean
   /** Clients on this brand, deleted ones left out. */
   clients: number
+  /** Of those, how many were added in each quarter of this year (Q1–Q4); missing from an older backend. */
+  clientsByQuarter?: number[]
   /** The Google Analytics 4 property number, for the SEO page; null = none. */
   ga4PropertyId: string | null
   /** ISO time. */

@@ -18,16 +18,6 @@ export const appNavigation = [
   },
   {
     section: "Workspace",
-    label: "Ledger",
-    href: "/ledger",
-    icon: BookText,
-    available: true,
-    // Not in the sidebar (decided 2026-10-16): reached only from the Dashboard's
-    // payment card (History). Kept here for the navbar's breadcrumb.
-    hiddenInSidebar: true,
-  },
-  {
-    section: "Workspace",
     label: "SEO Overview",
     href: "/seo-overview",
     icon: Globe,
@@ -40,6 +30,15 @@ export const appNavigation = [
     icon: Users,
     available: true,
     indicator: "new clients",
+  },
+  {
+    // In the sidebar again (2026-10-28), under Clients: it was only reachable from the
+    // Dashboard's payment card (History). Admins only (lib/access).
+    section: "Management",
+    label: "Ledger",
+    href: "/ledger",
+    icon: BookText,
+    available: true,
   },
   {
     section: "Management",
@@ -55,7 +54,7 @@ export const appNavigation = [
     href: "/inbox",
     icon: Mail,
     available: true,
-    indicator: "unread emails",
+    indicator: "new emails",
   },
   {
     section: "Communication",
@@ -92,16 +91,17 @@ export const appNavigation = [
   },
   {
     section: "Administration",
-    label: "Action log",
-    href: "/action-log",
-    icon: ScrollText,
-    available: true,
-  },
-  {
-    section: "Administration",
     label: "System status",
     href: "/system-status",
     icon: Server,
+    available: true,
+  },
+  {
+    // Last in the sidebar (2026-10-28).
+    section: "Administration",
+    label: "Action log",
+    href: "/action-log",
+    icon: ScrollText,
     available: true,
   },
 ] as const;

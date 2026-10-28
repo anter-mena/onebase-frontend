@@ -390,6 +390,9 @@ export function ClientsTable({
               {dateRange ? <button type="button" onClick={() => { setDateRange(undefined); setPage(1); }} className="mx-3 mb-3 self-end text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Clear dates</button> : null}
             </PopoverContent>
           </Popover>
+          {/* Where Export CSV was (2026-10-28): adding a client by hand, in a sheet. */}
+          <AddClientSheet brands={brands} />
+
           {/* ⚠️ The label sits inside a Group. Base UI's `Menu.GroupLabel`
               throws outright when it cannot find a group context — it is not a
               styling nicety — and an uncaught throw here renders the 500
@@ -422,9 +425,6 @@ export function ClientsTable({
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Where Export CSV was (2026-10-28): adding a client by hand, in a sheet. */}
-          <AddClientSheet brands={brands} />
         </div>
       </div>
 

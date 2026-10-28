@@ -405,7 +405,7 @@ export function TransactionsTable({
                 ) : null}
                 <TableCell className="text-right">
                   <div className="inline-flex items-center gap-0.5">
-                    <ProofAction clientId={client.id} payment={entry} dateLabel={formatDate(entry.at)} />
+                    <ProofAction clientId={client.id} paymentId={entry.id} proofs={entry.proofs ?? []} dateLabel={formatDate(entry.at)} />
                     {/* The slip for a small receipt printer, in a new tab: it opens the
                         print window, where "Save as PDF" downloads it. */}
                     <Tooltip>

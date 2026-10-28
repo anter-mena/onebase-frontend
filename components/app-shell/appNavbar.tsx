@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, Suspense } from "react";
-import { BellRing, Inbox, MoonStar, Sun } from "lucide-react";
+import { Inbox, MoonStar, Sun } from "lucide-react";
 import { cn } from "cn";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -83,7 +83,8 @@ export function AppNavbar() {
       </div>
 
       <div className="flex items-center gap-1.5">
-        {/* A tool rather than a place, so it stands apart from Inbox and Notifications. */}
+        {/* A tool rather than a place, so it stands apart from the Inbox. The bell is gone
+            (2026-10-28): the sidebar's red counts carry the news. */}
         <CurrencyConverter />
         <Separator orientation="vertical" className="mx-1 h-4 self-center!" />
         {/* Shown only to roles that may open the Inbox (lib/access) — today, both. */}
@@ -100,20 +101,6 @@ export function AppNavbar() {
             <Inbox className="size-3" aria-hidden />
           </Link>
         )}
-        {/* Not built yet: off, and without the red dot it used to show whatever happened.
-            The sidebar's red counts carry the real news (Clients, Renewals, email, WhatsApp). */}
-        <button
-          type="button"
-          disabled
-          className={cn(
-            whiteStyle.button,
-            "relative flex size-7 items-center justify-center p-0! text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
-          )}
-          aria-label="Notifications (coming soon)"
-          title="Notifications: coming soon"
-        >
-          <BellRing className="size-3" aria-hidden />
-        </button>
         {/* Light/dark. Choosing a *palette* is not here — that lives in the
             account settings window, under Theme. This only flips the palette
             between its two halves.

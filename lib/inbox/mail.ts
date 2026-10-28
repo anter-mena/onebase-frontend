@@ -79,6 +79,9 @@ export async function getInbox(query: MailQuery): Promise<{ ok: true; data: Inbo
   const [overview, list] = await Promise.all([
     apiFetch<Overview>("/api/inbox/overview", { authenticated: true }),
     apiFetch<Summary[]>(`/api/inbox/messages?${params}`, { authenticated: true }),
+    // The Inbox is open: what arrived until now is no longer new to this person, and
+    // the sidebar's count starts again from here (2026-10-28). A failure only leaves it.
+    folderId === "inbox" ? apiFetch("/api/inbox/seen", { method: "POST", authenticated: true }) : null,
   ])
   if (!overview.ok) return { ok: false, error: overview.error.message, status: overview.error.status }
   if (!list.ok) return { ok: false, error: list.error.message, status: list.error.status }

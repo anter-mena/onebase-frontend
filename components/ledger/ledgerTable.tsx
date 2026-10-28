@@ -9,6 +9,7 @@ import { cn } from "cn";
 import { RangeFilter } from "@/components/app-shell/rangeFilter";
 import { BrandGlyph } from "@/components/clients/brandGlyph";
 import { PaymentMethodLabel, SortHeader } from "@/components/clients/clientsTable";
+import { ProofAction } from "@/components/clients/proofAction";
 import { Button } from "@/components/ui/button";
 import blackStyle from "@/components/ui/button-styles/black.module.css";
 import whiteStyle from "@/components/ui/button-styles/white.module.css";
@@ -233,7 +234,7 @@ export function LedgerTable({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* One row (2026-10-28): the period on the left; search, the filter button and Export on the right. The
+      {/* One row (2026-10-28): the period on the left; search, Export and the filter button on the right. The
           search takes what is left; on a narrow screen the row wraps rather than
           squeezing. */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 py-3 xl:flex-nowrap">
@@ -248,6 +249,7 @@ export function LedgerTable({
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search client, plan, brand, note" aria-label="Search the ledger" className="bg-muted/30 pl-8 text-xs" />
         </div>
+        <Button type="button" size="sm" onClick={exportCsv} disabled={rows.length === 0} className={cn(blackStyle.button, "shrink-0 px-3! py-0! text-[0.65rem]! font-normal!")}><FileDown className="size-3" />Export CSV</Button>
         {/* Money in or out, account and brand behind one icon (2026-10-28): the row
             was crowded. The badge counts the filters that are on. */}
         <Popover>
@@ -368,11 +370,10 @@ export function LedgerTable({
             </FilterField>
           </PopoverContent>
         </Popover>
-        <Button type="button" size="sm" onClick={exportCsv} disabled={rows.length === 0} className={cn(blackStyle.button, "shrink-0 px-3! py-0! text-[0.65rem]! font-normal!")}><FileDown className="size-3" />Export CSV</Button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4 [scrollbar-gutter:stable] [&>[data-slot=table-container]]:overflow-visible">
-        <Table className="min-w-[980px] table-fixed border-separate border-spacing-0 text-xs [&_td]:px-1.5 [&_th]:px-1.5 [&_th]:whitespace-nowrap">
+        <Table className="min-w-[1004px] table-fixed border-separate border-spacing-0 text-xs [&_td]:px-1.5 [&_th]:px-1.5 [&_th]:whitespace-nowrap">
           <TableHeader className="[&_tr]:border-0 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-0 [&_th]:bg-muted/95 [&_th]:backdrop-blur-sm [&_th:first-child]:rounded-l-lg [&_th:last-child]:rounded-r-lg">
             <TableRow className="border-0 hover:bg-transparent">
               {/* Every column sorts (2026-10-28), as on the Clients table. The money columns
@@ -386,7 +387,7 @@ export function LedgerTable({
               <TableHead className="w-24 text-right [&>button]:flex-row-reverse"><SortHeader field="amount" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Amount</SortHeader></TableHead>
               <TableHead className="w-24 text-right [&>button]:flex-row-reverse"><SortHeader field="perks" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Perks</SortHeader></TableHead>
               <TableHead className="w-24 text-right [&>button]:flex-row-reverse"><SortHeader field="net" activeField={sort.field} direction={sort.direction} onSort={updateSort}>Net</SortHeader></TableHead>
-              <TableHead className="w-12 text-right" aria-label="Receipt" />
+              <TableHead className="w-[4.5rem] text-right" aria-label="Proof and receipt" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -444,6 +445,14 @@ export function LedgerTable({
                     {exactMoney(Math.abs(payment.amount - payment.perksCost))}
                   </TableCell>
                   <TableCell className="text-right">
+                    <div className="inline-flex items-center gap-0.5">
+                    {/* The proof it was added with (2026-10-28), as on the client's page. */}
+                    <ProofAction
+                      clientId={clientId}
+                      paymentId={payment.id}
+                      proofs={(payment.proofs ?? []).map((proof) => ({ id: proof.id, name: proof.filename, size: proof.sizeBytes }))}
+                      dateLabel={`${clientName}, ${formatDate(payment.paidOn)}`}
+                    />
                     <Tooltip>
                       <TooltipTrigger
                         render={
@@ -460,6 +469,7 @@ export function LedgerTable({
                       </TooltipTrigger>
                       <TooltipContent>Download receipt</TooltipContent>
                     </Tooltip>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

@@ -38,7 +38,7 @@ export function StatTile({
   change,
   changeNote,
   upIsGood = true,
-  reserveChange = false,
+  changeBeside = false,
   cardFigure = false,
 }: {
   label: string;
@@ -49,11 +49,12 @@ export function StatTile({
   changeNote?: string;
   upIsGood?: boolean;
   /**
-   * Keep the change line's height even when there is no change to show. The
-   * Dashboard's tiles set the height of the revenue card beside them, so a line
-   * that came and went with the period made the whole chart card change size.
+   * The change on the figure's own line, to its right, with the note on hover
+   * (2026-10-28). The Dashboard's tiles set the height of the revenue card beside
+   * them: a change line under the figure either came and went with the period
+   * (the chart card changed size) or was held empty (a gap under every figure).
    */
-  reserveChange?: boolean;
+  changeBeside?: boolean;
   /** Set the figure like a payment card's balance (lib/dashboard/figureStyle): the Dashboard's totals. */
   cardFigure?: boolean;
 }) {
@@ -67,15 +68,26 @@ export function StatTile({
       {/* Proportional figures by default: a standalone number, where equal-width
           digits can look loose. The Dashboard's totals ask for the payment card's
           style instead (cardFigure, 2026-10-28): bold and tabular, like its balance. */}
-      <p className={cn("mt-1 text-2xl", cardFigure ? CARD_FIGURE : "font-semibold tracking-tight")}>{value}</p>
+      {changeBeside ? (
+        <div className="mt-1 flex min-w-0 items-baseline justify-between gap-2">
+          <p className={cn("text-2xl", cardFigure ? CARD_FIGURE : "font-semibold tracking-tight")}>{value}</p>
+          {change !== undefined ? (
+            <span
+              title={changeNote}
+              className="inline-flex shrink-0 items-center gap-0.5 text-[0.65rem] font-medium"
+              style={{ color: good ? "var(--viz-good)" : "var(--viz-critical)" }}
+            >
+              <Icon aria-hidden className="size-3 shrink-0" />
+              {signedPercent(change)}
+              {changeNote ? <span className="sr-only"> {changeNote}</span> : null}
+            </span>
+          ) : null}
+        </div>
+      ) : (
+        <p className={cn("mt-1 text-2xl", cardFigure ? CARD_FIGURE : "font-semibold tracking-tight")}>{value}</p>
+      )}
 
-      {change === undefined && reserveChange ? (
-        <p aria-hidden className="mt-1.5 flex items-center gap-1 text-[0.65rem]">
-          <span className="size-3 shrink-0" />
-          &nbsp;
-        </p>
-      ) : null}
-      {change !== undefined ? (
+      {change !== undefined && !changeBeside ? (
         <p className="mt-1.5 flex items-center gap-1 text-[0.65rem]">
           <Icon
             aria-hidden

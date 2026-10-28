@@ -397,8 +397,8 @@ export function Brands({ brands, loadError }: { brands: BrandRow[] | null; loadE
                     <SocialLinks socials={brand.socials} brandName={brand.name} />
                   </TableCell>
                   <TableCell>
-                    {/* New clients per quarter, then the total. All zero until the Clients module exists. */}
-                    <QuarterSparkline values={[0, 0, 0, 0]} total={brand.clients} unit={{ one: "client", many: "clients" }} />
+                    {/* Clients added per quarter this year, then the total: one client however many plans they have. */}
+                    <QuarterSparkline values={brand.clientsByQuarter ?? [0, 0, 0, 0]} total={brand.clients} unit={{ one: "client", many: "clients" }} />
                   </TableCell>
                   {/* A switch with the word beside it: off means the brand can't be used for new clients. */}
                   <TableCell>

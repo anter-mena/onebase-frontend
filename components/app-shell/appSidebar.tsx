@@ -213,7 +213,8 @@ export function AppSidebar() {
                           <Icon aria-hidden />
                           <span>{item.label}</span>
                           {"indicator" in item && item.indicator ? (
-                            <NotificationCount count={counts[item.href] ?? 0} label={item.indicator} />
+                            // Not on the Inbox while it is open: opening it is what clears the count.
+                            <NotificationCount count={item.href === "/inbox" && active ? 0 : (counts[item.href] ?? 0)} label={item.indicator} />
                           ) : null}
                         </SidebarMenuButton>
                       </SidebarMenuItem>

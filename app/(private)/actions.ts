@@ -84,8 +84,9 @@ export async function changePassword(input: {
  * the sidebar on every page change and every minute: real news only — Clients still
  * New, Renewals to act on now (ending soon or a callback; Pending and Inactive are
  * standing lists, not news), unread WhatsApp messages (those three in one backend
- * call, `/api/notifications`), and unread email in the Inbox (from Gmail, on its
- * own, so a slow Gmail never holds the others back).
+ * call, `/api/notifications`), and brand email that arrived since this person last
+ * opened the Inbox, read or not (from Gmail, on its own, so a slow Gmail never holds
+ * the others back). Not the unread count: a website form email arrives already read.
  *
  * <p>A part that cannot be read counts 0 rather than showing an error: the pages
  * themselves say what went wrong.
@@ -93,12 +94,12 @@ export async function changePassword(input: {
 export async function getSidebarCounts(): Promise<Record<string, number>> {
   const [areas, inbox] = await Promise.all([
     apiFetch<{ clients: number; renewals: number; whatsapp: number }>("/api/notifications", { authenticated: true }),
-    apiFetch<{ folders: { id: string; unread: number }[] }>("/api/inbox/overview", { authenticated: true }),
+    apiFetch<{ count: number }>("/api/inbox/new", { authenticated: true }),
   ])
   return {
     "/clients": areas.ok ? areas.data.clients : 0,
     "/renewals": areas.ok ? areas.data.renewals : 0,
     "/whatsapp-inbox": areas.ok ? areas.data.whatsapp : 0,
-    "/inbox": inbox.ok ? (inbox.data.folders.find((folder) => folder.id === "inbox")?.unread ?? 0) : 0,
+    "/inbox": inbox.ok ? inbox.data.count : 0,
   }
 }

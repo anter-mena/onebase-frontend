@@ -42,11 +42,12 @@ export default async function UsersLoading() {
           <>
             <Pills active={0} options={["All", "Admin", "Commercial"]} />
             <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+              {/* Search, dates, Invite user, Export CSV, then the columns button. */}
               <SearchSkeleton className="sm:w-56" />
               <ButtonSkeleton className="w-36" />
+              <ButtonSkeleton className="w-24" />
+              <ButtonSkeleton className="w-24" />
               <ButtonSkeleton className="w-7" />
-              <ButtonSkeleton className="w-24" />
-              <ButtonSkeleton className="w-24" />
             </div>
           </>
         }

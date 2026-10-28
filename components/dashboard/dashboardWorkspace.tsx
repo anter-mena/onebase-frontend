@@ -120,13 +120,13 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
 
               <div className="flex min-w-0 flex-col divide-y">
                 {/* All time, not this period — the one total on the page the range does not move. */}
-                <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-2.5">
+                <div className="flex min-w-0 flex-col px-3.5 py-2.5">
                   <h2 className="text-sm font-medium">Total</h2>
                   <div className="mt-1">
                     <StatTile label={`All time, ${data.clientCount} clients`} value={money(data.lifetimeRevenue)} cardFigure />
                   </div>
                 </div>
-                <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-2.5">
+                <div className="flex min-w-0 flex-col px-3.5 py-2.5">
                   <h2 className="text-sm font-medium">Revenue</h2>
                   <div className="mt-1">
                     <StatTile
@@ -134,12 +134,12 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
                       value={money(totals.revenue)}
                       change={revenueChange ?? undefined}
                       changeNote={changeNote}
-                      reserveChange
+                      changeBeside
                       cardFigure
                     />
                   </div>
                 </div>
-                <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-2.5">
+                <div className="flex min-w-0 flex-col px-3.5 py-2.5">
                   <h2 className="text-sm font-medium">Expenses</h2>
                   <div className="mt-1">
                     {/* Cash view (2026-10-16): a top-up is money out on the day it is paid. */}
@@ -149,7 +149,7 @@ export function DashboardWorkspace({ data }: { data: DashboardOverview }) {
                       change={expensesChange ?? undefined}
                       changeNote={changeNote}
                       upIsGood={false}
-                      reserveChange
+                      changeBeside
                       cardFigure
                     />
                     <p className="mt-1 truncate text-[0.6rem] text-muted-foreground">

@@ -4,21 +4,34 @@ import { Paperclip } from "lucide-react";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { ClientTransaction } from "@/lib/clients/sample";
 import { fileSize } from "@/lib/clients/proofUpload";
 
 const ICON_BUTTON =
   "inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
 
+/** A proof file as a row knows it: its id, name and size (not its bytes). */
+export type ProofFile = { id: number; name: string; size: number };
+
 /**
- * "See proof" on a payment's row (2026-10-28). One file opens in a new tab (a
- * picture or a PDF is shown, anything else downloads); several open a short list
- * to pick from. A payment from before proofs keeps the place, greyed, so the row's
- * icons stay lined up.
+ * "See proof" on a payment's row (2026-10-28): the client's Transactions and the
+ * Ledger. One file opens in a new tab (a picture or a PDF is shown, anything else
+ * downloads); several open a short list to pick from. A payment from before proofs
+ * keeps the place, greyed, so the row's icons stay lined up.
  */
-export function ProofAction({ clientId, payment, dateLabel }: { clientId: number; payment: ClientTransaction; dateLabel: string }) {
-  const proofs = payment.proofs ?? [];
-  const href = (proofId: number) => `/clients/${clientId}/payments/${payment.id}/proofs/${proofId}`;
+
+export function ProofAction({
+  clientId,
+  paymentId,
+  proofs,
+  dateLabel,
+}: {
+  clientId: number;
+  paymentId: number | string;
+  proofs: readonly ProofFile[];
+  /** "28 Oct 2026", or "Jane Doe, 28 Oct 2026": read after "the proof of". */
+  dateLabel: string;
+}) {
+  const href = (proofId: number) => `/clients/${clientId}/payments/${paymentId}/proofs/${proofId}`;
 
   if (proofs.length === 0) {
     return (

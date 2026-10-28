@@ -17,23 +17,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function LedgerLoading() {
   return (
     <PageSkeleton
-      eyebrow="Workspace"
+      eyebrow="Management"
       title="Ledger"
       description="Every payment received: who paid, for what, to which account, and what it left."
     >
       <TableSkeleton
         rows={4}
-        minWidth={980}
+        minWidth={1004}
         toolbarClassName="flex-row flex-wrap items-center xl:flex-nowrap"
         toolbar={
           // One row, as ledgerTable.tsx: period; then search, the filter button and Export on the right.
           <>
             {/* This month: the page's default period. */}
             <RangePills active="month" />
-            {/* On the right: search, the filter button (money, account, brand), Export. */}
+            {/* On the right: search, Export, then the filter button (money, account, brand). */}
             <SearchSkeleton className="ml-auto min-w-40 flex-1 xl:max-w-64" />
-            <ButtonSkeleton className="w-7 shrink-0" />
             <ButtonSkeleton className="w-24 shrink-0" />
+            <ButtonSkeleton className="w-7 shrink-0" />
           </>
         }
         columns={[
@@ -46,7 +46,7 @@ export default function LedgerLoading() {
           { label: "Amount", className: "w-24 text-right" },
           { label: "Perks", className: "w-24 text-right" },
           { label: "Net", className: "w-24 text-right" },
-          { label: "", className: "w-12 text-right", cell: "action" },
+          { label: "", className: "w-[4.5rem] text-right", cell: "action" },
         ]}
         beforeFooter={
           <section className="mx-4 mb-3 flex shrink-0 flex-col gap-3 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-end sm:justify-between">
