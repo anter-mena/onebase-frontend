@@ -77,14 +77,14 @@ export function ActionLockProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Above everything, open windows included; its pill in the very centre of the screen, shown only if the save takes a moment. */
+/** Above everything, open windows included; its pill centred at the bottom of the screen, shown only if the save takes a moment. */
 function LockLayer({ label }: { label: string }) {
   return (
     <div className="action-lock fixed inset-0 z-[1000] cursor-wait" aria-busy="true">
       <div
         role="status"
         aria-live="polite"
-        className="action-lock-pill absolute top-1/2 left-1/2 flex items-center gap-2 rounded-full border bg-popover px-3.5 py-2 text-xs font-medium text-popover-foreground shadow-lg"
+        className="action-lock-pill absolute bottom-6 left-1/2 flex items-center gap-2 rounded-full border bg-popover px-3.5 py-2 text-xs font-medium text-popover-foreground shadow-lg"
       >
         <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
         {label}
